@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 340px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 15px; margin: 0; background-color: #f8f9fa; color: #333; }
+    h3 { color: #2c3e50; margin-top: 0; font-size: 16px; border-bottom: 2px solid #e9ecef; padding-bottom: 8px; }
+    button { width: 100%; padding: 12px; background-color: #4361ee; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 6px; font-size: 14px; transition: background 0.2s; }
+    button:hover { background-color: #3f37c9; }
+    #result { margin-top: 15px; max-height: 380px; overflow-y: auto; padding-right: 5px; }
+    
+    /* Kart ve Badge Tasarımları */
+    .badge { padding: 5px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; color: white; display: inline-block; margin-bottom: 10px; }
+    .danger { background-color: #e63946; }
+    .safe { background-color: #2a9d8f; }
+    .card { background: white; border-radius: 8px; padding: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 10px; border-left: 4px solid #ccdf; }
+    .card.linguistic { border-left-color: #4cc9f0; }
+    .card.psychological { border-left-color: #f72585; }
+    .card.behavioral { border-left-color: #f8961e; }
+    .card.perceptual { border-left-color: #7209b7; }
+    .card.social { border-left-color: #4361ee; }
+    
+    /* İlerleme Çubuğu (Progress Bar) */
+    .progress-container { margin-top: 8px; background-color: #e9ecef; border-radius: 4px; height: 8px; width: 100%; overflow: hidden; }
+    .progress-bar { height: 100%; background-color: #4361ee; width: 0%; transition: width 0.5s ease-in-out; }
+    .score-text { font-size: 11px; color: #6c757d; float: right; margin-top: -18px; }
+    
+    hr { border: 0; height: 1px; background: #e9ecef; margin: 15px 0; }
+    p { font-size: 13px; line-height: 1.4; margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h3>ManipuLens - Yapay Zeka Analizi</h3>
+  <button id="analyze-btn">Seçili Metni Analiz Et</button>
+  <div id="result">Sayfadan bir metin seçin ve ajanları tetikleyin.</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

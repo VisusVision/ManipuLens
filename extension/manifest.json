@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ManipuLens - Manipülasyon Dedektörü",
+  "version": "1.0",
+  "description": "Yapay zeka ajanları ile metinlerdeki manipülasyonları tespit eder.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
