@@ -76,3 +76,147 @@ Kavramsal olarak, her değerlendirme bir mahkeme salonu gibi ele alınır:
 
 Sistem, maksimum yerel gizlilik (privacy-first) ve sıfır gecikme hedeflenerek iki ana parçadan kurulmuştur:
 
+\[Tarayıcı Eklentisi (UI/UX)] ──▶ \[Rust Async Backend (Axum/Tokio)] ──▶ \[Yerel LLM (Ollama)]
+
+
+
+\* \*\*Rust Sunucusu (`axum` \& `tokio`):\*\* Python'daki GIL (Global Interpreter Lock) bariyerini aşarak 5 uzman ajanın analiz isteklerini yerel LLM'e \*\*gerçek zamanlı paralel\*\* olarak fırlatır. Sıfır maliyetli soyutlama ile minimum RAM tüketir.
+
+\* \*\*Tarayıcı Eklentisi (Manifest V3):\*\* Kullanıcının seçtiği metni yakalar, backend sonuçlarını dinamik ilerleme çubukları (Progress Bar) ile görselleştirir marketinden bağımsız ve manipülatif cümleleri \*\*web sayfasında doğrudan fosforlu kalemle boyayarak (Highlighting)\*\* kanıt izlerini gösterir.
+
+
+
+\---
+
+
+
+\## 📦 Kurulum ve Lokalde Çalıştırma
+
+
+
+Ortak depodaki arkadaşlarınızın sistemi kendi laptoplarında çalıştırabilmesi için aşağıdaki adımları takip etmesi yeterlidir:
+
+
+
+\### 1. Yerel LLM Yapılandırması (Ollama)
+
+Sistem verilerinizin dışarı sızmaması için yerel modellerle çalışır.
+
+\* \[Ollama](https://ollama.com) uygulamasını indirin ve başlatın.
+
+\* Terminalden denetim modelini çekin:
+
+&#x20;   ```bash
+
+&#x20;   ollama run llama3
+
+&#x20;   ```
+
+
+
+\### 2. Backend Servisini Başlatma (Rust)
+
+\* Projenin kök dizinine gelin ve yüksek performanslı yerel sunucuyu çalıştırın:
+
+&#x20;   ```bash
+
+&#x20;   cargo run
+
+&#x20;   ```
+
+\* Servis `127.0.0.1:3000` adresinde eklentiden gelecek analiz isteklerini dinlemeye başlayacaktır.
+
+
+
+\### 3. Tarayıcı Eklentisini Aktif Etme
+
+\* Chrome veya tabanlı tarayıcınızdan `chrome://extensions/` sayfasına gidin.
+
+\* \*\*Geliştirici Modu\*\*'nu (Developer Mode) açın.
+
+\* \*\*Paketlenmemiş öğe yükle\*\* (Load unpacked) diyerek projenin içindeki `extension` klasörünü seçip yükleyin.
+
+
+
+\---
+
+
+
+\## 🇪🇺 Düzenleyici Bağlam (Regulatory Context)
+
+
+
+ManipuLens, \*\*AB Yapay Zeka Yasası (EU AI Act)\*\* göz önünde bulundurularak tasarlanmıştır:
+
+\* \*\*Madde 5(1)(a):\*\* Önemli zarara neden olan bilinçaltı veya manipülatif teknikler kullanan yapay zeka sistemlerini yasaklar. ManipuLens, bu madde kapsamındaki teknik ihlalleri denetlemek adına nesnel kanıtlar üretir.
+
+\* \*Yasal Uyarı:\* ManipuLens yasal bir uyumluluk sertifikası vermez; teknik kanıt izleri üretir. Yasal yorumlama kullanıcının sorumluluğundadır.
+
+
+
+\---
+
+
+
+\## 📝 Alıntı (Citation)
+
+
+
+Bu projeyi akademik veya düzenleyici çalışmalarda kullanıyorsanız lütfen dökümantasyonunuza ekleyin:
+
+
+
+```bibtex
+
+@software{vural2026manipulens,
+
+&#x20; author  = {Vural, Ulas},
+
+&#x20; title   = {{ManipuLens}: A Multi-Agent Audit Pipeline for {LLM} Manipulation Detection},
+
+&#x20; year    = {2026},
+
+&#x20; url     = {\[https://github.com/uvural/manipulens](https://github.com/uvural/manipulens)},
+
+&#x20; license = {Apache-2.0}
+
+}
+
+
+
+
+
+Teşekkürler
+
+ManipuLens, Dr. Ulaş Vural liderliğinde yürütülen çoklu ajan (multi-agent) araştırma vizyonunun bir parçası olarak geliştirilmiştir. Akademik ve teknik yönlendirmelerinden ötürü hocamıza teşekkür ederiz.
+
+
+
+
+
+\---
+
+
+
+\## Adım 2: Projenin Kök Dizinindeki `LICENSE` Dosyası
+
+
+
+Ulaş Hocanın akademik dökümanında lisans türü Apache 2.0 olarak belirtilmiş. Projenin kurumsal ve akademik gücünü korumak için kök dizinde (`Cargo.toml` dosyasının yanında) uzantısız, düz bir metin dosyası açıp adını `LICENSE` koy ve içine şu standart metni yapıştır:
+
+
+
+```text
+
+Apache License
+
+Version 2.0, January 2004
+
+http://www.apache.org/licenses/
+
+
+
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+(This project is licensed under the Apache License, Version 2.0)
+
