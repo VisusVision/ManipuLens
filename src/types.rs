@@ -20,4 +20,5 @@ pub struct FinalReport {
     pub dominant_manipulation: String,
     pub genel_sonuc: String, // Yönetici ajanın Türkçe özeti
     pub detailed_analyses: Vec<AgentAnalysis>,
+    pub predicted_product: Option<String>,
 }
