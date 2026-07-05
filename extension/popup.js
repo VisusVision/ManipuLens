@@ -99,23 +99,20 @@ function getProgressBarColor(type) {
 }
 
 // --- SAYFA ÜZERİNDE RENKLENDİRME YAPAN ENJEKSİYON FONKSİYONU ---
-function highlightSentencesOnPage(sentences) {
+function highlightSentencesOnPage(sentences, highlightColor) {
   sentences.forEach(sentence => {
     if (!sentence || sentence.trim().length < 5) return;
     
-    // Sayfa dökümanında (DOM) eşleşen metinleri bulup etrafını sarmak için regex kullanıyoruz
     const bodyText = document.body.innerHTML;
-    
-    // Özel karakterleri kaçırıyoruz (escape)
     const escapedSentence = sentence.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    
-    // Eğer cümle zaten renklendirilmemişse etrafını <mark> ile sar
     const regex = new RegExp(`(?<!<mark[^>]*>)${escapedSentence}`, 'g');
     
     if (bodyText.includes(sentence)) {
+      // Sabit #ffeb3b (sarı) yerine gelen dinamik rengi arka plana gömüyoruz. 
+      // Yazının okunabilir olması için color değerini beyaz (#fff) yapıyoruz.
       document.body.innerHTML = document.body.innerHTML.replace(
         regex, 
-        `<mark style="background-color: #ffeb3b; color: black; padding: 2px; border-radius: 4px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Manipülasyon Şüphesi!">${sentence}</mark>`
+        `<mark style="background-color: ${highlightColor}; color: white; padding: 2px; border-radius: 4px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Manipülasyon Şüphesi!">${sentence}</mark>`
       );
     }
   });
