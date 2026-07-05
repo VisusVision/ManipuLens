@@ -31,6 +31,14 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
         let html = `<span class="badge danger">Manipülasyon Tespit Edildi!</span>`;
         html += `<p><strong>Baskın Yöntem:</strong> ${data.dominant_manipulation}</p>`;
         html += `<p><strong>Özet:</strong> ${data.genel_sonuc}</p><hr>`;
+        if (data.predicted_product) {
+        html += `
+          <div class="intent-box">
+            🎯 <strong>Tüketici Eğilim Tahmini:</strong>
+            <p style="margin: 4px 0 0 0; font-style: italic;">"${data.predicted_product}"</p>
+          </div>
+        `;
+    }
         html += `<h4>Ajan Analiz Grafikleri:</h4>`;
         
         let allTargetSentences = [];
