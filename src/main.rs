@@ -26,7 +26,7 @@ async fn main() {
         .route("/v1/analyze", post(handle_analyze))
         .layer(cors);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Manipülasyon Tespit Backend Servisi {} adresinde çalışıyor...", addr);
     
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
