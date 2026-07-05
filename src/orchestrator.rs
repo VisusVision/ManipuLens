@@ -59,6 +59,7 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
                 dominant_manipulation: manager_out.dominant_manipulation,
                 genel_sonuc: manager_out.genel_sonuc,
                 detailed_analyses,
+                predicted_product,
             });
         }
     }
