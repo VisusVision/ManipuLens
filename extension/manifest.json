@@ -5,8 +5,8 @@
   "description": "Yapay zeka ajanları ile metinlerdeki manipülasyonları tespit eder.",
   "permissions": [
     "activeTab",
-    "scripting"
-    "contextMenus"
+    "scripting",
+    "contextMenus",
     "storage"
   ],
   "background": {
