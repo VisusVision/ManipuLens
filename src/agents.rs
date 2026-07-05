@@ -57,12 +57,23 @@ pub async fn analyze_social(text: &str) -> Result<AgentAnalysis, String> {
 }
 
 pub async fn analyze_consumer_intent(dominant_type: &str, summary: &str) -> Result<String, String> {
-    let prompt = "Sen bir Tüketici Davranışları ve Finansal Psikoloji uzmanısın. \
+    let prompt = "Sen bir Tüketici Davranışları, Finansal Psikoloji ve Nöromarketing uzmanısın. \
                   Sana verilen manipülasyon türü ve özet analize bakarak, bu manipülasyona maruz kalan \
-                  bir hedef kitlenin/kişinin psikolojik zaafiyetinden faydalanarak hangi spesifik ürün veya \
-                  hizmeti satın almaya yönlendirilebileceğini tahmin et. \
-                  Cevabını KESİNLİKLE TÜRKÇE ver. Yanıtın son derece kısa, net ve tek bir cümle olmalı. \
-                  Format KESİNLİKLE şu JSON şemasında olmalı: {\"intent_prediction\": \"Kişi X ürününü/hizmetini almak isteyebilir.\"}";
+                  bir kişinin/hedef kitlenin psikolojik zaafiyetinden (korku, aciliyet, statü arzusu, aidiyet vb.) \
+                  faydalanarak HANGİ SPESİFİK ÜRÜN VEYA HİZMETİ satın almaya yönlendirilebileceğini tahmin et. \
+                  \
+                  Kural 1: KESİNLİKLE 'X ürünü', 'X hizmeti', 'belirli ürünler' gibi şablon ve belirsiz ifadeler KULLANMA. \
+                  Kural 2: Doğrudan somut ve gerçekçi ürün/hizmet kategorileri (örneğin: VPN servisi, premium abonelik, lüks saat, ek gıda takviyesi vb.) öner. \
+                  Kural 3: Cevabını KESİNLİKLE TÜRKÇE ver. Yanıtın son derece kısa, net ve tek bir cümle olmalı. \
+                  \
+                  ÖRNEKLER:\
+                  Girdi -> Baskın: Psikolojik | Özet: Siber saldırı tehdidi vurgulanarak kullanıcıda korku yaratılıyor.\
+                  Çıktı -> {\"intent_prediction\": \"Kişi bir antivirüs yazılımı, güvenli donanım cüzdanı veya VPN servisi satın almak isteyebilir.\"}\
+                  \
+                  Girdi -> Baskın: Davranışsal | Özet: Sınırlı stok ve zaman baskısı yapılarak acele karar verilmesi isteniyor.\
+                  Çıktı -> {\"intent_prediction\": \"Kişi aciliyet hissiyle indirimdeki kıyafeti, e-ticaret sepetindeki ürünü veya uçak biletini satın almak isteyebilir.\"}\
+                  \
+                  Format KESİNLİKLE şu JSON şemasında olmalı: {\"intent_prediction\": \"Kişi [somut ürün/hizmet] satın almak isteyebilir.\"}";
 
     let user_input = format!("Baskın Manipülasyon: {}\nAnaliz Özeti: {}", dominant_type, summary);
 
