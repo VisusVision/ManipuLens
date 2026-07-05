@@ -1,4 +1,4 @@
-use crate::types::{FinalReport};
+use crate::types::FinalReport;
 use crate::agents::*;
 use serde_json::json;
 
@@ -19,7 +19,6 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
     if let Ok(a) = r5 { detailed_analyses.push(a); }
 
     let client = reqwest::Client::new();
-    // Yönetici promptunu Türkçe ve net olacak şekilde güncelledik
     let manager_prompt = "Sen baş analizörsün. Sana gelen uzman raporlarını sentezle. Cevabını KESİNLİKLE TÜRKÇE ver. 'genel_sonuc' kısmını karmaşık terimlerden uzak, son kullanıcının rahatça anlayacağı maksimum 2 cümlelik bir özet halinde yaz. Çıktı formatı kesinlikle şu şemada olmalı: {\"is_manipulated\": true/false, \"dominant_manipulation\": \"En baskın tür adı\", \"genel_sonuc\": \"Sade Türkçe genel özet.\"}";
     
     let user_payload = json!({
@@ -54,12 +53,23 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
             
             let manager_out: ManagerOutput = serde_json::from_str(response_str).map_err(|e| e.to_string())?;
             
+            // --- DÜZELTME: Değişkeni burada tanımlıyoruz ---
+            let mut predicted_product = None;
+            
+            // Eğer manipülasyon varsa tüketici eğilim ajanını çalıştırıyoruz
+            if manager_out.is_manipulated {
+                if let Ok(intent_text) = analyze_consumer_intent(&manager_out.dominant_manipulation, &manager_out.genel_sonuc).await {
+                    predicted_product = Some(intent_text);
+                }
+            }
+            // ----------------------------------------------
+            
             return Ok(FinalReport {
                 is_manipulated: manager_out.is_manipulated,
                 dominant_manipulation: manager_out.dominant_manipulation,
                 genel_sonuc: manager_out.genel_sonuc,
                 detailed_analyses,
-                predicted_product,
+                predicted_product, // Derleyici artık burayı başarıyla eşleştirecek
             });
         }
     }
