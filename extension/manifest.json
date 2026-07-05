@@ -6,7 +6,11 @@
   "permissions": [
     "activeTab",
     "scripting"
+    "contextMenus"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html"
   }
