@@ -69,10 +69,11 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
 
         // Sayfa üzerinde renklendirme fonksiyonunu tetikle
         if (allTargetSentences.length > 0) {
+          const dominantColor = getProgressBarColor(data.dominant_manipulation);
           chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: highlightSentencesOnPage,
-            args: [allTargetSentences]
+            args: [allTargetSentences, dominantColor]
           });
         }
 
