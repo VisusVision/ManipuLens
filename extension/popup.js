@@ -17,7 +17,7 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
     const selectedText = selection[0].result;
 
     try {
-      const response = await fetch('http://127.0.0.1:3000/v1/analyze', {
+      const response = await fetch('http://localhost:3000/v1/analyze', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: selectedText })

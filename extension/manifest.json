@@ -3,6 +3,9 @@
   "name": "ManipuLens - Manipülasyon Dedektörü",
   "version": "1.0",
   "description": "Yapay zeka ajanları ile metinlerdeki manipülasyonları tespit eder.",
+  "host_permissions": [
+  "http://localhost:3000/*"
+  ],
   "permissions": [
     "activeTab",
     "scripting"
