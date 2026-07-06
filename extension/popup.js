@@ -36,13 +36,14 @@ async function startDirectAnalysis(selectedText) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   try {
-    const response = await fetch('http://localhost:3000/v1/analyze', { 
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: selectedText })
-    });
-
-    if (!response.ok) throw new Error("Sunucu hatası");
+    const response = await fetch('https://yoga-trough-upbeat.ngrok-free.dev/v1/analyze', {
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true'
+    }, // <--- İŞTE BU VİRGÜL EKSİK KALMIŞ
+    body: JSON.stringify({ text: selectedText })
+});    if (!response.ok) throw new Error("Sunucu hatası");
 
     const data = await response.json();
     

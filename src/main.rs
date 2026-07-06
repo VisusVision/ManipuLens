@@ -17,15 +17,11 @@ async fn handle_analyze(Json(payload): Json<AnalyzeRequest>) -> Result<Json<Fina
 #[tokio::main]
 async fn main() {
     // Eklentiden (chrome-extension://) gelecek istekleri kabul etmek için CORS ayarı
-    let cors = CorsLayer::new()
-    .allow_origin(Any)
-    .allow_methods([axum::http::Method::POST, axum::http::Method::GET, axum::http::Method::OPTIONS])
-    .allow_headers([axum::http::HeaderName::from_static("content-type")]);
-
+    let cors = tower_http::cors::CorsLayer::permissive();
+    
     let app = Router::new()
         .route("/v1/analyze", post(handle_analyze))
         .layer(cors);
-
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Manipülasyon Tespit Backend Servisi {} adresinde çalışıyor...", addr);
     
