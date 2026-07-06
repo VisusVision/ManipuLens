@@ -10,7 +10,10 @@ use std::net::SocketAddr;
 async fn handle_analyze(Json(payload): Json<AnalyzeRequest>) -> Result<Json<FinalReport>, (axum::http::StatusCode, String)> {
     match orchestrator::run_orchestrator(&payload.text).await {
         Ok(report) => Ok(Json(report)),
-        Err(err) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, err)),
+        Err(err) => {
+            println!("🚨 ORKESTRATÖR HATASI: {}", err); // Hatayı terminalde görmek için bunu ekle
+            Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, err))
+        }
     }
 }
 

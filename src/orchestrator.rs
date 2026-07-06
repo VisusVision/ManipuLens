@@ -20,8 +20,7 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
     if let Ok(a) = r4 { detailed_analyses.push(a); }
     if let Ok(a) = r5 { detailed_analyses.push(a); }
 
-
-  let mut predicted_product_str = None;
+    let mut predicted_product_str = None;
     if let Ok(a) = r6 {
         if a.detected {
             predicted_product_str = Some(a.aciklama.clone());
@@ -46,11 +45,19 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
         "format": "json"
     });
 
-    let response = client.post("http://localhost:11434/api/generate")
+    // --- DÜZENLENEN KISIM BAŞLANGICI ---
+    // Çevre değişkeninden OLLAMA_BASE_URL'i okuyoruz, eğer Docker dışında düz çalıştırırsan localhost'a dönüyor.
+    let ollama_base = std::env::var("OLLAMA_BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    
+    let url = format!("{}/api/generate", ollama_base);
+
+    let response = client.post(&url)
         .json(&payload)
         .send()
         .await
         .map_err(|e| e.to_string())?;
+    // --- DÜZENLENEN KISIM BİTİŞİ ---
 
     if response.status().is_success() {
         let res_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;

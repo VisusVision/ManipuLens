@@ -3,7 +3,14 @@ use serde_json::json;
 
 async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<AgentAnalysis, String> {
     let client = reqwest::Client::new();
-    let url = "http://localhost:11434/api/generate";
+    
+    // --- DÜZENLENEN KISIM BAŞLANGICI ---
+    // Çevre değişkeninden OLLAMA_BASE_URL'i okuyoruz. Docker içinde host.docker.internal'a bağlanacak.
+    let ollama_base = std::env::var("OLLAMA_BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    
+    let url = format!("{}/api/generate", ollama_base);
+    // --- DÜZENLENEN KISIM BİTİŞİ ---
 
     let payload = json!({
         "model": "llama3", 
@@ -13,7 +20,7 @@ async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<Agent
         "format": "json"
     });
 
-    let response = client.post(url)
+    let response = client.post(&url) // Burayı da dinamik url referansına çevirdik
         .json(&payload)
         .send()
         .await
@@ -58,7 +65,7 @@ pub async fn analyze_social(text: &str) -> Result<AgentAnalysis, String> {
 
 pub async fn analyze_marketing(text: &str) -> Result<AgentAnalysis, String> {
     let prompt = "Sen Ticari Yönlendirme ve Tüketici Manipülasyonu Analiz uzmanısın. \
-    Metni, kullanıcının bilinçaltında hangi ürünü, hizmeti veya sektörü satın almaya zorlandığı/yönlendirildiği açısından incele. \
+    Metni, kullanıcının bilinçaltında hangi ürünü, hizmeti veya sektörü satın almaya zorlandığı/yennlendirildiği açısından incele. \
     Cevabını KESİNLİKLE TÜRKÇE ver. 'aciklama' kısmına KESİNLİKLE sadece şu kalıba uygun bir cümle yaz: 'Kişi [X ürününü/hizmetini] satın almaya veya yönelmeye meyilli olabilir.' \
     ([X ürününü/hizmetini] kısmını metinden yola çıkarak akıllıca tahmin et, örn: 'anti-aging kremini', 'siber güvenlik yazılımını', 'kripto para paketini'). \
     Çıktı formatı kesinlikle şu JSON şemasında olmalı: \
