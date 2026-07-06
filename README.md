@@ -1,47 +1,165 @@
-# ManipuLens: Çoklu Ajan Tabanlı LLM Manipülasyon Denetim Hattı (Audit Pipeline) 🕵️‍♂️⚖️
+# ManipuLens
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/backend-Rust-orange.svg)](src/)
-[![Ollama](https://img.shields.io/badge/LLM-Ollama-lightgrey.svg)](https://ollama.com)
-
-### "Büyük Dil Modelleri bizi manipüle ediyor mu?"
-
-Günümüzde yapay zeka asistanları, belirli bir tercihe veya karara yönlendirmek için kanıtları seçici bir şekilde sunma (karanlık kalıplar) eğilimi gösterebilmektedir. Bu manipülatif kalıplar nadiren MMLU, HumanEval veya GSM8K gibi standart kıyaslama (benchmark) testlerinde ortaya çıkar. Ancak kullanıcı zarar raporlarında, düzenleyici incelemelerde (**AB Yapay Zeka Yasası Madde 5**, FTC karanlık kalıp kılavuzu) ve toplu dava şikayetlerinde kendilerini gösterirler.
-
-**ManipuLens**, bu kritik açığı kapatmak için tasarlanmış, çoklu ajanlı (multi-agent) bir değerlendirme ve denetim çerçevesidir. Web üzerinde okuduğunuz veya seçtiğiniz herhangi bir metni asenkron uzman ajanların filtresinden geçirerek yapılandırılmış kanıt izleri üretir.
-
----
-
-## ⚖️ Çalışma Mantığı ve Mahkeme Salonu Metaforu
-
-Kavramsal olarak, her değerlendirme bir mahkeme salonu gibi ele alınır:
-
-* **Savcılık (İnceleme Hattı):** Web sayfasından seçilen veya sorgulanan hedef metin, potansiyel manipülasyon iddialarını toplar.
-* **Jüri (Critic Agent Ensemble):** 5 farklı manipülasyon kategorisine göre ayarlanmış uzman eleştirmen ajanlar metni bağımsız ve asenkron olarak değerlendirir.
-* **Hakim & Karar (Orchestrator/Aggregator):** Hakemler arası uyum ölçütlerini ve sentez yeteneğini kullanarak hiçbir ajanın karara tek başına hükmetmesini engeller; nihai, adil ve makine tarafından okunabilir (**JSON**) bir denetim raporu üretir.
+<p align="center">
+  <a href="https://github.com/fastapi/fastapi" target="_blank">
+    <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
+  </a>
+  <a href="#" target="_blank">
+    <img src="https://img.shields.io/badge/Chrome_Extension-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Chrome Extension">
+  </a>
+  <a href="#" target="_blank">
+    <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  </a>
+  <a href="#" target="_blank">
+    <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
+  </a>
+</p>
 
 ---
 
-## 🤖 Manipülasyon Boyutları (Uzman Ajanlar)
-
-| Ajan Kategorisi | Odak Noktası ve İncelediği Taktikler |
-| :--- | :--- |
-| **Dilsel (Linguistic) Ajanı** | Sözcük seçimi, belirsizlik, ikna edici ifadeler ve dil kalıpları yoluyla çerçeveleme hileleri. |
-| **Psikolojik (Psychological) Ajanı** | Duygusal yönlendirme, gaslighting, suçluluk duygusu uyandırma ve korku pompalama (Fearmongering). |
-| **Davranışsal (Behavioral) Ajanı** | Karar alma sürecini fevri şekilde hızlandırmayı (FOMO) veya kullanıcı eylemlerini kısıtlamayı amaçlayan yönlendirmeler. |
-| **Algısal (Perceptual) Ajanı** | Gerçekleri seçici sunma (Cherry-picking) ve bilgiyi önyargılı yorumlatma girişimleri. |
-| **Sosyal (Social) Ajanı** | Mahalle baskısı, sahte otorite ipuçları, fikir birliği iddiaları ve sürü psikolojisi mekanizmaları. |
+<p align="center">
+  🌐 <b>Languages:</b> 
+  <b>English</b> | <a href="README.tr.md">Türkçe</a>
+</p>
 
 ---
 
-## 🛠️ Sistem Mimarisi ve Teknolojik Altyapı
+**ManipuLens** is an advanced, privacy-first browser extension backed by a high-performance **Rust** backend and a **Multi-Agent Large Language Model (LLM)** orchestrator. It seamlessly analyzes web text right from your context menu to detect, dissect, and expose statistical, linguistic, cognitive, and behavioral manipulations in real-time.
 
-Sistem, maksimum yerel gizlilik (privacy-first) ve sıfır gecikme hedeflenerek iki ana parçadan kurulmuştur:
+### Key Focus Areas:
+* 🕵️ **Multi-Agent Verdicts:** Specialised sub-agents (Linguistic, Psychological, Behavioral, Perceptual, Social) dissecting texts concurrently.
+* 🛡️ **Privacy-First (Local AI):** Runs entirely on your machine using local LLMs via Ollama—your data never leaves your local network.
+* 🚀 **Blazing Fast Performance:** Powered by Rust (Axum/Tokio) for near-instant orchestration and evaluation.
 
-```text
-[Tarayıcı Eklentisi (UI/UX)] ──▶ [Rust Async Backend (Axum/Tokio)] ──▶ [Yerel LLM (Ollama)]
+## 🚀 Key Features
+
+* **⚡ High-Performance Rust Orchestrator:** Uses Axum and Tokio asynchronously to trigger and join specialized sub-agent analysis paths in parallel, ensuring sub-second backend response times.
+* **🧠 Brain-Chained Multi-Agent Architecture:** Features 5 specialized domain experts overseen by a Sentezör (Manager) Agent, and an advanced *Consumer Intent Agent* to predict cognitive vulnerabilities.
+* **🖱️ Context Menu Integration (Seamless UX):** No manual copy-pasting required. Highlight any text on any webpage, right-click, and select "Analyze with ManipuLens" to automatically trigger the flow.
+* **🎨 Dynamic Highlight Enjection:** Instead of generic overlays, the extension dynamically changes the DOM `<mark>` style matching the exact color profile of the **dominant manipulation type** found (e.g., Psychological = Magenta, Social = Blue).
+* **🐳 Production-Ready Devops:** Built using Docker Multi-Stage builds with static Linux compilation (`x86_64-unknown-linux-musl`) running on ultra-lightweight Alpine containers.
+
+---
+
+## 🎭 The Expert Agent Squad
+
+ManipuLens relies on a structured hierarchy of local generative agents to parse, dissect, and visualize the semantic integrity of the content:
+
+| Agent Profile | Focus Area | Dynamic UI Color |
+| :--- | :--- | :--- |
+| **Linguistic (Dilsel)** | Wordplay, fallacies, equivocation, and semantic distortions. | `#4cc9f0` (Light Blue) |
+| **Psychological (Psikolojik)** | Gaslighting, guilt-tripping, and fear-mongering (Culture of Fear). | `#f72585` (Magenta) |
+| **Behavioral (Davranışsal)** | Creating artificial urgency, FOMO, and impulsive action traps. | `#f8961e` (Orange) |
+| **Perceptual (Algısal)** | Cherry-picking facts, biased framing, and selective presentation. | `#7209b7` (Purple) |
+| **Social (Sosyal)** | Peer pressure, herd mentality, polarization, and tribal biases. | `#4361ee` (Dark Blue) |
+
+---
+
+## 🔄 UI/UX Workflow
+
+1. **Selection & Trigger:** The user selects a text snippet on a webpage. Right-clicking creates a secure transaction via `background.js` using `chrome.storage.local`.
+2. **Asynchronous Handshake:** The extension popup auto-opens, instantly locking the UI interaction (`button.disabled = true`) to prevent race conditions.
+3. **Rust Multi-Thread Sifting:** The payload hits `http://127.0.0.1:3000/v1/analyze`, sparking the multi-agent consensus network.
+4. **Visual Synthesis:** The extension injects contextually colored markers back into the target web page's active DOM and displays a customized consumer behavior prediction card.
+
+## 🗺️ System Architecture
+
+ManipuLens employs a highly optimized asynchronous processing pipeline designed to handle complex multi-agent analysis without blocking the main event loops:
 
 
+[ Chrome Extension (Frontend) ]
+│
+▼ (Context Menu Event / storage.local)
+[ background.js (Service Worker) ]
+│
+▼ HTTP POST (Payload: { text: "..." })
+┌─────────────────────────────────────────────────────────┐
+│ Rust Backend Orchestrator (Axum + Tokio)                │
+│                                                         │
+│      ┌──► Linguistic Agent (Dilsel Ajan)   ──┐          │
+│      ├──► Psychological Agent (Psikolojik) ──┤          │
+│  🛸  ├──► Behavioral Agent (Davranışsal)   ──┼─► [Sentezör]
+│      ├──► Perceptual Agent (Algısal)       ──┤  (Manager)### The Async Consensus Protocol (Rust Side)
+When a request hits `/v1/analyze`, the Rust backend leverages `tokio::spawn` and `tokio::join!` to parallelize the outbound Ollama API requests. Rather than evaluating agents sequentially, all 5 experts evaluate the text matrix concurrently:
 
-Sistem, maksimum yerel gizlilik (privacy-first) ve sıfır gecikme hedeflenerek iki ana parçadan kurulmuştur:
+1. **Concurrent Evaluation:** The core metrics are collected using highly efficient non-blocking HTTP pooling via `reqwest`.
+2. **Synthesis Strategy:** The **Sentezör Agent (Manager)** acts as a reduction layer, aggregating the active flags, compiling the text `target_sentences`, and picking the absolute `dominant_manipulation`.
+3. **Neuromarketing Analysis:** The pipeline feeds the compiled context into the **Consumer Intent Agent**, translating linguistic exploitation into actionable consumer behavior risk profiles.
+
+---
+
+### 📦 Unified API Payload Schema
+
+The communication contract between the Rust runtime and the Chrome infrastructure utilizes a strictly typed JSON structure defined in `types.rs`:
+
+```json
+{
+  "is_manipulated": true,
+  "dominant_manipulation": "Psikolojik",
+  "genel_sonuc": "Detailed summary explaining the strategic manipulation attempts found in the text matrix...",
+  "predicted_product": "VPN service or high-priced privacy tool endorsement injection.",
+  "detailed_analyses": [
+    {
+      "manipulation_type": "Psikolojik",
+      "detected": true,
+      "confidence_score": 0.85,
+      "aciklama": "Gaslighting and threat vector manipulation observed.",
+      "target_sentences": [
+        "Your data is leaking right now and you don't even care.",
+        "Without this layer, your identity remains completely naked."
+      ]
+    }
+  ]
+}
+│      └──► Social Agent (Sosyal Ajan)       ──┘          │
+│                                                         │
+│                               ▼                         │
+│                  [Consumer Intent Agent]                │
+└─────────────────────────────┬───────────────────────────┘
+│
+▼ JSON Unified Response
+[ Dynamic DOM Injections ]
+
+
+## ⚙️ Requirements
+
+Before launching the production pipeline, ensure you have the following ecosystem components installed:
+
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) (With Compose support active)
+* [Ollama](https://ollama.com/) (Running locally on port `11434`)
+* Google Chrome Browser (Or any Chromium-based browser)
+
+---
+
+## 🚀 Quick Start (Backend Deployment)
+
+Thanks to our optimized multi-stage Docker setup, you can compile the entire Rust matrix and spin up the environment with a single command orchestration.
+
+### 1. Download and Serve the Local Intelligence Model
+Open your system terminal and pull down the `llama3` core weight infrastructure using Ollama:
+```bash
+ollama pull llama3
+
+### 2. Run the Multi-Agent Cluster via Docker Compose
+Navigate to the project root directory (`/manipulation-detector`) and execute the build pattern:
+
+```bash
+docker-compose up --build
+This handles the static musl-compilation within isolation layers and fires up the Axum server bound to 0.0.0.0:3000 with direct bridging to your native Ollama port.
+
+🧩 Chrome Extension Installation (Frontend Setup)
+Since the frontend extension lives directly inside the browser environment, load it manually into your Chromium instance:
+
+Copy the URL chrome://extensions/ and paste it into your Chrome address bar.
+
+Toggle the Developer Mode (Geliştirici Modu) switch located in the upper right-hand corner.
+
+Click the Load Unpacked (Paketlenmemiş öğe yükle) button on the top-left layout.
+
+Select the extension directory inside your local repository folder.
+
+🎉 The ManipuLens icon will appear in your utility bar, fully wired and listening to your right-click triggers!
+
+📄 License
+Distributed under the MIT License. See LICENSE for more information.
 
