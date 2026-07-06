@@ -55,3 +55,14 @@ pub async fn analyze_social(text: &str) -> Result<AgentAnalysis, String> {
     let prompt = "Sen Sosyal Manipülasyon Analiz uzmanısın. Metni mahalle baskısı, sürü psikolojisi ve kutuplaştırma taktikleri açısından incele. Cevabını KESİNLİKLE TÜRKÇE ver. 'aciklama' kısmını son kullanıcıya hitaben, çok net, sade ve en fazla 1-2 cümle olacak şekilde yaz. Çıktı formatı kesinlikle şu JSON şemasında olmalı: {\"manipulation_type\": \"Sosyal\", \"detected\": true/false, \"confidence_score\": 0.0-1.0, \"aciklama\": \"Net Türkçe açıklama buraya.\", \"target_sentences\": [\"tespit edilen cümle\"]}";
     call_ollama_agent(prompt, text).await
 }
+
+pub async fn analyze_marketing(text: &str) -> Result<AgentAnalysis, String> {
+    let prompt = "Sen Ticari Yönlendirme ve Tüketici Manipülasyonu Analiz uzmanısın. \
+    Metni, kullanıcının bilinçaltında hangi ürünü, hizmeti veya sektörü satın almaya zorlandığı/yönlendirildiği açısından incele. \
+    Cevabını KESİNLİKLE TÜRKÇE ver. 'aciklama' kısmına KESİNLİKLE sadece şu kalıba uygun bir cümle yaz: 'Kişi [X ürününü/hizmetini] satın almaya veya yönelmeye meyilli olabilir.' \
+    ([X ürününü/hizmetini] kısmını metinden yola çıkarak akıllıca tahmin et, örn: 'anti-aging kremini', 'siber güvenlik yazılımını', 'kripto para paketini'). \
+    Çıktı formatı kesinlikle şu JSON şemasında olmalı: \
+    {\"manipulation_type\": \"Pazarlama\", \"detected\": true/false, \"confidence_score\": 0.0-1.0, \"aciklama\": \"Kişi X ürününü almak isteyebilir kalıbındaki cümle buraya.\", \"target_sentences\": [\"yönlendirme yapılan cümle\"]}";
+    
+    call_ollama_agent(prompt, text).await
+}

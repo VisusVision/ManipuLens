@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "ManipuLens - Manipülasyon Dedektörü",
+  "name": "ManipuLens",
   "version": "1.0",
-  "description": "Yapay zeka ajanları ile metinlerdeki manipülasyonları tespit eder.",
-  "host_permissions": [
-  "http://localhost:3000/*"
-  ],
   "permissions": [
+    "contextMenus",
+    "scripting",
     "activeTab",
-    "scripting"
+    "storage"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html"
   }

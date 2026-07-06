@@ -3,12 +3,14 @@ use crate::agents::*;
 use serde_json::json;
 
 pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
-    let (r1, r2, r3, r4, r5) = tokio::join!(
+    // 6 ajanı birden paralel olarak tetikliyoruz
+    let (r1, r2, r3, r4, r5, r6) = tokio::join!(
         analyze_linguistic(text),
         analyze_psychological(text),
         analyze_behavioral(text),
         analyze_perceptual(text),
-        analyze_social(text)
+        analyze_social(text),
+        analyze_marketing(text) 
     );
 
     let mut detailed_analyses = Vec::new();
@@ -17,6 +19,15 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
     if let Ok(a) = r3 { detailed_analyses.push(a); }
     if let Ok(a) = r4 { detailed_analyses.push(a); }
     if let Ok(a) = r5 { detailed_analyses.push(a); }
+
+
+  let mut predicted_product_str = None;
+    if let Ok(a) = r6 {
+        if a.detected {
+            predicted_product_str = Some(a.aciklama.clone());
+        }
+        detailed_analyses.push(a); // Genel listeye de ekliyoruz grafik için
+    }
 
     let client = reqwest::Client::new();
     // Yönetici promptunu Türkçe ve net olacak şekilde güncelledik
@@ -58,6 +69,7 @@ pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
                 is_manipulated: manager_out.is_manipulated,
                 dominant_manipulation: manager_out.dominant_manipulation,
                 genel_sonuc: manager_out.genel_sonuc,
+                predicted_product: predicted_product_str,
                 detailed_analyses,
             });
         }
