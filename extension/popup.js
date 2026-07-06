@@ -1,33 +1,3 @@
-// 1. TETİKLEYİCİ: Sağ tık menüsünden bir metin gönderildi mi kontrol et
-document.addEventListener('DOMContentLoaded', () => {
-  chrome.storage.local.get(["actionTriggeredText"], function(result) {
-    if (result.actionTriggeredText) {
-      const targetText = result.actionTriggeredText;
-      // Geçici veriyi temizle
-      chrome.storage.local.remove(["actionTriggeredText"]);
-      // Analiz fonksiyonunu doğrudan çağır
-      startDirectAnalysis(targetText);
-    }
-  });
-});
-
-// 2. TETİKLEYİCİ: Popup içindeki mavi butona basıldığında çalışacak alan
-document.getElementById('analyze-btn').addEventListener('click', async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: () => window.getSelection().toString()
-  }, async (selection) => {
-    if (!selection || !selection[0] || !selection[0].result.trim()) {
-      document.getElementById('result').innerText = "Lütfen önce sayfada analiz etmek istediğiniz bir metni fareyle seçin.";
-      return;
-    }
-    // Seçilen metni al ve analiz fonksiyonuna gönder
-    startDirectAnalysis(selection[0].result);
-  });
-});
-
 // ANA ANALİZ MOTORU: Hem sağ tık hem buton analiz için bu fonksiyonu besler
 async function startDirectAnalysis(selectedText) {
   const resultDiv = document.getElementById('result');
@@ -36,14 +6,23 @@ async function startDirectAnalysis(selectedText) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   try {
-    const response = await fetch('https://yoga-trough-upbeat.ngrok-free.dev/v1/analyze', {
-    method: 'POST',
-    headers: { 
+    // --- BURASI EKLENDİ ---
+    const githubRawUrl = 'https://raw.githubusercontent.com/VisusVision/ManipuLens/feature/remote-backend-sync/extension/server_config.json';
+    const configResponse = await fetch(githubRawUrl);
+    const configData = await configResponse.json();
+    const baseUrl = configData.ngrok_url;
+    // ----------------------
+
+    const response = await fetch(`${baseUrl}/v1/analyze`, {
+      method: 'POST',
+      headers: { 
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true'
-    }, // <--- İŞTE BU VİRGÜL EKSİK KALMIŞ
-    body: JSON.stringify({ text: selectedText })
-});    if (!response.ok) throw new Error("Sunucu hatası");
+      },
+      body: JSON.stringify({ text: selectedText })
+    }); 
+    
+    if (!response.ok) throw new Error("Sunucu hatası");
 
     const data = await response.json();
     
@@ -52,7 +31,6 @@ async function startDirectAnalysis(selectedText) {
       html += `<p><strong>Baskın Yöntem:</strong> ${data.dominant_manipulation}</p>`;
       html += `<p><strong>Özet:</strong> ${data.genel_sonuc}</p>`;
 
-      // Satın Alma Tahmin Kutusu
       if (data.predicted_product) {
         html += `
           <div class="prediction-box">
@@ -87,7 +65,6 @@ async function startDirectAnalysis(selectedText) {
       
       resultDiv.innerHTML = html;
 
-      // Sayfa üzerinde dinamik renklendirme
       if (allTargetSentences.length > 0) {
         const dominantColor = getProgressBarColor(data.dominant_manipulation);
         chrome.scripting.executeScript({
@@ -102,49 +79,7 @@ async function startDirectAnalysis(selectedText) {
     }
 
   } catch (error) {
-    resultDiv.innerText = "Hata oluştu! Rust sunucusunun açık olduğundan emin olun.";
+    resultDiv.innerText = "Hata oluştu! Rust sunucusunun veya ngrok'un açık olduğundan emin olun.";
     console.error(error);
   }
-}
-
-// YARDIMCI FONKSİYONLAR
-function getAgentClass(type) {
-  const map = { 
-    "Dilsel": "linguistic", 
-    "Psikolojik": "psychological", 
-    "Davranışsal": "behavioral", 
-    "Algısal": "perceptual", 
-    "Sosyal": "social",
-    "Pazarlama": "marketing" 
-  };
-  return map[type] || "";
-}
-
-function getProgressBarColor(type) {
-  const map = { 
-    "Dilsel": "#4cc9f0", 
-    "Psikolojik": "#f72585", 
-    "Davranışsal": "#f8961e", 
-    "Algısal": "#7209b7", 
-    "Sosyal": "#4361ee",
-    "Pazarlama": "#2a9d8f" 
-  };
-  return map[type] || "#4361ee";
-}
-
-function highlightSentencesOnPage(sentences, highlightColor) {
-  sentences.forEach(sentence => {
-    if (!sentence || sentence.trim().length < 5) return;
-    
-    const bodyText = document.body.innerHTML;
-    const escapedSentence = sentence.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(`(?<!<mark[^>]*>)${escapedSentence}`, 'g');
-    
-    if (bodyText.includes(sentence)) {
-      document.body.innerHTML = document.body.innerHTML.replace(
-        regex, 
-        `<mark style="background-color: ${highlightColor}; color: white; padding: 2px; border-radius: 4px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Manipülasyon Şüphesi!">${sentence}</mark>`
-      );
-    }
-  });
 }
