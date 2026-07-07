@@ -16,7 +16,7 @@
 
 ---
 
-**ManipuLens** is an advanced, privacy-first browser extension backed by a high-performance **Rust** backend and a **Multi-Agent Large Language Model (LLM)** orchestrator. It seamlessly analyzes web text right from your context menu to detect, dissect, and expose statistical, linguistic, cognitive, and behavioral manipulations in real-time.
+**ManipuLens** is an AI-powered security and analysis tool designed to detect linguistic, psychological, and statistical manipulation techniques that Large Language Models (LLMs) may employ during user interactions. Supported by a **Multi-Agent LLM** orchestration architecture and a high-performance **Rust** backend service, this privacy-focused advanced browser extension monitors AI chat flows in real time and analyzes selected web text via a right-click context menu to instantly detect and expose cognitive, statistical, and behavioral manipulation.
 
 ### Key Focus Areas:
 * 🕵️ **Multi-Agent Verdicts:** Specialised sub-agents (Linguistic, Psychological, Behavioral, Perceptual, Social) dissecting texts concurrently.
