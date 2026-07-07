@@ -1,3 +1,31 @@
+// 1. TETİKLEYİCİ: Sağ tık menüsünden bir metin gönderildi mi kontrol et
+document.addEventListener('DOMContentLoaded', () => {
+  chrome.storage.local.get(["actionTriggeredText"], function(result) {
+    if (result.actionTriggeredText) {
+      const targetText = result.actionTriggeredText;
+      chrome.storage.local.remove(["actionTriggeredText"]);
+      startDirectAnalysis(targetText);
+    }
+  });
+});
+
+// 2. TETİKLEYİCİ: Popup içindeki mavi butona basıldığında çalışacak alan
+document.getElementById('analyze-btn').addEventListener('click', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => window.getSelection().toString()
+  }, async (selection) => {
+    if (!selection || !selection[0] || !selection[0].result.trim()) {
+      document.getElementById('result').innerText = "Lütfen önce sayfada analiz etmek istediğiniz bir metni fareyle seçin.";
+      return;
+    }
+    // Seçilen metni al ve analiz fonksiyonuna gönder
+    startDirectAnalysis(selection[0].result);
+  });
+});
+
 // ANA ANALİZ MOTORU: Hem sağ tık hem buton analiz için bu fonksiyonu besler
 async function startDirectAnalysis(selectedText) {
   const resultDiv = document.getElementById('result');
@@ -6,13 +34,15 @@ async function startDirectAnalysis(selectedText) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   try {
-    // --- BURASI EKLENDİ ---
-    const githubRawUrl = 'https://raw.githubusercontent.com/VisusVision/ManipuLens/feature/remote-backend-sync/extension/server_config.json';
-    const configResponse = await fetch(githubRawUrl);
-    const configData = await configResponse.json();
+    // 1. GitHub'dan güncel linki çekiyoruz
+        // Linkin sonuna anlık saat bilgisini (timestamp) ekleyerek Chrome'u kandırıyoruz.
+// Böylece her seferinde yepyeni bir dosya aradığını sanıp önbelleği atlıyor.
+        const githubRawUrl = `https://raw.githubusercontent.com/VisusVision/ManipuLens/feature/remote-backend-sync/extension/server_config.json?t=${Date.now()}`;
+        const configResponse = await fetch(githubRawUrl, { cache: 'no-store' });
+        const configData = await configResponse.json();
     const baseUrl = configData.ngrok_url;
-    // ----------------------
 
+    // 2. Çektiğimiz link ile kendi sunucumuza bağlanıyoruz
     const response = await fetch(`${baseUrl}/v1/analyze`, {
       method: 'POST',
       headers: { 
@@ -79,7 +109,49 @@ async function startDirectAnalysis(selectedText) {
     }
 
   } catch (error) {
-    resultDiv.innerText = "Hata oluştu! Rust sunucusunun veya ngrok'un açık olduğundan emin olun.";
+    resultDiv.innerText = "Hata oluştu! Rust sunucusunun açık olduğundan emin olun.";
     console.error(error);
   }
+}
+
+// YARDIMCI FONKSİYONLAR
+function getAgentClass(type) {
+  const map = { 
+    "Dilsel": "linguistic", 
+    "Psikolojik": "psychological", 
+    "Davranışsal": "behavioral", 
+    "Algısal": "perceptual", 
+    "Sosyal": "social",
+    "Pazarlama": "marketing" 
+  };
+  return map[type] || "";
+}
+
+function getProgressBarColor(type) {
+  const map = { 
+    "Dilsel": "#4cc9f0", 
+    "Psikolojik": "#f72585", 
+    "Davranışsal": "#f8961e", 
+    "Algısal": "#7209b7", 
+    "Sosyal": "#4361ee",
+    "Pazarlama": "#2a9d8f" 
+  };
+  return map[type] || "#4361ee";
+}
+
+function highlightSentencesOnPage(sentences, highlightColor) {
+  sentences.forEach(sentence => {
+    if (!sentence || sentence.trim().length < 5) return;
+    
+    const bodyText = document.body.innerHTML;
+    const escapedSentence = sentence.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(?<!<mark[^>]*>)${escapedSentence}`, 'g');
+    
+    if (bodyText.includes(sentence)) {
+      document.body.innerHTML = document.body.innerHTML.replace(
+        regex, 
+        `<mark style="background-color: ${highlightColor}; color: white; padding: 2px; border-radius: 4px; font-weight: 500; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" title="Manipülasyon Şüphesi!">${sentence}</mark>`
+      );
+    }
+  });
 }
