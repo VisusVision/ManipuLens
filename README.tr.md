@@ -16,7 +16,7 @@
 
 ---
 
-**ManipuLens**, yüksek performanslı bir **Rust** arka plan servisi ve **Çoklu Ajanlı Büyük Dil Modeli (LLM)** orkestratörü tarafından desteklenen, gizlilik odaklı gelişmiş bir tarayıcı uzantısıdır. Web sayfalarında seçtiğiniz metinleri sağ tık menünüz üzerinden sorunsuz bir şekilde analiz ederek istatistiksel, dilsel, bilişsel ve davranışsal manipülasyonları gerçek zamanlı olarak tespit eder ve ifşa eder.
+**ManipuLens**, büyük dil modellerinin (LLM) kullanıcı etkileşimleri sırasında başvurabileceği dilbilimsel, psikolojik ve istatistiksel manipülasyon tekniklerine karşı geliştirilmiş, yapay zeka tabanlı bir güvenlik duvarıdır. Çoklu Ajanlı (Multi-Agent) LLM orkestrasyon mimarisi ve yüksek performanslı Rust backend servisiyle desteklenen bu gizlilik odaklı gelişmiş tarayıcı uzantısı, hem yapay zeka sohbetlerini hem de web üzerindeki metinleri sağ tık entegrasyonuyla gerçek zamanlı inceleyerek bilişsel ve davranışsal manipülasyonları anında tespit eder ve maskeler.
 
 ### Temel Odak Alanları:
 * 🕵️ **Çoklu Ajan Kararları:** Metin matrisini eşzamanlı olarak inceleyen uzman alt ajanlar (Dilsel, Psikolojik, Davranışsal, Algısal, Sosyal).
