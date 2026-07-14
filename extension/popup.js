@@ -70,15 +70,26 @@ async function startDirectAnalysis(selectedText) {
           allTargetSentences = allTargetSentences.concat(agent.target_sentences);
           const typeClass = getAgentClass(agent.manipulation_type);
           const percentage = (agent.confidence_score * 100).toFixed(0);
+          
+          // Görev Gereksinimi: Güven skorunu sözel ifadeye dönüştür
+          const confidenceLabel = getConfidenceLabel(agent.confidence_score);
 
           html += `
-            <div class="card ${typeClass}">
-              <p><strong>[${agent.manipulation_type} Manipülasyon]</strong></p>
-              <p>${agent.aciklama}</p>
-              <div class="progress-container">
+            <div class="card ${typeClass}" style="margin-bottom: 14px; padding: 12px; display: flex; flex-direction: column;">
+              <p style="margin: 0 0 4px 0;"><strong>[${agent.manipulation_type} Manipülasyon]</strong></p>
+              <p style="margin: 0 0 8px 0; line-height: 1.4;">${agent.aciklama}</p>
+              
+              <!-- DÜZELTME: "Güven Seviyesi" yerine "Manipülasyon Seviyesi" olarak güncellendi -->
+              <div style="margin-bottom: 6px; display: block !important; position: static !important;">
+                <span class="score-text" style="font-weight: 600; font-size: 11px; color: #444; position: static !important; display: inline-block !important; margin: 0 !important;">
+                  Manipülasyon Seviyesi: ${confidenceLabel}
+                </span>
+              </div>
+
+              <!-- İlerleme Çubuğu -->
+              <div class="progress-container" style="margin-bottom: 4px; position: relative !important;">
                 <div class="progress-bar" style="width: ${percentage}%; background-color: ${getProgressBarColor(agent.manipulation_type)};"></div>
               </div>
-              <span class="score-text">%${percentage} Güven</span>
             </div>
           `;
         }
@@ -129,6 +140,18 @@ function getProgressBarColor(type) {
     "Pazarlama": "#2a9d8f" 
   };
   return map[type] || "#4361ee";
+}
+
+// Trello Kartı İstetiği: Yüzdelik aralıklara göre az, orta, üst tarzı ifadeleri belirleyen fonksiyon
+function getConfidenceLabel(score) {
+  const percentage = score * 100;
+  if (percentage >= 75) {
+    return "Üst Seviye";
+  } else if (percentage >= 40) {
+    return "Orta Seviye";
+  } else {
+    return "Az Seviye";
+  }
 }
 
 function highlightSentencesOnPage(sentences, highlightColor) {
