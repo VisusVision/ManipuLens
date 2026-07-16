@@ -6,12 +6,20 @@
     "contextMenus",
     "scripting",
     "activeTab",
-    "storage"
+    "storage",
+    "windows"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html"
+    "default_icon": "images/logo.png",
+    "default_title": "ManipuLens"
+  },
+  "icons": {
+    "16": "images/logo.png",
+    "32": "images/logo.png",
+    "48": "images/logo.png",
+    "128": "images/logo.png"
   }
 }
