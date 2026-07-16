@@ -1,0 +1,86 @@
+use crate::types::{FinalReport};
+use crate::agents::*;
+use serde_json::json;
+
+pub async fn run_orchestrator(text: &str) -> Result<FinalReport, String> {
+    // 6 ajanı birden paralel olarak tetikliyoruz
+    let (r1, r2, r3, r4, r5, r6) = tokio::join!(
+        analyze_linguistic(text),
+        analyze_psychological(text),
+        analyze_behavioral(text),
+        analyze_perceptual(text),
+        analyze_social(text),
+        analyze_marketing(text) 
+    );
+
+    let mut detailed_analyses = Vec::new();
+    if let Ok(a) = r1 { detailed_analyses.push(a); }
+    if let Ok(a) = r2 { detailed_analyses.push(a); }
+    if let Ok(a) = r3 { detailed_analyses.push(a); }
+    if let Ok(a) = r4 { detailed_analyses.push(a); }
+    if let Ok(a) = r5 { detailed_analyses.push(a); }
+
+    let mut predicted_product_str = None;
+    if let Ok(a) = r6 {
+        if a.detected {
+            predicted_product_str = Some(a.aciklama.clone());
+        }
+        detailed_analyses.push(a); // Genel listeye de ekliyoruz grafik için
+    }
+
+    let client = reqwest::Client::new();
+    // Yönetici promptunu Türkçe ve net olacak şekilde güncelledik
+    let manager_prompt = "Sen baş analizörsün. Sana gelen uzman raporlarını sentezle. Cevabını KESİNLİKLE TÜRKÇE ver. 'genel_sonuc' kısmını karmaşık terimlerden uzak, son kullanıcının rahatça anlayacağı maksimum 2 cümlelik bir özet halinde yaz. Çıktı formatı kesinlikle şu şemada olmalı: {\"is_manipulated\": true/false, \"dominant_manipulation\": \"En baskın tür adı\", \"genel_sonuc\": \"Sade Türkçe genel özet.\"}";
+    
+    let user_payload = json!({
+        "original_text": text,
+        "expert_reports": detailed_analyses
+    });
+
+    let payload = json!({
+        "model": "llama3",
+        "system": manager_prompt,
+        "prompt": user_payload.to_string(),
+        "stream": false,
+        "format": "json"
+    });
+
+    // --- DÜZENLENEN KISIM BAŞLANGICI ---
+    // Çevre değişkeninden OLLAMA_BASE_URL'i okuyoruz, eğer Docker dışında düz çalıştırırsan localhost'a dönüyor.
+    let ollama_base = std::env::var("OLLAMA_BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    
+    let url = format!("{}/api/generate", ollama_base);
+
+    let response = client.post(&url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    // --- DÜZENLENEN KISIM BİTİŞİ ---
+
+    if response.status().is_success() {
+        let res_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+        if let Some(response_str) = res_body.get("response").and_then(|r| r.as_str()) {
+            
+            #[derive(serde::Deserialize)]
+            struct ManagerOutput {
+                is_manipulated: bool,
+                dominant_manipulation: String,
+                genel_sonuc: String,
+            }
+            
+            let manager_out: ManagerOutput = serde_json::from_str(response_str).map_err(|e| e.to_string())?;
+            
+            return Ok(FinalReport {
+                is_manipulated: manager_out.is_manipulated,
+                dominant_manipulation: manager_out.dominant_manipulation,
+                genel_sonuc: manager_out.genel_sonuc,
+                predicted_product: predicted_product_str,
+                detailed_analyses,
+            });
+        }
+    }
+
+    Err("Yönetici ajan raporu oluşturamadı.".to_string())
+}

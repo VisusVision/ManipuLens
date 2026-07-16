@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { 
+      width: 360px; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      padding: 16px; 
+      margin: 0; 
+      background-color: #f8f9fa; 
+      color: #333;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ===== Dil Butonu ===== */
+    .lang-toggle {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      background: #e9ecef;
+      border: none;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #495057;
+      cursor: pointer;
+      z-index: 10;
+      transition: all 0.2s ease;
+    }
+    .lang-toggle:hover {
+      background: #dee2e6;
+    }
+
+    /* ===== Başlık ===== */
+    .title-wrapper {
+      text-align: center;
+      margin-bottom: 18px;
+      margin-top: 8px;
+    }
+
+    .main-title {
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #3a0ca3, #4361ee, #7209b7, #f72585, #4361ee);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: gradientMove 7s ease infinite;
+      letter-spacing: -0.6px;
+      margin: 0;
+      line-height: 1.2;
+      text-shadow: 0 2px 14px rgba(67, 97, 238, 0.25);
+    }
+
+    .sub-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6c757d;
+      margin-top: 3px;
+      letter-spacing: 0.3px;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ===== Butonlar ===== */
+    button.main-btn { 
+      width: 100%; 
+      padding: 11px 14px;
+      color: white; 
+      border: none; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: 600; 
+      font-size: 13.5px;
+      letter-spacing: 0.2px;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    button.main-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    #analyze-btn {
+      background: linear-gradient(90deg, #3a0ca3, #4361ee, #4cc9f0, #4361ee);
+      background-size: 300% 100%;
+      animation: buttonGradientBlue 6s ease infinite;
+      box-shadow: 0 4px 14px rgba(67, 97, 238, 0.35);
+    }
+
+    #analyze-btn:hover {
+      box-shadow: 0 6px 18px rgba(67, 97, 238, 0.45);
+    }
+
+    @keyframes buttonGradientBlue {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    #history-btn {
+      margin-top: 9px;
+      background: linear-gradient(90deg, #5a189a, #7209b7, #9d4edd, #7209b7);
+      background-size: 300% 100%;
+      animation: buttonGradientPurple 6s ease infinite;
+      box-shadow: 0 4px 14px rgba(114, 9, 183, 0.35);
+    }
+
+    #history-btn:hover {
+      box-shadow: 0 6px 18px rgba(114, 9, 183, 0.45);
+    }
+
+    @keyframes buttonGradientPurple {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* ===== Sonuç Alanı + Scrollbar ===== */
+    #result { 
+      margin-top: 16px; 
+      max-height: 540px; 
+      overflow-y: auto; 
+      padding-right: 6px; 
+    }
+
+    #result::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #result::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #result::-webkit-scrollbar-thumb {
+      background: #c5c5c5;
+      border-radius: 10px;
+    }
+
+    #result::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+
+    /* ===== Yükleme Ekranı ===== */
+    .loading-container {
+      text-align: center;
+      padding: 22px 10px 14px;
+    }
+
+    .loading-icon {
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 16px;
+      display: block;
+      filter: drop-shadow(0 5px 16px rgba(67, 97, 238, 0.4));
+      animation: pulseSearch 2s ease-in-out infinite;
+    }
+
+    .loading-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    @keyframes pulseSearch {
+      0%, 100% { 
+        transform: scale(1); 
+        filter: drop-shadow(0 5px 16px rgba(67, 97, 238, 0.4));
+      }
+      50% { 
+        transform: scale(1.09); 
+        filter: drop-shadow(0 8px 22px rgba(114, 9, 183, 0.5));
+      }
+    }
+
+    .loading-text {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #495057;
+      margin-bottom: 18px;
+      letter-spacing: 0.2px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: #e9ecef;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 35%;
+      background: linear-gradient(90deg, #4361ee, #7209b7, #f72585);
+      background-size: 200% 100%;
+      border-radius: 10px;
+      animation: progressMove 2.2s ease-in-out infinite;
+    }
+
+    @keyframes progressMove {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* ===== Baskın Yöntem Kutusu ===== */
+    .dominant-box {
+      background: linear-gradient(135deg, rgba(67, 97, 238, 0.07), rgba(114, 9, 183, 0.07));
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin: 14px 0 14px 0;
+      position: relative;
+      box-shadow: 0 4px 15px rgba(67, 97, 238, 0.12);
+    }
+
+    .dominant-box::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      padding: 2.5px;
+      background: linear-gradient(135deg, #4361ee, #7209b7, #f72585);
+      -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .dominant-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .dominant-value {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      margin: 0;
+    }
+
+    .summary-text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #444;
+      margin: 0;
+    }
+
+    /* ===== Kartlar ===== */
+    .badge { padding: 5px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; color: white; display: inline-block; margin-bottom: 10px; }
+    .danger { background-color: #e63946; }
+    .safe { background-color: #2a9d8f; }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+      margin-bottom: 14px;
+      border-left: 5px solid #ccc;
+      animation: fadeInUp 0.4s ease forwards;
+      opacity: 0;
+    }
+    .card.linguistic { border-left-color: #4cc9f0; }
+    .card.psychological { border-left-color: #f72585; }
+    .card.behavioral { border-left-color: #f8961e; }
+    .card.perceptual { border-left-color: #7209b7; }
+    .card.social { border-left-color: #4361ee; }
+    .card.marketing { border-left-color: #2a9d8f; }
+
+    .agent-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .agent-title span {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+    }
+    .agent-desc {
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 0 0 10px 0;
+      color: #444;
+    }
+    .level-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .level-label { font-size: 11px; font-weight: 600; color: #555; }
+    .level-value { font-size: 11px; font-weight: 700; }
+
+    .progress-container {
+      background-color: #e9ecef;
+      border-radius: 6px;
+      height: 9px;
+      width: 100%;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 6px;
+      width: 0%;
+      transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    hr { border: 0; height: 1px; background: #e9ecef; margin: 15px 0; }
+    p { font-size: 13px; line-height: 1.4; margin: 5px 0; }
+
+    .prediction-box {
+      background-color: #f0f7f4;
+      border: 1px solid #c8e6c9;
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+    .prediction-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #2e7d32;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .prediction-text {
+      font-size: 13px;
+      color: #1b5e20;
+      font-style: italic;
+      margin: 0 !important;
+    }
+  </style>
+</head>
+<body>
+  <button class="lang-toggle" id="lang-btn">EN</button>
+
+  <div class="title-wrapper">
+    <div class="main-title">ManipuLens</div>
+    <div class="sub-title" id="sub-title">Yapay Zeka Analizi</div>
+  </div>
+  
+  <button class="main-btn" id="analyze-btn">Seçili Metni Analiz Et</button>
+  <button class="main-btn" id="history-btn">Geçmişim</button>
+  
+  <div id="result">Sayfadan bir metin seçin ve ajanları tetikleyin.</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
