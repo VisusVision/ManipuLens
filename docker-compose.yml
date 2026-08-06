@@ -1,0 +1,19 @@
+services:
+  manipulens-backend:
+    build: .
+    container_name: manipulens-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      # Kullanıcı kayıtları ve analiz geçmişi container yeniden başlasa da korunur
+      - ./data:/app/data
+    environment:
+      # Container içinden host makinedeki Ollama'ya erişim
+      # (localhost container'ın kendisi olur, bu yüzden host.docker.internal gerekir)
+      - OLLAMA_URL=http://host.docker.internal:11434
+    # SMTP ayarları .env dosyasından okunur (SETUP_MAIL.md)
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

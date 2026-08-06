@@ -1,1 +1,21 @@
 /target
+
+# Hassas / üretilen veriler - repoya girmemeli
+users.json
+history.jsonl
+analiz_log.txt
+/data
+.env
+
+# SQLite veritabanı ve yapılandırılmış loglar
+manipulens.db
+manipulens.db-*
+/logs
+
+# Node bagimliliklari - package-lock.json ile yeniden uretilir
+node_modules/
+
+# Arşiv / ofis dosyaları
+*.rar
+*.docx
+*.pdf
