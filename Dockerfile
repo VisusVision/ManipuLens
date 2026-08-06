@@ -7,5 +7,10 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /usr/src/manipulation-detector/target/release/manipulation-detector /app/manipulation-detector
+# Veri dosyaları (users.json, history.jsonl, analiz_log.txt) çalışma dizinine
+# yazılır; /app/data volume olarak bağlanınca container yeniden başlasa da
+# kayıtlar kaybolmaz (aynı e-posta tekrar kayıt olamaz).
+RUN mkdir -p /app/data
+WORKDIR /app/data
 EXPOSE 3000
 CMD ["/app/manipulation-detector"]

@@ -98,6 +98,5 @@ Select the extension directory inside your local repository folder.
 
 🎉 The ManipuLens icon will appear in your utility bar, fully wired and listening to your right-click triggers!
 
-## 🔒 Copyright & Terms of Use
-
-All rights reserved. No part of this software, including source code and documentation, may be reproduced, distributed, modified, sold, or used for commercial or personal purposes without the prior written permission of the copyright owners. This project is shared publicly solely for review, educational purposes, and portfolio reference.
+📄 License
+Distributed under the MIT License. See LICENSE for more information.

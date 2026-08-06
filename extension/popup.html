@@ -3,49 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <style>
-    body { 
-      width: 360px; 
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-      padding: 16px; 
-      margin: 0; 
-      background-color: #f8f9fa; 
-      color: #333;
+    /* ===== Tema Değişkenleri ===== */
+    :root {
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text: #333;
+      --text-soft: #444;
+      --muted: #6c757d;
+      --muted2: #999;
+      --border: #e9ecef;
+      --track: #e9ecef;
+      --input-bg: #ffffff;
+      --accent: #3a0ca3;
+      --chip-bg: #e9ecef;
+      --chip-text: #495057;
+      --chip-hover: #dee2e6;
+      --pred-bg: #f0f7f4;
+      --pred-border: #c8e6c9;
+      --pred-title: #2e7d32;
+      --pred-text: #1b5e20;
+      /* Durum renkleri (tema bazlı) */
+      --danger: #e63946;
+      --safe: #2a9d8f;
+      --disabled: #adb5bd;
+      /* Ajan renkleri (tema bazlı — dark'ta daha parlak varyantlar) */
+      --c-linguistic: #4cc9f0;
+      --c-psychological: #f72585;
+      --c-behavioral: #f8961e;
+      --c-perceptual: #7209b7;
+      --c-social: #4361ee;
+      --c-marketing: #2a9d8f;
+      /* Gölge / vurgu */
+      --shadow-card: rgba(0, 0, 0, 0.06);
+      --dominant-bg: linear-gradient(135deg, rgba(67, 97, 238, 0.07), rgba(114, 9, 183, 0.07));
+      --dominant-shadow: rgba(67, 97, 238, 0.12);
+    }
+
+    body.dark {
+      --bg: #0f131d;
+      --card-bg: #1a2030;
+      --text: #e8ecf4;
+      --text-soft: #c6cdda;
+      --muted: #98a2b3;
+      --muted2: #6f7a8e;
+      --border: #2a3349;
+      --track: #232b3d;
+      --input-bg: #131927;
+      --accent: #a5b4fc;
+      --chip-bg: #262f44;
+      --chip-text: #c6cdda;
+      --chip-hover: #35405c;
+      --pred-bg: #142520;
+      --pred-border: #2b5c44;
+      --pred-title: #63d693;
+      --pred-text: #97e2b4;
+      --danger: #ff6b74;
+      --safe: #3ecfae;
+      --disabled: #566078;
+      /* Koyu zeminde okunur, daha parlak ajan renkleri */
+      --c-linguistic: #62d3f7;
+      --c-psychological: #ff5fa8;
+      --c-behavioral: #ffab4d;
+      --c-perceptual: #b98af5;
+      --c-social: #8aa2ff;
+      --c-marketing: #43cdb2;
+      --shadow-card: rgba(0, 0, 0, 0.35);
+      --dominant-bg: linear-gradient(135deg, rgba(138, 162, 255, 0.08), rgba(185, 138, 245, 0.08));
+      --dominant-shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      width: auto;
+      min-width: 320px;
+      height: 100vh;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 16px;
+      margin: 0;
+      background-color: var(--bg);
+      color: var(--text);
       overflow: hidden;
       position: relative;
+      transition: background-color 0.25s ease, color 0.25s ease;
     }
 
     /* ===== Dil Butonu ===== */
-    .lang-toggle {
-      position: absolute;
+    /* ===== Üst kontroller: tema + dil (profesyonel çipler) ===== */
+    .top-chip {
+      position: fixed;
       top: 12px;
-      right: 14px;
-      background: #e9ecef;
-      border: none;
-      border-radius: 20px;
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 700;
-      color: #495057;
-      cursor: pointer;
       z-index: 10;
-      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 30px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      cursor: pointer;
+      border-radius: 999px;
+      box-shadow: 0 2px 6px var(--shadow-card);
+      transition: transform 0.18s ease, box-shadow 0.2s ease,
+                  border-color 0.25s ease, background 0.25s ease;
     }
-    .lang-toggle:hover {
-      background: #dee2e6;
+    .top-chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px var(--shadow-card);
+      border-color: var(--accent);
+    }
+    .top-chip:active {
+      transform: scale(0.94);
+    }
+
+    /* --- Tema tuşu: güneş/ay ikonları arasında döner geçiş --- */
+    .theme-toggle {
+      right: 96px;
+      width: 30px;
+      padding: 0;
+      position: fixed;
+      overflow: hidden;
+    }
+    .theme-toggle svg {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.3s ease;
+    }
+    /* Açık temada AY görünür ("koyuya geç" eylemi), koyu temada GÜNEŞ */
+    .tt-moon { opacity: 1; transform: rotate(0deg) scale(1); color: var(--accent); }
+    .tt-sun  { opacity: 0; transform: rotate(90deg) scale(0.4); color: #f59e0b; }
+    body.dark .tt-moon { opacity: 0; transform: rotate(-90deg) scale(0.4); }
+    body.dark .tt-sun  { opacity: 1; transform: rotate(0deg) scale(1); color: #ffd166; }
+
+    /* --- Dil seçici: TR | EN segmentli anahtar, kayan vurgu --- */
+    .lang-switch {
+      right: 14px;
+      width: 74px;
+      padding: 3px;
+    }
+    .lang-switch .lang-opt {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      text-align: center;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      line-height: 22px;
+      color: var(--muted);
+      transition: color 0.25s ease;
+      user-select: none;
+    }
+    .lang-switch .lang-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: calc(50% - 3px);
+      height: calc(100% - 6px);
+      border-radius: 999px;
+      background: linear-gradient(135deg, #4361ee, #7209b7);
+      box-shadow: 0 2px 7px rgba(67, 97, 238, 0.4);
+      transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .lang-switch.en .lang-thumb {
+      transform: translateX(100%);
+    }
+    /* Aktif dil beyaz, pasif soluk — hangi dilin seçili olduğu net */
+    .lang-switch:not(.en) .lang-opt[data-l="tr"],
+    .lang-switch.en .lang-opt[data-l="en"] {
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
     }
 
     /* ===== Başlık ===== */
     .title-wrapper {
       text-align: center;
-      margin-bottom: 18px;
-      margin-top: 8px;
+      margin-bottom: 20px;
+      /* Üst çipler (top:12px + 30px yükseklik) ~42px'te biter;
+         başlık onların altında ferah bir bantta durur. */
+      margin-top: 38px;
+    }
+
+    /* Büyük/maximize pencerede içerik uçlara yayılmasın: ortalanmış sütun */
+    .title-wrapper,
+    .main-btn,
+    #result {
+      width: 100%;
+      max-width: 420px;
+      margin-inline: auto;
+    }
+    /* Flex sütunda başlık ve butonlar ezilmesin; kalan alanı #result alır */
+    .title-wrapper,
+    .main-btn {
+      flex-shrink: 0;
     }
 
     .main-title {
-      font-size: 22px;
-      font-weight: 800;
-      background: linear-gradient(90deg, #3a0ca3, #4361ee, #7209b7, #f72585, #4361ee);
+      font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+      font-size: 25px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #3a0ca3, #4361ee, #7209b7, #f72585, #7209b7, #4361ee, #3a0ca3);
       background-size: 300% 100%;
+      animation: titleFlow 9s ease-in-out infinite;
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -56,12 +221,21 @@
       text-shadow: 0 2px 14px rgba(67, 97, 238, 0.25);
     }
 
+    /* Gradyan yazı boyunca yavaşça akar; uçlar aynı renkte olduğundan
+       döngü kesintisiz görünür. */
+    @keyframes titleFlow {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
     .sub-title {
-      font-size: 12px;
-      font-weight: 500;
-      color: #6c757d;
-      margin-top: 3px;
-      letter-spacing: 0.3px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 5px;
+      letter-spacing: 2.2px;
+      text-transform: uppercase;
     }
 
     @keyframes gradientMove {
@@ -71,32 +245,85 @@
     }
 
     /* ===== Butonlar ===== */
-    button.main-btn { 
-      width: 100%; 
+    button.main-btn {
+      width: 100%;
       padding: 11px 14px;
-      color: white; 
-      border: none; 
-      border-radius: 8px; 
-      cursor: pointer; 
-      font-weight: 600; 
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
       font-size: 13.5px;
       letter-spacing: 0.2px;
-      transition: transform 0.15s ease, box-shadow 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
     }
 
     button.main-btn:hover {
-      transform: translateY(-1px);
+      transform: translateY(-1.5px) scale(1.015);
+      filter: brightness(1.08);
+    }
+
+    /* Hover'da ANINDA tek seferlik ışık süpürmesi (periyodik ::after'dan
+       bağımsız, ::before kullanır) — küçük ama kaliteli his veren geri tepki */
+    button.main-btn::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 40%;
+      background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+      transform: skewX(-20deg) translateX(-180%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    button.main-btn:hover::before {
+      animation: btnShineHover 0.85s ease;
+    }
+
+    @keyframes btnShineHover {
+      from { transform: skewX(-20deg) translateX(-180%); }
+      to   { transform: skewX(-20deg) translateX(480%); }
+    }
+
+    /* Periyodik parıltı süpürmesi: her ~7 sn'de bir ışık huzmesi butonu
+       ~2 sn'de yumuşakça geçer, kalan sürede bekler */
+    button.main-btn::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 40%;
+      background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+      transform: skewX(-20deg) translateX(-180%);
+      animation: btnShine 7s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    /* İki butonun parıltısı dönüşümlü gelsin */
+    #history-btn::after {
+      animation-delay: 3.5s;
+    }
+
+    @keyframes btnShine {
+      0%   { transform: skewX(-20deg) translateX(-180%); }
+      30%  { transform: skewX(-20deg) translateX(480%); }
+      100% { transform: skewX(-20deg) translateX(480%); }
     }
 
     #analyze-btn {
-      background: linear-gradient(90deg, #3a0ca3, #4361ee, #4cc9f0, #4361ee);
+      background: linear-gradient(90deg, #3a0ca3, #4361ee, #4cc9f0, #4361ee, #3a0ca3);
       background-size: 300% 100%;
-      animation: buttonGradientBlue 6s ease infinite;
+      animation: buttonGradientBlue 9s ease infinite;
       box-shadow: 0 4px 14px rgba(67, 97, 238, 0.35);
     }
 
     #analyze-btn:hover {
-      box-shadow: 0 6px 18px rgba(67, 97, 238, 0.45);
+      box-shadow: 0 6px 20px rgba(67, 97, 238, 0.5);
     }
 
     @keyframes buttonGradientBlue {
@@ -107,14 +334,14 @@
 
     #history-btn {
       margin-top: 9px;
-      background: linear-gradient(90deg, #5a189a, #7209b7, #9d4edd, #7209b7);
+      background: linear-gradient(90deg, #5a189a, #7209b7, #9d4edd, #7209b7, #5a189a);
       background-size: 300% 100%;
-      animation: buttonGradientPurple 6s ease infinite;
+      animation: buttonGradientPurple 9s ease infinite;
       box-shadow: 0 4px 14px rgba(114, 9, 183, 0.35);
     }
 
     #history-btn:hover {
-      box-shadow: 0 6px 18px rgba(114, 9, 183, 0.45);
+      box-shadow: 0 6px 20px rgba(157, 78, 221, 0.5);
     }
 
     @keyframes buttonGradientPurple {
@@ -124,11 +351,14 @@
     }
 
     /* ===== Sonuç Alanı + Scrollbar ===== */
-    #result { 
-      margin-top: 16px; 
-      max-height: 540px; 
-      overflow-y: auto; 
-      padding-right: 6px; 
+    /* Sabit 540px yerine flex: pencere yüksekliği ne olursa olsun kalan
+       alanı doldurur. min-height:0 olmadan flex item scroll edemez. */
+    #result {
+      margin-top: 16px;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 6px;
     }
 
     #result::-webkit-scrollbar {
@@ -151,73 +381,144 @@
     /* ===== Yükleme Ekranı ===== */
     .loading-container {
       text-align: center;
-      padding: 22px 10px 14px;
+      padding: 46px 12px 22px;
     }
 
-    .loading-icon {
-      width: 52px;
-      height: 52px;
-      margin: 0 auto 16px;
-      display: block;
-      filter: drop-shadow(0 5px 16px rgba(67, 97, 238, 0.4));
-      animation: pulseSearch 2s ease-in-out infinite;
+    /* ===== Tarama animasyonu =====
+       Hikâye: dönen gradyan yay analiz motorunu, dışa yayılan hale
+       aktif taramayı, merkezdeki lens ise incelemeyi temsil eder. */
+    .scan-wrap {
+      position: relative;
+      width: 66px;
+      height: 66px;
+      margin: 0 auto 24px;
     }
 
-    .loading-icon svg {
-      width: 100%;
-      height: 100%;
+    /* Dışa yayılan nabız halesi */
+    .scan-halo {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      opacity: 0;
+      animation: scanHalo 2.4s ease-out infinite;
+    }
+    @keyframes scanHalo {
+      0%   { transform: scale(0.55); opacity: 0.5; }
+      70%  { opacity: 0.1; }
+      100% { transform: scale(1.18); opacity: 0; }
     }
 
-    @keyframes pulseSearch {
-      0%, 100% { 
-        transform: scale(1); 
-        filter: drop-shadow(0 5px 16px rgba(67, 97, 238, 0.4));
-      }
-      50% { 
-        transform: scale(1.09); 
-        filter: drop-shadow(0 8px 22px rgba(114, 9, 183, 0.5));
-      }
+    /* Dönen gradyan yay (spinner) — maske ile ince halkaya kırpılır */
+    .scan-ring {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0deg 30deg,
+        rgba(67, 97, 238, 0.25) 80deg,
+        #4361ee 150deg,
+        #7209b7 225deg,
+        #f72585 300deg,
+        transparent 330deg 360deg
+      );
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 3.5px));
+      mask: radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 3.5px));
+      animation: scanSpin 1.5s linear infinite;
+    }
+    @keyframes scanSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Merkez lens: sabit durur, yalnız çok hafif "nefes" alır */
+    .scan-core {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scan-core svg {
+      width: 26px;
+      height: 26px;
+      animation: coreBreath 2.4s ease-in-out infinite;
+      filter: drop-shadow(0 2px 8px rgba(67, 97, 238, 0.35));
+    }
+    @keyframes coreBreath {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50%      { opacity: 1;    transform: scale(1.05); }
     }
 
     .loading-text {
-      font-size: 13.5px;
-      font-weight: 500;
-      color: #495057;
-      margin-bottom: 18px;
-      letter-spacing: 0.2px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-soft);
+      margin-bottom: 30px;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      animation: stagePulse 2.4s ease-in-out infinite;
+    }
+    @keyframes stagePulse {
+      0%, 100% { opacity: 0.55; }
+      50%      { opacity: 1; }
     }
 
     .progress-track {
       width: 100%;
       height: 6px;
-      background: #e9ecef;
+      background: var(--track);
       border-radius: 10px;
       overflow: hidden;
       position: relative;
     }
 
+    /* Bar bir "yüzde" göstermez: tamamı dolu, canlı gradyanlı bir şerittir.
+       Üzerinden sürekli, yumuşak bir ışık huzmesi geçer (salt animasyon amaçlı). */
     .progress-fill {
       height: 100%;
-      width: 35%;
-      background: linear-gradient(90deg, #4361ee, #7209b7, #f72585);
-      background-size: 200% 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #4361ee, #7209b7, #f72585, #7209b7, #4361ee);
+      background-size: 300% 100%;
       border-radius: 10px;
-      animation: progressMove 2.2s ease-in-out infinite;
+      animation: progressShimmer 10s linear infinite;
+      position: relative;
+      overflow: hidden;
     }
 
-    @keyframes progressMove {
+    /* Gradyanın kendisi yavaşça akar */
+    @keyframes progressShimmer {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 300% 50%; }
+    }
+
+    /* Süpüren ışık huzmesi: ~1.6 sn'de akıcı geçer, ~1 sn dinlenir */
+    .progress-fill::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+      transform: translateX(-120%);
+      animation: progressGlare 2.6s ease-in-out infinite;
+    }
+
+    @keyframes progressGlare {
       0% { transform: translateX(-120%); }
-      100% { transform: translateX(350%); }
+      62% { transform: translateX(370%); }
+      100% { transform: translateX(370%); }
     }
 
     /* ===== Baskın Yöntem Kutusu ===== */
     .dominant-box {
-      background: linear-gradient(135deg, rgba(67, 97, 238, 0.07), rgba(114, 9, 183, 0.07));
+      background: var(--dominant-bg);
       border-radius: 12px;
       padding: 14px 16px;
       margin: 14px 0 14px 0;
       position: relative;
-      box-shadow: 0 4px 15px rgba(67, 97, 238, 0.12);
+      box-shadow: 0 4px 15px var(--dominant-shadow);
     }
 
     .dominant-box::before {
@@ -226,9 +527,11 @@
       inset: 0;
       border-radius: 12px;
       padding: 2.5px;
-      background: linear-gradient(135deg, #4361ee, #7209b7, #f72585);
-      -webkit-mask: 
-        linear-gradient(#fff 0 0) content-box, 
+      background: linear-gradient(135deg, #4361ee, #7209b7, #f72585, #7209b7, #4361ee);
+      background-size: 300% 300%;
+      animation: gradientMove 9s ease infinite;
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
         linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
       mask-composite: exclude;
@@ -238,7 +541,7 @@
     .dominant-label {
       font-size: 11px;
       font-weight: 600;
-      color: #6c757d;
+      color: var(--muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 6px;
@@ -254,31 +557,31 @@
     .summary-text {
       font-size: 13px;
       line-height: 1.5;
-      color: #444;
+      color: var(--text-soft);
       margin: 0;
     }
 
     /* ===== Kartlar ===== */
     .badge { padding: 5px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; color: white; display: inline-block; margin-bottom: 10px; }
-    .danger { background-color: #e63946; }
-    .safe { background-color: #2a9d8f; }
+    .danger { background-color: var(--danger); }
+    .safe { background-color: var(--safe); }
 
     .card {
-      background: white;
+      background: var(--card-bg);
       border-radius: 10px;
       padding: 14px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+      box-shadow: 0 3px 10px var(--shadow-card);
       margin-bottom: 14px;
-      border-left: 5px solid #ccc;
+      border-left: 5px solid var(--disabled);
       animation: fadeInUp 0.4s ease forwards;
       opacity: 0;
     }
-    .card.linguistic { border-left-color: #4cc9f0; }
-    .card.psychological { border-left-color: #f72585; }
-    .card.behavioral { border-left-color: #f8961e; }
-    .card.perceptual { border-left-color: #7209b7; }
-    .card.social { border-left-color: #4361ee; }
-    .card.marketing { border-left-color: #2a9d8f; }
+    .card.linguistic { border-left-color: var(--c-linguistic); }
+    .card.psychological { border-left-color: var(--c-psychological); }
+    .card.behavioral { border-left-color: var(--c-behavioral); }
+    .card.perceptual { border-left-color: var(--c-perceptual); }
+    .card.social { border-left-color: var(--c-social); }
+    .card.marketing { border-left-color: var(--c-marketing); }
 
     .agent-title {
       font-size: 13px;
@@ -299,7 +602,7 @@
       font-size: 13px;
       line-height: 1.45;
       margin: 0 0 10px 0;
-      color: #444;
+      color: var(--text-soft);
     }
     .level-row {
       display: flex;
@@ -307,11 +610,11 @@
       align-items: center;
       margin-bottom: 6px;
     }
-    .level-label { font-size: 11px; font-weight: 600; color: #555; }
+    .level-label { font-size: 11px; font-weight: 600; color: var(--muted); }
     .level-value { font-size: 11px; font-weight: 700; }
 
     .progress-container {
-      background-color: #e9ecef;
+      background-color: var(--track);
       border-radius: 6px;
       height: 9px;
       width: 100%;
@@ -329,12 +632,12 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    hr { border: 0; height: 1px; background: #e9ecef; margin: 15px 0; }
+    hr { border: 0; height: 1px; background: var(--track); margin: 15px 0; }
     p { font-size: 13px; line-height: 1.4; margin: 5px 0; }
 
     .prediction-box {
-      background-color: #f0f7f4;
-      border: 1px solid #c8e6c9;
+      background-color: var(--pred-bg);
+      border: 1px solid var(--pred-border);
       border-radius: 6px;
       padding: 10px;
       margin-top: 10px;
@@ -343,20 +646,711 @@
     .prediction-title {
       font-size: 12px;
       font-weight: bold;
-      color: #2e7d32;
+      color: var(--pred-title);
       display: block;
       margin-bottom: 4px;
     }
     .prediction-text {
       font-size: 13px;
-      color: #1b5e20;
+      color: var(--pred-text);
       font-style: italic;
       margin: 0 !important;
     }
+
+    /* ===== KVKK Overlay ===== */
+    #kvkk-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 55px 20px 24px;
+      box-sizing: border-box;
+    }
+
+    .kvkk-box {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 22px 18px;
+      box-shadow: 0 8px 28px rgba(67, 97, 238, 0.15);
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .kvkk-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--accent);
+      margin: 0 0 10px 0;
+      text-align: center;
+    }
+
+    .kvkk-desc {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--muted);
+      margin: 0 0 16px 0;
+      text-align: center;
+    }
+
+    .kvkk-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: var(--text);
+    }
+
+    .kvkk-check-row input[type="checkbox"] {
+      margin-top: 2px;
+      width: 15px;
+      height: 15px;
+      accent-color: #4361ee;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .kvkk-check-row a {
+      color: #4361ee;
+      font-weight: 600;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .kvkk-check-row a:hover {
+      color: #7209b7;
+    }
+
+    #kvkk-accept-btn {
+      width: 100%;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #3a0ca3, #4361ee, #7209b7, #4361ee, #3a0ca3);
+      background-size: 300% 100%;
+      animation: buttonGradientBlue 9s ease infinite;
+      color: white;
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      opacity: 0.45;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+
+    #kvkk-accept-btn.enabled {
+      opacity: 1;
+      pointer-events: auto;
+      box-shadow: 0 4px 14px rgba(67, 97, 238, 0.35);
+    }
+
+    #kvkk-accept-btn.enabled:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(67, 97, 238, 0.45);
+    }
+
+    /* ===== KVKK Modal ===== */
+    #kvkk-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    #kvkk-modal.show {
+      display: flex;
+    }
+
+    .kvkk-modal-content {
+      background: var(--card-bg);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      max-height: 85%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+
+    .kvkk-modal-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kvkk-modal-header h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .kvkk-modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--muted);
+      line-height: 1;
+      padding: 0 4px;
+    }
+
+    .kvkk-modal-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--text-soft);
+    }
+
+    .kvkk-modal-body p {
+      margin: 0 0 10px 0;
+    }
+
+    /* ===== AUTH Overlay ===== */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 90;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 55px 20px 24px;
+      box-sizing: border-box;
+    }
+
+    .auth-box {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 22px 18px;
+      box-shadow: 0 8px 28px rgba(67, 97, 238, 0.15);
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .auth-tabs {
+      display: flex;
+      margin-bottom: 18px;
+      background: var(--track);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 9px 0;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .auth-tab.active {
+      background: var(--card-bg);
+      color: var(--accent);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .auth-input {
+      width: 100%;
+      padding: 11px 14px;
+      margin-bottom: 11px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13.5px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s;
+      background: var(--input-bg);
+      color: var(--text);
+    }
+
+    /* ===== Şifre göster/gizle ===== */
+    .pw-wrap {
+      position: relative;
+    }
+
+    .pw-wrap .auth-input {
+      padding-right: 40px;
+    }
+
+    .pw-eye {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(calc(-50% - 5.5px)); /* input'un margin-bottom'unu telafi et */
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .pw-eye:hover {
+      color: var(--accent);
+    }
+
+    .pw-eye svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .auth-input:focus {
+      border-color: #4361ee;
+    }
+
+    .auth-submit {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #3a0ca3, #4361ee, #7209b7, #4361ee, #3a0ca3);
+      background-size: 300% 100%;
+      animation: buttonGradientBlue 9s ease infinite;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 4px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    /* Auth butonlarında hover'da parıltı süpürmesi */
+    .auth-submit::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 45%;
+      background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+      transform: skewX(-20deg) translateX(-180%);
+      pointer-events: none;
+    }
+
+    .auth-submit:hover::after {
+      animation: btnShine 0.9s ease forwards;
+    }
+
+    .auth-submit:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(67, 97, 238, 0.4);
+    }
+
+    .auth-error {
+      color: var(--danger);
+      font-size: 12px;
+      margin: 10px 0 0 0;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* ===== Doğrulama / Şifre sıfırlama ekranları ===== */
+    .auth-form-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--accent);
+      text-align: center;
+      margin: 0 0 8px 0;
+    }
+
+    .auth-form-desc {
+      font-size: 12.5px;
+      color: var(--muted);
+      text-align: center;
+      margin: 0 0 12px 0;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .code-boxes {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 4px 0 14px 0;
+    }
+
+    .code-box {
+      width: 38px;
+      height: 46px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .code-box:focus {
+      border-color: #4361ee;
+    }
+
+    .auth-links {
+      text-align: center;
+      font-size: 12px;
+      margin: 12px 0 0 0;
+    }
+
+    .auth-links a {
+      color: #4361ee;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .auth-links a:hover {
+      text-decoration: underline;
+    }
+
+    .auth-links a.disabled {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .auth-success {
+      color: var(--safe);
+      font-size: 12px;
+      margin: 10px 0 0 0;
+      text-align: center;
+    }
+
+    /* ============================================================
+       CİLA: Mikro animasyonlar ve profesyonel dokunuşlar
+       ============================================================ */
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+
+    /* Basma hissi: tüm ana butonlarda hafif çökme */
+    button.main-btn:active,
+    .auth-submit:active,
+    #kvkk-accept-btn.enabled:active {
+      transform: translateY(1px) scale(0.985);
+      transition-duration: 0.06s;
+    }
+
+    /* Bölüm başlıkları (Ajan Analizleri, Geçmiş): gradyan alt çizgi */
+    #result h4 {
+      position: relative;
+      display: inline-block;
+      padding-bottom: 5px;
+      margin-top: 4px;
+    }
+    #result h4::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 2.5px;
+      width: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #4361ee, #7209b7, #f72585, #7209b7, #4361ee);
+      background-size: 300% 100%;
+      animation: gradientMove 9s ease infinite;
+    }
+
+    /* Kart hover'ında sol şeridin hafif parlaması */
+    .card:hover {
+      filter: saturate(1.08);
+    }
+
+    /* Auth butonlarında yumuşak hover */
+    .auth-submit {
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+    .auth-submit:hover {
+      filter: brightness(1.06);
+    }
+
+    /* Kartlar: hover'da hafif yükselme */
+    .card {
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+    }
+    body.dark .card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Input odak: yumuşak halka */
+    .auth-input:focus {
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+    }
+
+    /* Kod kutuları: odakta büyüme + halka, dolu kutu vurgusu */
+    .code-box {
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+    }
+    .code-box:focus {
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.18);
+      transform: scale(1.06);
+    }
+
+    /* Sekme geçişleri yumuşak */
+    .auth-tab {
+      transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* Form girişleri: hafif fade+slide */
+    #login-form, #register-form, #verify-form, #forgot-form, #reset-form {
+      animation: formIn 0.28s ease;
+    }
+    @keyframes formIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Göz ikonu: basınca küçülme */
+    .pw-eye {
+      transition: color 0.15s ease, transform 0.12s ease;
+    }
+    .pw-eye:active {
+      transform: translateY(calc(-50% - 5.5px)) scale(0.88);
+    }
+
+    /* Linkler */
+    .auth-links a {
+      transition: color 0.15s ease, opacity 0.2s ease;
+    }
+
+    /* Scrollbar tema uyumu */
+    #result::-webkit-scrollbar-thumb {
+      background: var(--border);
+    }
+    #result::-webkit-scrollbar-thumb:hover {
+      background: var(--muted2);
+    }
+
+    /* Rozetler: sonuç geldiğinde minik pop */
+    .badge {
+      animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes badgePop {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* ===== Dark mode ince ayarları: parlamaları yumuşat, derinliği artır ===== */
+    body.dark #analyze-btn {
+      box-shadow: 0 4px 14px rgba(67, 97, 238, 0.20);
+    }
+    body.dark #analyze-btn:hover {
+      box-shadow: 0 6px 18px rgba(96, 130, 255, 0.30);
+    }
+    body.dark #history-btn {
+      box-shadow: 0 4px 14px rgba(114, 9, 183, 0.22);
+    }
+    body.dark #history-btn:hover {
+      box-shadow: 0 6px 18px rgba(157, 78, 221, 0.32);
+    }
+    body.dark .main-title {
+      text-shadow: 0 2px 18px rgba(138, 162, 255, 0.35);
+    }
+    body.dark .auth-box,
+    body.dark .kvkk-box {
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+      border: 1px solid var(--border);
+    }
+    body.dark .auth-tab.active {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+    body.dark .kvkk-modal-content {
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--border);
+    }
+    body.dark .auth-submit:hover {
+      box-shadow: 0 6px 18px rgba(96, 130, 255, 0.28);
+    }
+    body.dark #kvkk-accept-btn.enabled {
+      box-shadow: 0 4px 14px rgba(67, 97, 238, 0.22);
+    }
+    body.dark .dominant-box::before {
+      opacity: 0.85;
+    }
+
+    /* NOT: Burada eskiden prefers-reduced-motion kuralı vardı ve animasyon
+       sürelerini 0.01ms'ye düşürüyordu. Sonsuz döngülü animasyonlarda bu,
+       stroboskop gibi "ışık hızında" titremeye yol açıyordu (parıltıların
+       aşırı hızlı ve buglı görünmesinin kök nedeni buydu). Animasyonlar bu
+       eklentinin kimliğinin parçası olduğu için kural kaldırıldı; animasyonlar
+       her sistemde tasarlandığı hızda çalışır. */
   </style>
 </head>
 <body>
-  <button class="lang-toggle" id="lang-btn">EN</button>
+  <!-- KVKK Overlay -->
+  <div id="kvkk-overlay">
+    <div class="kvkk-box">
+      <div class="kvkk-title" id="kvkk-title">KVKK Onayı</div>
+      <p class="kvkk-desc" id="kvkk-desc">
+        ManipuLens'i kullanmadan önce Kullanım Şartları ve Gizlilik Politikası metnini okumanız ve kabul etmeniz gerekmektedir.
+      </p>
+
+      <div class="kvkk-check-row">
+        <input type="checkbox" id="kvkk-checkbox">
+        <label for="kvkk-checkbox">
+          <a href="#" id="kvkk-link">Kullanım Şartları ve Gizlilik Politikası</a>'nı okudum ve kabul ediyorum.
+        </label>
+      </div>
+
+      <button id="kvkk-accept-btn">Kabul Et ve Devam Et</button>
+    </div>
+  </div>
+
+  <!-- KVKK Modal -->
+  <div id="kvkk-modal">
+    <div class="kvkk-modal-content">
+      <div class="kvkk-modal-header">
+        <h3 id="kvkk-modal-title">Kullanım Şartları ve Gizlilik Politikası</h3>
+        <button class="kvkk-modal-close" id="kvkk-modal-close">×</button>
+      </div>
+      <div class="kvkk-modal-body" id="kvkk-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- AUTH Overlay -->
+  <div id="auth-overlay">
+    <div class="auth-box">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login">Giriş Yap</button>
+        <button class="auth-tab" id="tab-register">Kayıt Ol</button>
+      </div>
+
+      <!-- Login Form -->
+      <div id="login-form">
+        <input type="email" class="auth-input" id="login-username" placeholder="E-posta" autocomplete="email">
+        <div class="pw-wrap">
+          <input type="password" class="auth-input" id="login-password" placeholder="Şifre" autocomplete="current-password">
+          <button type="button" class="pw-eye" data-target="login-password" aria-label="Şifreyi göster/gizle"></button>
+        </div>
+        <button class="auth-submit" id="login-btn">Giriş Yap</button>
+        <p class="auth-links"><a id="forgot-link">Şifremi unuttum</a></p>
+        <p class="auth-error" id="login-error"></p>
+      </div>
+
+      <!-- Register Form -->
+      <div id="register-form" style="display: none;">
+        <input type="email" class="auth-input" id="reg-username" placeholder="E-posta" autocomplete="email">
+        <div class="pw-wrap">
+          <input type="password" class="auth-input" id="reg-password" placeholder="Şifre" autocomplete="new-password">
+          <button type="button" class="pw-eye" data-target="reg-password" aria-label="Şifreyi göster/gizle"></button>
+        </div>
+        <div class="pw-wrap">
+          <input type="password" class="auth-input" id="reg-password2" placeholder="Şifre Tekrar" autocomplete="new-password">
+          <button type="button" class="pw-eye" data-target="reg-password2" aria-label="Şifreyi göster/gizle"></button>
+        </div>
+        <button class="auth-submit" id="register-btn">Kayıt Ol</button>
+        <p class="auth-error" id="register-error"></p>
+      </div>
+
+      <!-- E-posta Doğrulama Formu -->
+      <div id="verify-form" style="display: none;">
+        <p class="auth-form-title" id="verify-title">E-posta Doğrulama</p>
+        <p class="auth-form-desc" id="verify-desc"></p>
+        <div class="code-boxes" id="verify-codes">
+          <input class="code-box" maxlength="1" inputmode="numeric" autocomplete="one-time-code">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+        </div>
+        <button class="auth-submit" id="verify-btn">Doğrula</button>
+        <p class="auth-links">
+          <a id="resend-link">Kodu tekrar gönder</a> · <a id="verify-back-link">Girişe dön</a>
+        </p>
+        <p class="auth-error" id="verify-error"></p>
+      </div>
+
+      <!-- Şifremi Unuttum Formu -->
+      <div id="forgot-form" style="display: none;">
+        <p class="auth-form-title" id="forgot-title">Şifre Sıfırlama</p>
+        <p class="auth-form-desc" id="forgot-desc"></p>
+        <input type="email" class="auth-input" id="forgot-email" placeholder="E-posta" autocomplete="email">
+        <button class="auth-submit" id="forgot-btn">Kod Gönder</button>
+        <p class="auth-links"><a id="forgot-back-link">Girişe dön</a></p>
+        <p class="auth-error" id="forgot-error"></p>
+      </div>
+
+      <!-- Yeni Şifre Formu -->
+      <div id="reset-form" style="display: none;">
+        <p class="auth-form-title" id="reset-title">Yeni Şifre Belirle</p>
+        <p class="auth-form-desc" id="reset-desc"></p>
+        <div class="code-boxes" id="reset-codes">
+          <input class="code-box" maxlength="1" inputmode="numeric" autocomplete="one-time-code">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+          <input class="code-box" maxlength="1" inputmode="numeric">
+        </div>
+        <div class="pw-wrap">
+          <input type="password" class="auth-input" id="reset-password" placeholder="Yeni Şifre" autocomplete="new-password">
+          <button type="button" class="pw-eye" data-target="reset-password" aria-label="Şifreyi göster/gizle"></button>
+        </div>
+        <div class="pw-wrap">
+          <input type="password" class="auth-input" id="reset-password2" placeholder="Şifre Tekrar" autocomplete="new-password">
+          <button type="button" class="pw-eye" data-target="reset-password2" aria-label="Şifreyi göster/gizle"></button>
+        </div>
+        <button class="auth-submit" id="reset-btn">Şifreyi Sıfırla</button>
+        <p class="auth-links"><a id="reset-back-link">Girişe dön</a></p>
+        <p class="auth-error" id="reset-error"></p>
+      </div>
+    </div>
+  </div>
+
+  <button class="top-chip theme-toggle" id="theme-btn" title="Tema değiştir" aria-label="Tema değiştir">
+    <svg class="tt-moon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20.6 14.9A8.7 8.7 0 0 1 9.1 3.4a8.7 8.7 0 1 0 11.5 11.5z" fill="currentColor"/>
+    </svg>
+    <svg class="tt-sun" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="4.4" fill="currentColor"/>
+      <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <line x1="12" y1="2.4" x2="12" y2="5"/>
+        <line x1="12" y1="19" x2="12" y2="21.6"/>
+        <line x1="2.4" y1="12" x2="5" y2="12"/>
+        <line x1="19" y1="12" x2="21.6" y2="12"/>
+        <line x1="5.2" y1="5.2" x2="7" y2="7"/>
+        <line x1="17" y1="17" x2="18.8" y2="18.8"/>
+        <line x1="5.2" y1="18.8" x2="7" y2="17"/>
+        <line x1="17" y1="7" x2="18.8" y2="5.2"/>
+      </g>
+    </svg>
+  </button>
+  <button class="top-chip lang-switch" id="lang-btn" title="Dil / Language" aria-label="Dil değiştir">
+    <span class="lang-thumb"></span>
+    <span class="lang-opt" data-l="tr">TR</span>
+    <span class="lang-opt" data-l="en">EN</span>
+  </button>
 
   <div class="title-wrapper">
     <div class="main-title">ManipuLens</div>

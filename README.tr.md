@@ -154,9 +154,8 @@ Yerel depo klasörünüzün içindeki extension dizinini seçin.
 
 🎉 ManipuLens simgesi araç çubuğunuzda görünecek, tamamen bağlanmış ve sağ tık tetikleyicilerinizi dinlemeye hazır olacaktır!
 
-## 🔒 Telif Hakkı ve Kullanım Şartları
-
-Bu projenin tüm hakları saklıdır (All Rights Reserved). Kaynak kodların ticari veya kişisel amaçlarla kopyalanması, çoğaltılması, değiştirilmesi veya izin alınmadan dağıtılması yasaktır. Proje yalnızca inceleme ve portfolyo referansı amacıyla açık olarak paylaşılmıştır.
+📄 Lisans
+MIT Lisansı altında dağıtılmaktadır. Daha fazla bilgi için LICENSE dosyasına bakın.
 
 
 

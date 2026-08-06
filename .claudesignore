@@ -1,0 +1,21 @@
+# 1. En Büyük Kota Düşmanı (Rust Derleme Çıktıları)
+target/
+
+# 2. Veritabanı Dosyaları (İçi karmaşık veri dolu devasa dosyalardır)
+manipulens.db
+manipulens.db-shm
+manipulens.db-wal
+
+# 3. Arşiv ve Okunması Gereksiz Binary/Belge Formatları
+extension.rar
+*.docx
+*.pdf
+
+# 4. Loglar ve Geçmiş Dosyaları (Ajanın kafasını karıştırıp bağlamı şişirir)
+logs/
+analiz_log.txt
+history.jsonl
+
+# 5. Claude'un Kendi Sistem Klasörü ve Uzun Paket Listesi
+.claude/
+Cargo.lock
