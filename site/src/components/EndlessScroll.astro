@@ -21,8 +21,10 @@ interface Props {
 const { nav, current } = Astro.props;
 ---
 
+<div class="ml-chapter-toast" data-chapter-toast aria-live="polite"></div>
+
 <div class="ml-endless-son" data-endless-son hidden>
-  <p>Rehberin sonu. Yukari donebilir ya da raydan bir bölüme atlayabilirsin.</p>
+  <p>Rehberin sonu. Yukarı dönebilir ya da raydan bir bölüme atlayabilirsin.</p>
 </div>
 
 <script is:inline define:vars={{ nav, current }}>
@@ -89,6 +91,18 @@ const { nav, current } = Astro.props;
     var sonEl = document.querySelector('[data-endless-son]');
     if (asagiBitti && sonEl) sonEl.hidden = false;
 
+    var toast = document.querySelector('[data-chapter-toast]');
+    var toastTimeout = null;
+    function toastGoster(label) {
+      if (!toast) return;
+      toast.innerHTML = '<span class="ml-chapter-toast__icon">🧭</span> <span>Bölüm: <strong>' + label + '</strong></span>';
+      toast.setAttribute('data-acik', '');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(function () {
+        toast.removeAttribute('data-acik');
+      }, 2400);
+    }
+
     function betikleriCalistir(kok) {
       Array.prototype.forEach.call(kok.querySelectorAll('script'), function (eski) {
         var yeni = document.createElement('script');
@@ -98,6 +112,23 @@ const { nav, current } = Astro.props;
         yeni.text = eski.textContent;
         eski.parentNode.replaceChild(yeni, eski);
       });
+    }
+
+    function ayracOlustur(hedefLabel, hedefHref, yukariMi) {
+      var isaret = document.createElement('div');
+      isaret.className = 'ml-endless-ayrac rv';
+      isaret.setAttribute('data-endless-rota', hedefHref);
+      isaret.innerHTML =
+        '<div class="ml-endless-ayrac__bar">' +
+          '<span class="ml-endless-ayrac__pulse" aria-hidden="true"></span>' +
+          '<span class="ml-endless-ayrac__badge">' + (yukariMi ? 'Önceki Bölüm' : 'Sonraki Bölüm') + '</span>' +
+          '<div class="ml-endless-ayrac__line" aria-hidden="true"></div>' +
+        '</div>' +
+        '<div class="ml-endless-ayrac__header">' +
+          '<h2 class="ml-endless-ayrac__title">' + hedefLabel + '</h2>' +
+          '<span class="ml-endless-ayrac__hint">' + (yukariMi ? '↑ Yukarı Akış' : '↓ Aşağı Akış') + '</span>' +
+        '</div>';
+      return isaret;
     }
 
     function yukleAsagi() {
@@ -119,15 +150,7 @@ const { nav, current } = Astro.props;
           var kaynak = belge.getElementById('icerik');
           if (!kaynak) throw new Error('icerik yok');
 
-          var isaret = document.createElement('div');
-          isaret.className = 'ml-endless-ayrac';
-          isaret.setAttribute('data-endless-rota', hedef.href);
-          var etiket = document.createElement('span');
-          etiket.textContent = 'Sonraki bölüm';
-          var ad = document.createElement('strong');
-          ad.textContent = hedef.label;
-          isaret.appendChild(etiket);
-          isaret.appendChild(ad);
+          var isaret = ayracOlustur(hedef.label, hedef.href, false);
           main.appendChild(isaret);
 
           var eklenen = [];
@@ -197,15 +220,7 @@ const { nav, current } = Astro.props;
             if (dugum.nodeType === 1) eklenen.push(dugum);
           }
 
-          var isaret = document.createElement('div');
-          isaret.className = 'ml-endless-ayrac ml-endless-ayrac--yukari';
-          isaret.setAttribute('data-endless-rota', sira[ilkYuklenen].href);
-          var etiket = document.createElement('span');
-          etiket.textContent = 'Bölüm';
-          var ad = document.createElement('strong');
-          ad.textContent = sira[ilkYuklenen].label;
-          isaret.appendChild(etiket);
-          isaret.appendChild(ad);
+          var isaret = ayracOlustur(sira[ilkYuklenen].label, sira[ilkYuklenen].href, true);
           frag.appendChild(isaret);
 
           main.insertBefore(frag, main.firstChild);
@@ -258,6 +273,7 @@ const { nav, current } = Astro.props;
       }
 
       if (secili.href !== aktifHref) {
+        var eskiHref = aktifHref;
         aktifHref = secili.href;
         if (window.mlRayRota) window.mlRayRota(secili.href, secili.bolumler);
         document.dispatchEvent(
@@ -269,6 +285,10 @@ const { nav, current } = Astro.props;
         try {
           history.replaceState(null, '', secili.href + '/');
         } catch (e) {}
+
+        if (eskiHref) {
+          toastGoster(secili.label);
+        }
       }
 
       var kalan =
@@ -294,35 +314,125 @@ const { nav, current } = Astro.props;
 
 <style is:global>
   .ml-endless-ayrac {
-    display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    margin: clamp(3rem, 8vw, 5rem) 0 clamp(1.5rem, 4vw, 2.5rem);
-    padding-top: 1.1rem;
-    border-top: var(--ml-border);
+    margin: clamp(3.5rem, 8vw, 5.5rem) 0 clamp(2rem, 4vw, 3rem);
+    padding: 1.5rem 1.8rem;
+    background: var(--ml-card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--ml-card-border);
+    border-left: 5px solid var(--ml-scan);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow-md);
+    position: relative;
+    overflow: hidden;
   }
-  .ml-endless-ayrac span {
+  .ml-endless-ayrac::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--ml-scan), transparent 75%);
+  }
+  .ml-endless-ayrac__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+  .ml-endless-ayrac__pulse {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--ml-scan);
+    box-shadow: 0 0 8px var(--ml-scan);
+    animation: ml-lens-breath 3s infinite;
+  }
+  .ml-endless-ayrac__badge {
     font-family: var(--ml-font-mono);
-    font-size: 0.66rem;
+    font-size: 0.65rem;
+    font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--ml-ink-muted);
+    color: var(--ml-scan);
+    background: var(--ml-scan-dim);
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--ml-radius-sm);
   }
-  .ml-endless-ayrac strong {
+  .ml-endless-ayrac__line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--ml-line-soft), transparent);
+  }
+  .ml-endless-ayrac__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1.5rem;
+  }
+  .ml-endless-ayrac__title {
+    margin: 0;
     font-family: var(--ml-font-display);
-    font-size: var(--ml-step-1);
+    font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+    color: var(--ml-ink);
+    line-height: 1.2;
+    font-weight: 700;
   }
+  .ml-endless-ayrac__hint {
+    font-family: var(--ml-font-mono);
+    font-size: 0.72rem;
+    color: var(--ml-ink-muted);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .ml-chapter-toast {
+    position: fixed;
+    top: 4.8rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(-1rem);
+    z-index: 90;
+    background: var(--ml-navy);
+    color: #f5f7fb;
+    font-family: var(--ml-font-body);
+    font-size: 0.84rem;
+    padding: 0.55rem 1.3rem;
+    border: 1px solid rgba(35, 201, 214, 0.4);
+    border-radius: 999px;
+    box-shadow: var(--ml-shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s var(--ml-ease), transform 0.25s var(--ml-ease);
+  }
+  .ml-chapter-toast[data-acik] {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .ml-chapter-toast strong {
+    color: #23c9d6;
+  }
+  .ml-chapter-toast__icon {
+    font-size: 0.95rem;
+  }
+
   .ml-endless-son {
     margin-block: 2.5rem 0;
-    padding: 1rem 1.25rem;
-    border: var(--ml-border);
+    padding: 1.1rem 1.35rem;
+    border: 1px solid var(--ml-card-border);
     border-radius: var(--ml-radius);
-    background: var(--ml-paper-warm);
+    background: var(--ml-card-bg);
+    box-shadow: var(--ml-shadow-sm);
   }
   .ml-endless-son p {
     margin: 0;
     font-family: var(--ml-font-mono);
     font-size: var(--ml-step--1);
     color: var(--ml-ink-muted);
+    font-weight: 600;
   }
 </style>

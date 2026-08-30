@@ -125,28 +125,49 @@ const getCategory = (index: number) => {
     }
 
     function listeKur(kok, kaynak) {
-      var eskiListe = ray.querySelector('.ml-side-rail__parts');
-      if (eskiListe) eskiListe.parentNode.removeChild(eskiListe);
+      var eskiKonteyner = ray.querySelector('.ml-side-rail__parts-wrap');
+      if (eskiKonteyner) eskiKonteyner.parentNode.removeChild(eskiKonteyner);
       baglar = [];
       bolumler = kaynak;
       if (!kok || kaynak.length < 2) return;
+
+      var wrap = damgala(document.createElement('div'));
+      wrap.className = 'ml-side-rail__parts-wrap';
+
+      var toggleBtn = damgala(document.createElement('button'));
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'ml-side-rail__toggle';
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      var sayi = kaynak.length;
+      toggleBtn.innerHTML = '<span class="ml-side-rail__toggle-icon" aria-hidden="true">▾</span> <span class="ml-side-rail__toggle-text">' + sayi + ' alt başlığı gizle</span>';
 
       var liste = damgala(document.createElement('ol'));
       liste.className = 'ml-side-rail__parts';
       liste.setAttribute('aria-label', 'Bu sayfanın bölümleri');
 
+      toggleBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var acik = toggleBtn.getAttribute('aria-expanded') === 'true';
+        if (acik) {
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          liste.hidden = true;
+          toggleBtn.querySelector('.ml-side-rail__toggle-icon').textContent = '▸';
+          toggleBtn.querySelector('.ml-side-rail__toggle-text').textContent = sayi + ' alt başlığı göster';
+        } else {
+          toggleBtn.setAttribute('aria-expanded', 'true');
+          liste.hidden = false;
+          toggleBtn.querySelector('.ml-side-rail__toggle-icon').textContent = '▾';
+          toggleBtn.querySelector('.ml-side-rail__toggle-text').textContent = sayi + ' alt başlığı gizle';
+        }
+      });
+
       kaynak.forEach(function (s, i) {
-        // Sonsuz kaydirmada birden fazla rota ayni belgede duruyor; uretilen
-        // kimlik once bosta mi diye sorulmadan verilirse iki rotanin bolumleri
-        // ayni cipaya baglanir.
         if (!s.id) {
           var sayac = i + 1;
           while (document.getElementById('ml-bolum-' + sayac)) sayac++;
           s.id = 'ml-bolum-' + sayac;
         }
-        // Numarayi bolumun kendi etiketinden almiyoruz: bazi sayfalar ayni
-        // numarayi iki kez veya sirasiz kullaniyor. Rayda sayac hep 01'den
-        // artarak gider, okuyucu tek uzun sayfada nerede oldugunu sayabilir.
         var num = String(i + 1);
         if (num.length < 2) num = '0' + num;
 
@@ -168,7 +189,9 @@ const getCategory = (index: number) => {
         baglar.push(a);
       });
 
-      kok.parentNode.appendChild(liste);
+      wrap.appendChild(toggleBtn);
+      wrap.appendChild(liste);
+      kok.parentNode.appendChild(wrap);
       aktif = null;
     }
 
@@ -358,15 +381,37 @@ const getCategory = (index: number) => {
     font-variant-numeric: tabular-nums;
   }
   .ml-side-rail__route[aria-current='page'] .ml-side-rail__no { color: #23c9d6; }
-  .ml-side-rail__label {
-    padding-right: 0.9rem;
-    font-size: 0.82rem;
-    font-weight: 650;
-    line-height: 1.25;
+  .ml-side-rail__parts-wrap {
+    padding: 0.25rem 0 0.5rem 2.8rem;
+    border-left: 3px solid var(--ml-line-soft);
+  }
+  .ml-side-rail__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.6rem;
+    margin: 0.2rem 0 0.35rem 0.2rem;
+    background: var(--ml-scan-dim);
+    color: var(--ml-scan);
+    font-family: var(--ml-font-mono);
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius-sm);
+    cursor: pointer;
+    transition: background var(--ml-duration) var(--ml-ease), color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-side-rail__toggle:hover {
+    background: var(--ml-scan);
+    color: #f5f7fb;
+  }
+  .ml-side-rail__toggle-icon {
+    font-size: 0.75rem;
+    line-height: 1;
   }
   .ml-side-rail__parts {
-    padding: 0.2rem 0 0.45rem 3.25rem !important;
-    border-left: 3px solid var(--ml-line-soft);
+    padding: 0.1rem 0 0.2rem 0.4rem !important;
     margin-left: 0;
   }
   .ml-side-rail__parts a {
