@@ -1,4 +1,4 @@
-use crate::types::AgentAnalysis;
+use crate::types::{AgentAnalysis, DemographicInference};
 use serde_json::json;
 use std::sync::OnceLock;
 
@@ -35,6 +35,13 @@ RULES:
 }
 
 async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<AgentAnalysis, String> {
+    let raw = call_ollama_json(system_prompt, user_text).await?;
+    serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+/// Ollama'dan ham JSON metni ister. `call_ollama_agent` ve demografi ajanı
+/// aynı çağrı ayarlarını (model, sıcaklık, keep_alive) paylaşsın diye ayrıldı.
+async fn call_ollama_json(system_prompt: &str, user_text: &str) -> Result<String, String> {
     let payload = json!({
         "model": "llama3",
         "system": system_prompt,
@@ -60,13 +67,157 @@ async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<Agent
         let res_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
 
         if let Some(response_str) = res_body.get("response").and_then(|r| r.as_str()) {
-            let analysis: AgentAnalysis =
-                serde_json::from_str(response_str).map_err(|e| e.to_string())?;
-            return Ok(analysis);
+            return Ok(response_str.to_string());
         }
     }
 
     Err("Ollama'dan geçerli bir yanıt alınamadı.".to_string())
+}
+
+/// Güven eşiği: bunun altındaki tahminler "bilinmiyor" sayılır.
+pub const DEMOGRAPHIC_MIN_CONFIDENCE: f32 = 0.60;
+
+/// DEMOGRAFİ AJANI — kullanıcının KENDİ tarama geçmişinden profil çıkarır.
+///
+/// Diğer 6 ajandan iki farkı var:
+/// 1. Girdisi tek bir metin değil, kullanıcının biriken geçmişidir.
+/// 2. Analiz akışında çalışmaz. `run_orchestrator` zaten 7 Ollama çağrısı
+///    yapıyor; 8.'si her analizin yanıt süresine binerdi. Bu ajan isteğin
+///    dışında, birkaç analizde bir tetiklenir.
+///
+/// `evidence`: sayaç katmanı + son taranan metin önizlemeleri (JSON).
+pub async fn analyze_demographic(
+    evidence: &str,
+    lang: &str,
+) -> Result<DemographicInference, String> {
+    let out_lang = output_language(lang);
+
+    let prompt = format!(
+        r#"You are a USER PROFILING analyst. Your subject is the PERSON WHO SCANNED these texts - not the authors of the texts. Infer only what their scanning history reasonably supports.
+
+INPUT: JSON with "stats" (counts computed from their history) and "recent_previews" (short excerpts of texts they chose to scan).
+
+FORBIDDEN - never infer, never mention, never hint at: ethnicity or national origin, religion or belief, health or disability, sexual orientation, political opinion, or any criminal record. These are special-category personal data. If the evidence points that way, ignore it.
+
+ALLOWED fields, each judged independently:
+- "yas_araligi": an age band such as "18-24", "25-34", "35-44", "45-54", "55+".
+- "cinsiyet": only if the previews contain explicit self-reference; otherwise "bilinmiyor".
+- "egitim_seviyesi": e.g. "lise", "üniversite", "lisansüstü".
+- "tuketici_egilimi": what kind of commercial content pulls them in, in a few words.
+- "ilgi_alanlari": at most 5 short topic labels drawn from what they actually scanned.
+
+EVIDENCE RULES:
+1. Base every field ONLY on the given stats and previews. Never invent a detail that is not supported.
+2. "guven" is your confidence 0.0-1.0. Be honest and conservative: a single weak hint is below 0.60.
+3. If a field is below 0.60 confidence, set "deger" to "bilinmiyor" and keep the low score. Guessing is worse than admitting ignorance.
+4. "dayanak": ONE short sentence naming the observation behind the guess. If "deger" is "bilinmiyor", write a short sentence saying the evidence is insufficient.
+5. Scanning a manipulative text means the person was EXPOSED to it, not that they agree with it. Never treat the content's own claims as the person's traits.
+
+"ozet": at most 2 plain sentences describing this person's scanning behaviour for an everyday reader. LANGUAGE: every text field you output ("deger", "dayanak", "ilgi_alanlari", "ozet") MUST be written in {out_lang}, regardless of the language of the evidence.
+
+Output ONLY one valid JSON object, no markdown, no extra text:
+{{"yas_araligi":{{"deger":"...","guven":0.0,"dayanak":"..."}},"cinsiyet":{{"deger":"...","guven":0.0,"dayanak":"..."}},"egitim_seviyesi":{{"deger":"...","guven":0.0,"dayanak":"..."}},"tuketici_egilimi":{{"deger":"...","guven":0.0,"dayanak":"..."}},"ilgi_alanlari":[],"ozet":"..."}}"#
+    );
+
+    let raw = call_ollama_json(&prompt, evidence).await?;
+    let mut inference: DemographicInference =
+        serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    sanitize_demographic(&mut inference, lang);
+    Ok(inference)
+}
+
+/// Model kuralı çiğnerse çıktıyı biz düzeltiriz: eşiğin altındaki her tahmin
+/// "bilinmiyor"a çekilir, güven skoru aralığa sıkıştırılır, ilgi alanları
+/// 5 ile sınırlanır. Modelin uyumuna güvenmiyoruz.
+fn sanitize_demographic(inference: &mut DemographicInference, lang: &str) {
+    let unknown = if lang == "en" { "unknown" } else { "bilinmiyor" };
+
+    for field in [
+        &mut inference.yas_araligi,
+        &mut inference.cinsiyet,
+        &mut inference.egitim_seviyesi,
+        &mut inference.tuketici_egilimi,
+    ] {
+        field.guven = field.guven.clamp(0.0, 1.0);
+        if field.guven < DEMOGRAPHIC_MIN_CONFIDENCE || field.deger.trim().is_empty() {
+            field.deger = unknown.to_string();
+        }
+    }
+
+    inference.ilgi_alanlari.retain(|i| !i.trim().is_empty());
+    inference.ilgi_alanlari.truncate(5);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::DemographicTrait;
+
+    fn trait_of(deger: &str, guven: f32) -> DemographicTrait {
+        DemographicTrait {
+            deger: deger.to_string(),
+            guven,
+            dayanak: "dayanak".to_string(),
+        }
+    }
+
+    fn sample() -> DemographicInference {
+        DemographicInference {
+            yas_araligi: trait_of("25-34", 0.82),
+            cinsiyet: trait_of("kadın", 0.30),
+            egitim_seviyesi: trait_of("", 0.95),
+            tuketici_egilimi: trait_of("fitness ürünleri", 0.71),
+            ilgi_alanlari: vec![
+                "spor".into(),
+                "  ".into(),
+                "teknoloji".into(),
+                "a".into(),
+                "b".into(),
+                "c".into(),
+                "d".into(),
+            ],
+            ozet: "özet".into(),
+        }
+    }
+
+    #[test]
+    fn low_confidence_becomes_unknown() {
+        let mut inference = sample();
+        sanitize_demographic(&mut inference, "tr");
+
+        // Eşiğin üstü korunur
+        assert_eq!(inference.yas_araligi.deger, "25-34");
+        assert_eq!(inference.tuketici_egilimi.deger, "fitness ürünleri");
+        // Eşiğin altı bastırılır (skor korunur, değer gizlenir)
+        assert_eq!(inference.cinsiyet.deger, "bilinmiyor");
+        assert!((inference.cinsiyet.guven - 0.30).abs() < f32::EPSILON);
+        // Yüksek güvenli ama boş değer de bilinmiyor sayılır
+        assert_eq!(inference.egitim_seviyesi.deger, "bilinmiyor");
+    }
+
+    #[test]
+    fn interests_are_trimmed_and_capped() {
+        let mut inference = sample();
+        sanitize_demographic(&mut inference, "tr");
+
+        assert_eq!(inference.ilgi_alanlari.len(), 5);
+        assert!(!inference.ilgi_alanlari.iter().any(|i| i.trim().is_empty()));
+    }
+
+    #[test]
+    fn confidence_is_clamped_to_range() {
+        let mut inference = sample();
+        inference.yas_araligi.guven = 3.7;
+        sanitize_demographic(&mut inference, "tr");
+        assert!(inference.yas_araligi.guven <= 1.0);
+    }
+
+    #[test]
+    fn english_unknown_label() {
+        let mut inference = sample();
+        sanitize_demographic(&mut inference, "en");
+        assert_eq!(inference.cinsiyet.deger, "unknown");
+    }
 }
 
 pub async fn analyze_linguistic(text: &str, lang: &str) -> Result<AgentAnalysis, String> {

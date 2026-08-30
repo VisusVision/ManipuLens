@@ -15,15 +15,26 @@
 
 use crate::db::Db;
 use crate::types::{HistoryEntry, ProfileStats, UserProfile};
-use chrono::Local;
+use chrono::{DateTime, Local};
 use std::collections::BTreeMap;
 
 /// Profil sayaçlarının hesaplandığı en fazla geçmiş kaydı.
 pub const PROFILE_HISTORY_LIMIT: i64 = 500;
 
-/// Çıkarım katmanı kaç analizde bir tazelenir (demografi ajanı bunu kullanır).
-#[allow(dead_code)]
+/// Çıkarım katmanı kaç analizde bir tazelenir. Her analizde çalıştırmak
+/// aynı yorumu tekrar tekrar üretmek olurdu; 5'te bir, LLM yükünü ~%80
+/// azaltıp profilin güncelliğini gözle görülür biçimde bozmuyor.
 pub const PROFILE_INFERENCE_EVERY: i64 = 5;
+
+/// Hiç yeni analiz gelmese bile çıkarımın bayat sayıldığı süre (saat).
+pub const PROFILE_INFERENCE_MAX_AGE_HOURS: i64 = 24;
+
+/// Demografi ajanına verilen en fazla metin önizlemesi. Prompt'u şişirmemek
+/// için sınırlı: 30 önizleme davranış örüntüsü için yeterli.
+const EVIDENCE_PREVIEW_LIMIT: usize = 30;
+
+/// Çıkarım katmanının sürüm etiketi. Prompt veya şema değişirse artırılır.
+const INFERENCE_MODEL_VERSION: &str = "demographic-v1";
 
 /// Profil üretmek için gereken en az analiz sayısı: daha azında istatistik de
 /// çıkarım da gürültüden ibaret olur.
@@ -139,9 +150,110 @@ pub fn refresh_stats(db: &Db, user_id: &str, client_id: &str) -> Option<UserProf
             .map(|p| p.model_version.clone())
             .unwrap_or_else(|| "stats-v1".to_string()),
         updated_at: Local::now().to_rfc3339(),
+        // Çıkarım meta bilgisi sayaç tazelemesinde korunur: bayatlık ölçümü
+        // yalnızca çıkarımın kendisi yenilendiğinde sıfırlanmalı.
+        inference_at: previous.as_ref().and_then(|p| p.inference_at.clone()),
+        inference_count: previous.as_ref().and_then(|p| p.inference_count),
     };
 
     db.upsert_profile(&profile);
+    Some(profile)
+}
+
+/// Çıkarım katmanının tazelenmesi gerekiyor mu?
+///
+/// Üç tetikleyici var: hiç çıkarım yok, son çıkarımdan bu yana
+/// `PROFILE_INFERENCE_EVERY` yeni analiz birikti, ya da çıkarım
+/// `PROFILE_INFERENCE_MAX_AGE_HOURS` saatten eski.
+pub fn needs_inference(profile: &UserProfile) -> bool {
+    if profile.inference.is_none() {
+        return true;
+    }
+
+    match profile.inference_count {
+        Some(count) if profile.stats.total - count >= PROFILE_INFERENCE_EVERY => return true,
+        None => return true,
+        _ => {}
+    }
+
+    match profile
+        .inference_at
+        .as_deref()
+        .and_then(|ts| DateTime::parse_from_rfc3339(ts).ok())
+    {
+        Some(at) => {
+            let age = Local::now().signed_duration_since(at);
+            age.num_hours() >= PROFILE_INFERENCE_MAX_AGE_HOURS
+        }
+        // Zaman damgası okunamıyorsa bayat kabul et: tazelemek, yanlış
+        // güncel sanmaktan ucuz.
+        None => true,
+    }
+}
+
+/// Demografi ajanına verilecek kanıt paketi: sayaçlar + son taranan
+/// metinlerin önizlemeleri. Tam metin zaten hiç saklanmıyor.
+fn build_evidence(stats: &ProfileStats, entries: &[HistoryEntry]) -> String {
+    let previews: Vec<&str> = entries
+        .iter()
+        .take(EVIDENCE_PREVIEW_LIMIT)
+        .map(|e| e.text_preview.as_str())
+        .collect();
+
+    serde_json::json!({
+        "stats": stats,
+        "recent_previews": previews,
+    })
+    .to_string()
+}
+
+/// Çıkarım katmanını tazeler: demografi ajanını çağırır ve sonucu profile
+/// yazar. Ajan hata verirse profil OLDUĞU GİBİ bırakılır — bozuk çıkarım
+/// yazmaktansa eski çıkarımı korumak daha doğru.
+///
+/// Bu fonksiyon isteğin dışında çağrılmak üzere tasarlandı; kullanıcı bunu
+/// beklemez.
+pub async fn refresh_inference(
+    db: &Db,
+    user_id: &str,
+    client_id: &str,
+    lang: &str,
+) -> Option<UserProfile> {
+    let entries: Vec<HistoryEntry> = db
+        .history_for_client(client_id, PROFILE_HISTORY_LIMIT)
+        .into_iter()
+        .map(|(_, e)| e)
+        .collect();
+
+    if (entries.len() as i64) < PROFILE_MIN_ANALYSES {
+        return None;
+    }
+
+    let stats = compute_stats(&entries);
+    let evidence = build_evidence(&stats, &entries);
+
+    let inference = match crate::agents::analyze_demographic(&evidence, lang).await {
+        Ok(inference) => inference,
+        Err(e) => {
+            tracing::warn!(user_id, error = %e, "demografi ajanı başarısız; profil korunuyor");
+            return None;
+        }
+    };
+
+    let now = Local::now().to_rfc3339();
+    let total = stats.total;
+    let profile = UserProfile {
+        user_id: user_id.to_string(),
+        stats,
+        inference: serde_json::to_value(&inference).ok(),
+        model_version: INFERENCE_MODEL_VERSION.to_string(),
+        updated_at: now.clone(),
+        inference_at: Some(now),
+        inference_count: Some(total),
+    };
+
+    db.upsert_profile(&profile);
+    tracing::info!(user_id, analyses = total, "kullanıcı profili çıkarımı tazelendi");
     Some(profile)
 }
 
@@ -259,6 +371,90 @@ mod tests {
         let profile = refresh_stats(&db, "uid-1", "a@b.com").expect("profil üretilmeli");
         assert_eq!(profile.stats.total, PROFILE_MIN_ANALYSES);
         assert_eq!(db.profile_for_user("uid-1").unwrap().stats.total, PROFILE_MIN_ANALYSES);
+    }
+
+    fn profile_with(total: i64, inference_count: Option<i64>, inference_at: Option<String>) -> UserProfile {
+        UserProfile {
+            user_id: "uid-1".into(),
+            stats: ProfileStats { total, ..Default::default() },
+            inference: Some(serde_json::json!({"ozet": "x"})),
+            model_version: "demographic-v1".into(),
+            updated_at: Local::now().to_rfc3339(),
+            inference_at,
+            inference_count,
+        }
+    }
+
+    #[test]
+    fn inference_needed_when_missing() {
+        let mut p = profile_with(10, Some(10), Some(Local::now().to_rfc3339()));
+        assert!(!needs_inference(&p));
+        p.inference = None;
+        assert!(needs_inference(&p));
+    }
+
+    #[test]
+    fn inference_needed_after_n_new_analyses() {
+        let now = Local::now().to_rfc3339();
+        // 4 yeni analiz: henüz eşiğe gelmedi
+        let p = profile_with(14, Some(10), Some(now.clone()));
+        assert!(!needs_inference(&p));
+        // 5 yeni analiz: eşik doldu
+        let p = profile_with(15, Some(10), Some(now));
+        assert!(needs_inference(&p));
+    }
+
+    #[test]
+    fn inference_needed_when_stale_by_time() {
+        let old = (Local::now() - chrono::Duration::hours(PROFILE_INFERENCE_MAX_AGE_HOURS + 1))
+            .to_rfc3339();
+        let p = profile_with(10, Some(10), Some(old));
+        assert!(needs_inference(&p));
+    }
+
+    #[test]
+    fn inference_needed_when_timestamp_unreadable() {
+        let p = profile_with(10, Some(10), Some("bozuk-zaman".into()));
+        assert!(needs_inference(&p));
+    }
+
+    #[test]
+    fn evidence_caps_previews_and_keeps_stats() {
+        let entries: Vec<HistoryEntry> = (0..40)
+            .map(|i| entry(&format!("2026-01-01T00:00:{:02}+03:00", i), true, "Pazarlama", "tr"))
+            .collect();
+        let stats = compute_stats(&entries);
+        let evidence: serde_json::Value =
+            serde_json::from_str(&build_evidence(&stats, &entries)).unwrap();
+
+        assert_eq!(
+            evidence["recent_previews"].as_array().unwrap().len(),
+            EVIDENCE_PREVIEW_LIMIT
+        );
+        assert_eq!(evidence["stats"]["total"], 40);
+    }
+
+    #[test]
+    fn refresh_stats_preserves_existing_inference() {
+        let db = Db::open_in_memory();
+        for i in 0..PROFILE_MIN_ANALYSES {
+            db.insert_history(&entry(
+                &format!("2026-01-{:02}T00:00:00+03:00", i + 1),
+                true,
+                "Pazarlama",
+                "tr",
+            ));
+        }
+        db.upsert_profile(&profile_with(
+            PROFILE_MIN_ANALYSES,
+            Some(PROFILE_MIN_ANALYSES),
+            Some(Local::now().to_rfc3339()),
+        ));
+
+        let refreshed = refresh_stats(&db, "uid-1", "a@b.com").expect("profil üretilmeli");
+        // Sayaç tazelemesi çıkarımı silmez
+        assert!(refreshed.inference.is_some());
+        assert_eq!(refreshed.inference_count, Some(PROFILE_MIN_ANALYSES));
     }
 
     #[test]

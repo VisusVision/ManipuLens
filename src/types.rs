@@ -78,6 +78,37 @@ pub struct HistoryEntry {
     pub text_len: Option<i64>,
 }
 
+/// Demografi ajanının tek bir özellik için ürettiği tahmin.
+/// `guven` 0.60'ın altındaysa `deger` "bilinmiyor" olarak sabitlenir —
+/// zayıf tahmini kesin bilgi gibi göstermeyiz.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DemographicTrait {
+    pub deger: String,
+    pub guven: f32,
+    /// Tahminin geçmişteki hangi gözleme dayandığı (tek cümle).
+    #[serde(default)]
+    pub dayanak: String,
+}
+
+/// Demografi ajanının çıktısı. YASAK ALANLAR — bu yapıya bilinçli olarak
+/// eklenmemiştir ve ajan prompt'unda da açıkça yasaklanır: etnik köken, din
+/// veya inanç, sağlık durumu, cinsel yönelim, siyasi görüş. Bunlar KVKK ve
+/// GDPR'da özel nitelikli kişisel veridir; tarama geçmişinden çıkarımı hem
+/// hukuken riskli hem istatistiksel olarak dayanaksızdır.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DemographicInference {
+    pub yas_araligi: DemographicTrait,
+    pub cinsiyet: DemographicTrait,
+    pub egitim_seviyesi: DemographicTrait,
+    pub tuketici_egilimi: DemographicTrait,
+    /// En fazla 5 ilgi alanı etiketi.
+    #[serde(default)]
+    pub ilgi_alanlari: Vec<String>,
+    /// En fazla 2 cümlelik insan okuru için özet.
+    #[serde(default)]
+    pub ozet: String,
+}
+
 /// Kullanıcı profili: sayaç katmanı (her analizde, LLM'siz) + çıkarım katmanı
 /// (N analizde bir, LLM ile). Kart 2'de demografi ajanı `inference` alanını
 /// doldurur; `stats` bu turda da üretilir.
@@ -92,6 +123,13 @@ pub struct UserProfile {
     /// Çıkarımı üreten sürüm etiketi ("stats-v1", "demographic-v1", ...).
     pub model_version: String,
     pub updated_at: String,
+    /// Çıkarım katmanının en son ne zaman üretildiği.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_at: Option<String>,
+    /// Çıkarım üretildiğinde kullanıcının kaç analizi vardı. Bayatlık
+    /// (kaç yeni analiz biriktiği) bu sayıyla ölçülür.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_count: Option<i64>,
 }
 
 /// Kullanıcının analiz geçmişinden doğrudan sayılan büyüklükler.

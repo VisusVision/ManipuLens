@@ -68,8 +68,19 @@ two-layer user profile is built on top of it:
   (`tokio::spawn`) and without any LLM call. Totals, manipulated ratio,
   dominant-type distribution, per-agent detection counts, language mix,
   product/sector predictions, average text length.
-- **Inference layer** — the demographic agent; refreshed every few analyses
-  rather than on every one (a single analysis already makes 7 Ollama calls).
+- **Inference layer** — the demographic agent (`analyze_demographic`); reads
+  the user's counters plus their last 30 text previews and estimates age
+  band, education level, consumer tendency and interests. Refreshed every 5
+  analyses (or when the inference is older than 24 hours) rather than on
+  every one — a single analysis already makes 7 Ollama calls, and an 8th
+  would land on the user's wait time.
+
+The agent's limits are enforced in code: any estimate below 0.60 confidence
+is forced to "unknown" (the model's compliance is not trusted — the output is
+re-checked in Rust), and **ethnicity, religion, health, sexual orientation
+and political opinion** are both forbidden in the prompt and absent from the
+output schema, since they are special-category personal data under GDPR/KVKK.
+If the agent fails, the existing profile is left untouched.
 
 No profile is produced below 5 analyses. A user can read and delete their own
 profile only; identity is derived solely from the session token.

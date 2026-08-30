@@ -949,14 +949,24 @@ async fn handle_analyze(
             };
             state.db.insert_history(&entry);
 
-            // Profil sayaçlarını isteğin DIŞINDA tazele: kullanıcı raporunu
-            // beklemeden alır, profil birkaç milisaniye sonra güncellenir.
+            // Profili isteğin DIŞINDA tazele: kullanıcı raporunu beklemeden
+            // alır, profil sonra sessizce güncellenir.
+            //
+            // İki katman: sayaçlar her analizde (LLM'siz, milisaniye),
+            // demografi çıkarımı yalnızca eşik dolduğunda (LLM'li, saniyeler).
             {
                 let state = Arc::clone(&state);
                 let user_id = session.user_id.clone();
                 let client_id = session.email.clone();
+                let lang = lang.to_string();
                 tokio::spawn(async move {
-                    profile::refresh_stats(&state.db, &user_id, &client_id);
+                    let Some(profile) = profile::refresh_stats(&state.db, &user_id, &client_id)
+                    else {
+                        return;
+                    };
+                    if profile::needs_inference(&profile) {
+                        profile::refresh_inference(&state.db, &user_id, &client_id, &lang).await;
+                    }
                 });
             }
 
@@ -1091,7 +1101,19 @@ async fn handle_profile(
     };
 
     match state.db.profile_for_user(&session.user_id) {
-        Some(p) => Ok(Json(json!({ "exists": true, "profile": p }))),
+        Some(p) => {
+            // Profil bayatsa arka planda tazele; kullanıcı beklemeden
+            // eldeki profili görür, bir sonraki açılışta güncelini bulur.
+            if profile::needs_inference(&p) {
+                let state = Arc::clone(&state);
+                let user_id = session.user_id.clone();
+                let client_id = session.email.clone();
+                tokio::spawn(async move {
+                    profile::refresh_inference(&state.db, &user_id, &client_id, "tr").await;
+                });
+            }
+            Ok(Json(json!({ "exists": true, "profile": p })))
+        }
         // Henüz yeterli analiz yok: hata değil, "profil oluşmadı" durumu.
         None => Ok(Json(json!({
             "exists": false,

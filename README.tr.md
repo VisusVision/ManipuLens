@@ -68,8 +68,19 @@ kullanıcı profili durur:
   LLM çağrısı olmadan güncellenir. Toplam analiz, manipülatif oran, baskın
   tip dağılımı, ajan bazlı tespit sayıları, dil dağılımı, ürün/sektör
   tahminleri, ortalama metin uzunluğu.
-- **Çıkarım katmanı** — demografi ajanı; her analizde değil, birkaç analizde
-  bir tazelenir (bir analiz zaten 7 Ollama çağrısı yapıyor).
+- **Çıkarım katmanı** — demografi ajanı (`analyze_demographic`); kullanıcının
+  sayaçlarını ve son 30 metin önizlemesini okuyup yaş aralığı, eğitim
+  seviyesi, tüketici eğilimi ve ilgi alanları tahmin eder. Her analizde
+  değil, 5 analizde bir (ya da çıkarım 24 saatten eskiyse) tazelenir — bir
+  analiz zaten 7 Ollama çağrısı yapıyor, 8.'si kullanıcının bekleme süresine
+  binerdi.
+
+Demografi ajanının sınırları koda gömülüdür: güveni 0.60'ın altındaki her
+tahmin "bilinmiyor"a çekilir (modelin uyumuna güvenilmez, çıktı Rust
+tarafında da denetlenir) ve **etnik köken, din, sağlık, cinsel yönelim,
+siyasi görüş** alanları hem prompt'ta yasaklıdır hem de çıktı şemasında yer
+almaz — bunlar KVKK/GDPR'da özel nitelikli kişisel veridir. Ajan başarısız
+olursa mevcut profil olduğu gibi korunur.
 
 En az 5 analiz olmadan profil üretilmez. Kullanıcı kendi profilini görür ve
 silebilir; başkasının profiline erişim yoktur (kimlik yalnızca oturum
