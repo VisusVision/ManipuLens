@@ -1,0 +1,36 @@
+---
+title: "Analiz geçmişi artık altı ajanın kararını da saklıyor"
+date: 2026-08-30
+version: "backend-0.4.0"
+component: "backend"
+owner: "Enes"
+status: "released"
+visibility: "team"
+simple_summary: "Bir metni analiz ettiğinizde altı ajan ayrı ayrı karar veriyordu, ama bu kararlar kaydedilmeden atılıyordu; geriye yalnızca baskın manipülasyon tipi ve metnin ilk 120 karakteri kalıyordu. Artık her ajanın ne dediği de saklanıyor. Kendi verinizi dosya olarak dışa aktarabiliyor, isterseniz silebiliyorsunuz."
+ne_ise_yarar: "Sistemin ne kadar doğru çalıştığını ölçmenin ve zaman içinde nasıl metinler taradığınızı görmenin yolu bu veriyi saklamaktan geçiyor. Saklanmayan karar sonradan incelenemez."
+technical_summary: "history tablosuna user_id, agents_json, predicted_product ve text_len sütunları eklendi. Şema göçü idempotent ALTER ile yapılıyor, eski kayıtlar bozulmadan yeni sütunları boş olarak taşıyor. Yeni user_profiles tablosu ve src/profile.rs sayaç katmanı: toplam analiz, manipülatif oranı, baskın tip dağılımı, ajan bazlı yakalama sayısı, dil dağılımı, ürün tahmini ve ortalama metin uzunluğu. GET /v1/profile ve POST /v1/profile/delete uçları; CLI tarafında --export-dataset JSONL çıktısı üretiyor."
+why_changed: "Kullanıcı profili çıkarımı ve model kalitesi ölçümü, atılan bu veri olmadan yapılamıyordu."
+impact: "Analiz başına yazılan veri arttı; buna karşılık doğrulama seti ve profil çıkarımı mümkün hale geldi. Dışa aktarımda e-posta yer almıyor, kullanıcı ayrımı UUID ile yapılıyor."
+tests: "39/39 test yeşil; eski şemalı bir veritabanında göç denendi, kayıt kaybı olmadı. Dışa aktarım çıktısında e-posta sızıntısı sıfır."
+karsilastirma:
+  - alan: "Ajan kararları"
+    once: "Üretiliyor, kullanılıyor, sonra atılıyor"
+    sonra: "agents_json içinde kayıtlı"
+  - alan: "Geçmiş kaydı"
+    once: "Baskın tip + 120 karakter önizleme"
+    sonra: "Baskın tip, altı ajan kararı, ürün tahmini, metin uzunluğu, kullanıcı UUID'si"
+  - alan: "Veriyi dışa aktarma"
+    once: "Yok"
+    sonra: "--export-dataset ile JSONL"
+  - alan: "Kullanıcı kimliği"
+    once: "client_id parametresi istemciden geliyordu"
+    sonra: "Oturum token'ından türeyen UUID; dışa aktarımda e-posta yok"
+  - alan: "Eski kayıtlar"
+    once: "Şema göçü gerekmiyordu"
+    sonra: "Göçte korunuyor, yeni sütunlar boş kalıyor"
+known_issues:
+  - "Eski kayıtların agents_json alanı boş; doğrulama seti yalnızca göçten sonraki analizlerden kurulabilir."
+commit_or_pr: "https://github.com/VisusVision/ManipuLens/commit/2f32c17"
+verified_at_commit: "2f32c17"
+verified_at: 2026-08-30
+---

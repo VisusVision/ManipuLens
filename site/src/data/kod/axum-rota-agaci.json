@@ -1,0 +1,30 @@
+{
+  "id": "axum-rota-agaci",
+  "dosya": "src/main.rs",
+  "dil": "rust",
+  "baslangic_satiri": 1007,
+  "bitis_satiri": 1024,
+  "satirlar": [
+    "let app = Router::new()",
+    "    .route(\"/v1/register\", post(handle_register))",
+    "    .route(\"/v1/login\", post(handle_login))",
+    "    .route(\"/v1/verify\", post(handle_verify))",
+    "    .route(\"/v1/resend\", post(handle_resend))",
+    "    .route(\"/v1/forgot\", post(handle_forgot))",
+    "    .route(\"/v1/reset\", post(handle_reset))",
+    "    .route(\"/v1/analyze\", post(handle_analyze))",
+    "    .route(\"/v1/translate-report\", post(handle_translate_report))",
+    "    .route(\"/v1/history\", get(handle_history))",
+    "    .route(\"/healthz\", get(handle_health))",
+    "    .layer(cors)",
+    "    .with_state(state);",
+    "",
+    "let addr = SocketAddr::from(([127, 0, 0, 1], 3000));",
+    "tracing::info!(\"Manipülasyon Tespit Backend Servisi {} adresinde çalışıyor...\", addr);",
+    "tracing::info!(\"Auth endpointleri hazır → /v1/register /v1/login /v1/verify /v1/resend /v1/forgot /v1/reset\");",
+    "tracing::info!(\"Korumalı uçlar (Bearer token gerekir) → /v1/analyze /v1/translate-report /v1/history\");"
+  ],
+  "dosya_hash": "9a241580c283",
+  "kesit_hash": "9802b6392916",
+  "cekildi": "2026-08-29T15:30:01.293Z"
+}

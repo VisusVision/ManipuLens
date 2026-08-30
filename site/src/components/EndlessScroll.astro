@@ -1,0 +1,246 @@
+---
+/**
+ * Sonsuz rota kaydirmasi: sayfa sonuna gelindiginde sonraki rotanin icerigi
+ * ayni <main> icine ekleniyor. Site tek uzun sayfa gibi okunuyor; ray, adres
+ * cubugu ve sekme basligi hangi rotadaysan onu gosteriyor.
+ *
+ * Getirilen HTML'in kendi satir ici betikleri innerHTML ile calismaz; her
+ * betik yeni bir dugum olarak yeniden basiliyor. Sozluk balonlari ve gorunum
+ * animasyonu da yeni blok icin yeniden taraniyor.
+ */
+interface NavItem {
+  href: string;
+  label: string;
+}
+
+interface Props {
+  nav: NavItem[];
+  current: string;
+}
+
+const { nav, current } = Astro.props;
+---
+
+<div class="ml-endless-son" data-endless-son hidden>
+  <p>Rehberin sonu. Yukari donebilir ya da raydan bir bölüme atlayabilirsin.</p>
+</div>
+
+<script is:inline define:vars={{ nav, current }}>
+  function mlSonsuzKur() {
+    var main = document.getElementById('icerik');
+    if (!main) return;
+
+    var duz = function (h) {
+      return h.replace(/\/$/, '');
+    };
+    var sira = nav.map(function (n) {
+      return { href: duz(n.href), label: n.label };
+    });
+
+    // Alt rotalarda (ornegin /parcalar/uzanti) zincir baslatmiyoruz: okuyucu
+    // oraya bilerek indi, altina baska sayfalar eklemek yon duygusunu bozar.
+    var index = -1;
+    for (var i = 0; i < sira.length; i++) {
+      if (sira[i].href === duz(current)) index = i;
+    }
+    if (index === -1) return;
+
+    // Yuklu rotalar: her birinin sinir isareti ve kendi bolumleri.
+    function bolumleriTopla(kokler) {
+      var cikti = [];
+      kokler.forEach(function (k) {
+        if (k.matches && k.matches('.ml-section, [data-parca]')) cikti.push(k);
+        if (k.querySelectorAll) {
+          Array.prototype.forEach.call(k.querySelectorAll('.ml-section, [data-parca]'), function (s) {
+            cikti.push(s);
+          });
+        }
+      });
+      return cikti;
+    }
+
+    function teknikSay(kokler) {
+      var toplam = 0;
+      kokler.forEach(function (k) {
+        if (k.classList && k.classList.contains('ml-technical')) toplam++;
+        if (k.querySelectorAll) toplam += k.querySelectorAll('.ml-technical').length;
+      });
+      return toplam;
+    }
+
+    var ilkKokler = Array.prototype.slice.call(main.children);
+    var bloklar = [
+      {
+        href: sira[index].href,
+        label: sira[index].label,
+        baslik: document.title,
+        isaret: null,
+        bolumler: bolumleriTopla(ilkKokler),
+        teknik: teknikSay(ilkKokler),
+      },
+    ];
+
+    var sonYuklenen = index;
+    var yukleniyor = false;
+    var bitti = index >= sira.length - 1;
+    var sonEl = document.querySelector('[data-endless-son]');
+    // Zincirin son rotasinda acilmissa eklenecek bir sey yok; notu hemen goster.
+    if (bitti && sonEl) sonEl.hidden = false;
+
+    function betikleriCalistir(kok) {
+      Array.prototype.forEach.call(kok.querySelectorAll('script'), function (eski) {
+        var yeni = document.createElement('script');
+        Array.prototype.forEach.call(eski.attributes, function (a) {
+          yeni.setAttribute(a.name, a.value);
+        });
+        yeni.text = eski.textContent;
+        eski.parentNode.replaceChild(yeni, eski);
+      });
+    }
+
+    function yukle() {
+      if (yukleniyor || bitti) return;
+      var hedef = sira[sonYuklenen + 1];
+      if (!hedef) {
+        bitti = true;
+        return;
+      }
+      yukleniyor = true;
+
+      fetch(hedef.href + '/')
+        .then(function (y) {
+          if (!y.ok) throw new Error('HTTP ' + y.status);
+          return y.text();
+        })
+        .then(function (html) {
+          var belge = new DOMParser().parseFromString(html, 'text/html');
+          var kaynak = belge.getElementById('icerik');
+          if (!kaynak) throw new Error('icerik yok');
+
+          var isaret = document.createElement('div');
+          isaret.className = 'ml-endless-ayrac';
+          isaret.setAttribute('data-endless-rota', hedef.href);
+          var etiket = document.createElement('span');
+          etiket.textContent = 'Sonraki bölüm';
+          var ad = document.createElement('strong');
+          ad.textContent = hedef.label;
+          isaret.appendChild(etiket);
+          isaret.appendChild(ad);
+          main.appendChild(isaret);
+
+          var eklenen = [];
+          while (kaynak.firstChild) {
+            var dugum = document.adoptNode(kaynak.firstChild);
+            main.appendChild(dugum);
+            if (dugum.nodeType === 1) eklenen.push(dugum);
+          }
+
+          eklenen.forEach(function (el) {
+            betikleriCalistir(el);
+            if (window.mlTerimTara) window.mlTerimTara(el);
+          });
+          if (window.mlRevealTara) window.mlRevealTara();
+
+          bloklar.push({
+            href: hedef.href,
+            label: hedef.label,
+            baslik: (belge.title || hedef.label).trim(),
+            isaret: isaret,
+            bolumler: bolumleriTopla(eklenen),
+            teknik: teknikSay(eklenen),
+          });
+
+          sonYuklenen += 1;
+          yukleniyor = false;
+          if (sonYuklenen >= sira.length - 1) {
+            bitti = true;
+            if (sonEl) sonEl.hidden = false;
+          }
+          olc();
+        })
+        .catch(function () {
+          // Ag hatasinda zinciri sessizce durdur: okuyucu ust menuden gezmeye
+          // devam edebilir, kirik bir blok eklemektense hic eklememek iyi.
+          yukleniyor = false;
+          bitti = true;
+        });
+    }
+
+    var aktifHref = bloklar[0].href;
+
+    function olc() {
+      var esik = window.innerHeight * 0.3;
+      var secili = bloklar[0];
+      for (var i = 1; i < bloklar.length; i++) {
+        if (bloklar[i].isaret.getBoundingClientRect().top <= esik) secili = bloklar[i];
+      }
+
+      if (secili.href !== aktifHref) {
+        aktifHref = secili.href;
+        if (window.mlRayRota) window.mlRayRota(secili.href, secili.bolumler);
+        document.dispatchEvent(
+          new CustomEvent('manipulens:rota-degisti', {
+            detail: { href: secili.href, label: secili.label, teknik: secili.teknik },
+          }),
+        );
+        document.title = secili.baslik;
+        try {
+          history.replaceState(null, '', secili.href + '/');
+        } catch (e) {
+          /* dosya protokolunde replaceState yasak; gezinme yine calisir */
+        }
+      }
+
+      var kalan =
+        document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+      if (kalan < window.innerHeight * 1.5) yukle();
+    }
+
+    window.addEventListener('scroll', olc, { passive: true });
+    document.addEventListener('scroll', olc, { passive: true, capture: true });
+    window.addEventListener('resize', olc, { passive: true });
+    document.addEventListener('manipulens:mode-change', olc);
+    olc();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mlSonsuzKur);
+  } else {
+    mlSonsuzKur();
+  }
+</script>
+
+<style is:global>
+  .ml-endless-ayrac {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin: clamp(3rem, 8vw, 5rem) 0 clamp(1.5rem, 4vw, 2.5rem);
+    padding-top: 1.1rem;
+    border-top: var(--ml-border);
+  }
+  .ml-endless-ayrac span {
+    font-family: var(--ml-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+  .ml-endless-ayrac strong {
+    font-family: var(--ml-font-display);
+    font-size: var(--ml-step-1);
+  }
+  .ml-endless-son {
+    margin-block: 2.5rem 0;
+    padding: 1rem 1.25rem;
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    background: var(--ml-paper-warm);
+  }
+  .ml-endless-son p {
+    margin: 0;
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+  }
+</style>

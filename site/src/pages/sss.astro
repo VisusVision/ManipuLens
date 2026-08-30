@@ -1,0 +1,200 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import Layer from '../components/Layer.astro';
+
+/**
+ * SSS uydurulmaz: her soru ya kurulum adımlarından ya envanterdeki bir tutarsızlıktan
+ * ya da gerçekten sorulmuş bir sorudan gelir. Kaynağı olmayan soru buraya eklenmez.
+ */
+const gruplar = [
+  {
+    no: '01',
+    baslik: 'Ne yapar, ne yapmaz',
+    sorular: [
+      {
+        s: 'ManipuLens bir metnin doğru mu yanlış mı olduğunu söylüyor mu?',
+        c: 'Hayır. Doğruluk kontrolü yapmaz. Baktığı şey iddianın doğruluğu değil, cümlenin seni nasıl yönlendirdiği. Doğru bir bilgi manipülatif biçimde sunulabilir; yanlış bir bilgi düz bir dille yazılabilir.',
+      },
+      {
+        s: 'Sonuç kesin mi?',
+        c: 'Değil. Altındaki şey bir dil modeli ve model uydurabiliyor. Güven puanı modelin kendine güvenini ölçer, gerçeği değil. Rapor bir kanıt değil, bakmaya değer bir işarettir.',
+      },
+      {
+        s: 'Hangi dilleri destekliyor?',
+        c: 'Türkçe ve İngilizce. Varsayılan Türkçe. Model yanlış dilde cevap verirse orkestratördeki dil onarım katmanı alanları yeniden çeviriyor.',
+      },
+      {
+        s: 'Ne kadar uzun metin analiz edebilirim?',
+        c: 'En fazla 1000 karakter. Daha uzunu 400 hatasıyla geri döner. Sınır keyfî değil: her analiz yedi model çağrısı demek ve uzun metin hem yavaşlatıyor hem model çıktısını bozuyor.',
+      },
+    ],
+  },
+  {
+    no: '02',
+    baslik: 'Gizlilik',
+    sorular: [
+      {
+        s: 'Metnim gerçekten hiçbir yere gitmiyor mu?',
+        c: 'Model kendi makinende çalışıyor, sunucu da öyle. Dışarıya çıkan tek şey doğrulama kodu e-postası ve onun içinde analiz metninden hiçbir şey yok. İnterneti kapatıp analiz yaparak bunu kendin doğrulayabilirsin.',
+      },
+      {
+        s: 'Analiz ettiğim metinler saklanıyor mu?',
+        c: 'Tamamı hayır. Yalnız ilk 120 karakteri ve sonucun özeti veritabanına ve denetim kaydına yazılıyor. Metnin tamamı yalnız bellekte, analiz süresince bulunuyor.',
+      },
+      {
+        s: 'Neden uzantı tüm sitelere erişim istiyor?',
+        c: 'Metni hangi sayfada seçeceğin önceden bilinemiyor ve sonuç o sayfaya boyanıyor. Uzantı yalnız sen sağ tık menüsünden çalıştırdığında iş yapar; arka planda sayfa okumaz.',
+      },
+      {
+        s: 'Hesap açmak zorunda mıyım? Her şey yerelde çalışıyorsa neden?',
+        c: 'Çünkü hız limiti uygulanabilsin. Analiz ucu eskiden tamamen açıktı ve adresi bilen herkes sınırsız analiz tetikleyebiliyordu. Kimlik olmadan limit, limit olmadan koruma yok.',
+      },
+    ],
+  },
+  {
+    no: '03',
+    baslik: 'Çalıştırma',
+    sorular: [
+      {
+        s: 'Sunucuyu başka bir bilgisayardan kullanabilir miyim?',
+        c: 'Hayır. Sunucu yalnız 127.0.0.1 dinliyor ve uzantıdaki adres sabit yazılı. Uzaktan erişim yarım kalmış bir iş; yol haritasında duruyor.',
+      },
+      {
+        s: 'Ollama kapalıyken ne oluyor?',
+        c: 'Ajanlar boş dönüyor ve anlamlı bir sonuç çıkmıyor. Bulut yedeği bilinçli olarak yok — olsaydı gizlilik iddiası sessizce çürürdü.',
+      },
+      {
+        s: 'Başka bir model kullanabilir miyim?',
+        c: 'Evet ama kodda iki yerde değiştirmen gerekiyor: agents.rs ve orchestrator.rs. Model adı şu an sabit.',
+      },
+      {
+        s: 'E-posta doğrulama kodu gelmiyor.',
+        c: 'SMTP yapılandırılmamışsa kod e-posta yerine sunucu konsoluna yazılıyor. Bu bir hata değil, geliştirici modu.',
+      },
+    ],
+  },
+  {
+    no: '04',
+    baslik: 'Rehber sitesi',
+    sorular: [
+      {
+        s: '“Sade anlatım” ve “Teknik ayrıntı” anahtarı ne yapıyor?',
+        c: 'Sayfaların ikinci katmanını açıp kapatıyor. Sade katman teknik terim kullanmaz; teknik katman sade metni tekrar etmez, genişletir. Seçim tarayıcında saklanıyor.',
+      },
+      {
+        s: 'Sayfalardaki “Yeniden doğrulama gerekli” rozeti ne demek?',
+        c: 'O sayfanın içeriği hangi commit’te doğrulandığı bilgisini henüz taşımıyor demek. Kaynak doğrusu çalışan koddur; doğrulanmamış sayfa doğrulanmış gibi gösterilmiyor.',
+      },
+      {
+        s: 'Metindeki alt çizgili kelimeler ne?',
+        c: 'Sözlükte tanımı olan terimler. Üzerine gelince tanım balonu açılıyor, tıklayınca sözlükteki kartına gidiyorsun. Bağlantılar elle yazılmıyor, sözlükten üretiliyor.',
+      },
+      {
+        s: 'Pano sayfası neden boş?',
+        c: 'Trello panosu özel ve çekim için gereken anahtar henüz tanımlı değil. Anahtar tanımlandığında sayfa otomatik dolacak; şu an “veri yok” durumunu sebebiyle gösteriyor.',
+      },
+    ],
+  },
+];
+---
+<Base
+  title="SSS"
+  description="Sık sorulan sorular: ne yapar ne yapmaz, gizlilik, çalıştırma, rehber sitesi."
+>
+  <Section
+    as="h1"
+    num="00"
+    kicker="Kısa cevaplar"
+    title="Sık sorulan sorular"
+    lede="Buradaki hiçbir soru uydurulmadı: her biri ya kurulum adımlarından ya kodda bulunan bir tutarsızlıktan ya da gerçekten sorulmuş bir sorudan geliyor."
+  />
+
+  {gruplar.map((g) => (
+    <Section num={g.no} kicker="SSS" title={g.baslik}>
+      <div class="ml-sss">
+        {g.sorular.map((q) => (
+          <details>
+            <summary>{q.s}</summary>
+            <p>{q.c}</p>
+          </details>
+        ))}
+      </div>
+    </Section>
+  ))}
+
+  <Section
+    num="05"
+    kicker="Aynı cevaplar, sayılarla"
+    title="Sınırların tam değerleri"
+    lede="Yukarıdaki cevaplar “en fazla”, “kısa süre”, “bir süre sonra” diyor. Teknik katman aynı cevapları kodun sabitleriyle veriyor."
+  >
+    <Layer kind="simple">
+      <p>
+        Sınırların hepsi kodda sabit sayı olarak duruyor: kaç karakter, kaç analiz, kaç
+        yanlış deneme, ne kadar süre. Teknik ayrıntı düğmesi bu sayıları ve hangi dosyada
+        durduklarını açar.
+      </p>
+    </Layer>
+
+    <Layer kind="technical" title="Kodda sabitlenmiş değerler" wide>
+      <table class="ml-kanit">
+        <thead>
+          <tr><th>Sınır</th><th>Değer</th><th>Nerede</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Analiz metni uzunluğu</td><td>1000 karakter, aşılırsa 400</td><td><code>main.rs</code> · <code>MAX_TEXT_LEN</code></td></tr>
+          <tr><td>Analiz hız limiti</td><td>60 saniyede 10 analiz, kullanıcı başına</td><td><code>auth.rs</code> · <code>ANALYZE_WINDOW_SECS</code>, <code>ANALYZE_MAX_PER_WINDOW</code></td></tr>
+          <tr><td>Giriş kodu deneme hakkı</td><td>5 yanlış → kod tamamen iptal</td><td><code>main.rs</code> · <code>MAX_CODE_ATTEMPTS</code></td></tr>
+          <tr><td>Giriş kaba kuvvet kilidi</td><td>15 dakikada 8 hata → 15 dakika kilit</td><td><code>auth.rs</code> · <code>LOGIN_WINDOW_SECS</code>, <code>LOGIN_MAX_FAILS</code>, <code>LOGIN_LOCK_SECS</code></td></tr>
+          <tr><td>Oturum ömrü</td><td>30 gün</td><td><code>auth.rs</code> · <code>SESSION_TTL_SECS</code></td></tr>
+          <tr><td>Geçmiş kaydı</td><td>En fazla 200 kayıt döner</td><td><code>main.rs</code> · <code>HISTORY_LIMIT</code></td></tr>
+          <tr><td>Saklanan metin</td><td>İlk 120 karakter, fazlası değil</td><td><code>audit.rs</code> · <code>PREVIEW_CHARS</code></td></tr>
+          <tr><td>Dinlenen adres</td><td><code>127.0.0.1:3000</code> — yalnız bu makine</td><td><code>main.rs</code></td></tr>
+          <tr><td>Model çağrısı</td><td><code>llama3</code>, <code>format: json</code>, <code>temperature 0.2</code></td><td><code>agents.rs</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        “Metnim dışarı çıkmıyor” iddiasının teknik karşılığı bu tablonun sondan üçüncü
+        satırı: sunucu <code>0.0.0.0</code> değil <code>127.0.0.1</code> dinliyor, yani ağdaki
+        başka bir makine bu uca hiç ulaşamıyor.
+      </p>
+    </Layer>
+  </Section>
+</Base>
+
+<style>
+  .ml-kanit { width: 100%; border-collapse: collapse; font-size: var(--ml-step--1); }
+  .ml-kanit th, .ml-kanit td {
+    text-align: left;
+    vertical-align: top;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--ml-line-soft);
+  }
+  .ml-kanit th { font-family: var(--ml-font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .ml-kanit td:first-child { font-weight: 650; }
+
+  .ml-sss { display: grid; gap: 0.6rem; }
+  details {
+    border: 2px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius);
+    background: var(--ml-paper-warm);
+    padding: 0.7rem 1rem;
+  }
+  details[open] { border-color: var(--ml-line); }
+  summary {
+    cursor: pointer;
+    font-family: var(--ml-font-display);
+    font-weight: 700;
+    font-size: var(--ml-step-0);
+    line-height: 1.3;
+    padding-block: 0.75rem;
+    margin-block: -0.7rem;
+  }
+  summary::marker { color: var(--ml-scan); }
+  details p {
+    margin: 0.6rem 0 0;
+    max-width: var(--ml-measure);
+    color: var(--ml-ink-muted);
+  }
+</style>

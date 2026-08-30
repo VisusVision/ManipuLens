@@ -1,0 +1,85 @@
+---
+/**
+ * Teknik mod durum seridi.
+ * Anahtara basildiginda ekranda ne degistigi belli olsun diye var: hangi modun
+ * acik oldugunu ve bu bolumde kac ek blogun goruntulendigini soyler. Yalniz
+ * teknik modda gorunur; sade modda hicbir yer kaplamaz.
+ */
+---
+<aside class="ml-mode-banner ml-technical" aria-live="polite">
+  <div class="ml-shell ml-mode-banner__inner">
+    <span class="ml-mode-banner__etiket">Teknik katman açık</span>
+    <span class="ml-mode-banner__metin" data-mode-banner-metin>
+      Dosya adları, sabitler ve kod alıntıları görünür.
+    </span>
+  </div>
+</aside>
+
+<script is:inline>
+  (function () {
+    var metin = document.querySelector('[data-mode-banner-metin]');
+    if (!metin) return;
+
+    function yaz(sayi) {
+      metin.textContent =
+        sayi > 0
+          ? sayi + ' ek teknik blok bu bölümde açıldı — dosya adları, sabitler ve kod alıntıları.'
+          : 'Bu bölümde ek teknik blok yok; üstteki çalışma hattı ve satır içi kod adları görünür.';
+    }
+
+    function say(kokler) {
+      var toplam = 0;
+      kokler.forEach(function (k) {
+        if (k.classList && k.classList.contains('ml-technical')) toplam++;
+        if (k.querySelectorAll) toplam += k.querySelectorAll('.ml-technical').length;
+      });
+      return toplam;
+    }
+
+    // Sonsuz kaydirma aktif rotayi degistirdiginde sayi da o rotanindir.
+    document.addEventListener('manipulens:rota-degisti', function (e) {
+      yaz(e.detail && typeof e.detail.teknik === 'number' ? e.detail.teknik : 0);
+    });
+
+    // Serit <main>'den once basiliyor; sayim DOM hazir olmadan yapilamaz.
+    function ilkSayim() {
+      var main = document.getElementById('icerik');
+      yaz(main ? say(Array.prototype.slice.call(main.children)) : 0);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', ilkSayim);
+    } else {
+      ilkSayim();
+    }
+  })();
+</script>
+
+<style>
+  .ml-mode-banner {
+    background: var(--ml-navy);
+    color: #f5f7fb;
+    border-bottom: 1px solid color-mix(in srgb, var(--ml-scan) 45%, transparent);
+  }
+  .ml-mode-banner__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.9rem;
+    padding-block: 0.5rem;
+  }
+  .ml-mode-banner__etiket {
+    font-family: var(--ml-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #23c9d6;
+    border: 1px solid color-mix(in srgb, #23c9d6 55%, transparent);
+    border-radius: var(--ml-radius);
+    padding: 0.1rem 0.45rem;
+  }
+  .ml-mode-banner__metin {
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: color-mix(in srgb, #f5f7fb 78%, transparent);
+  }
+</style>

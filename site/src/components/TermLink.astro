@@ -1,0 +1,137 @@
+---
+/**
+ * Otomatik terim baglama.
+ * Rehber metninde sozlukteki bir terim gectiginde alt cizgili gorunur, uzerine
+ * gelince tanim balonu acilir. Elle link yazilmaz; liste sozluk collection'indan
+ * gelir, yani tek dogru kaynak korunur.
+ *
+ * Her terim sayfa basina YALNIZ BIR KEZ isaretlenir - metin alti cizgi cop
+ * luguna donmesin.
+ */
+import { getCollection } from 'astro:content';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const terimler = await getCollection('sozluk');
+const veri = terimler
+  .map((t) => ({
+    slug: t.id,
+    terim: t.data.terim,
+    kisaca: t.data.kisaca,
+    /** Uzun yazim once denensin ki "sosyal kanit" -> "sosyal" olmasin. */
+    yazimlar: [t.data.terim, ...t.data.esanlam].sort((a, b) => b.length - a.length),
+  }))
+  .sort((a, b) => b.yazimlar[0].length - a.yazimlar[0].length);
+
+// JSON bir script bloguna giriyor. `<` kacirilmazsa insan yazimi bir tanimdaki
+// script kapanis etiketi blogu erken kapatabilir.
+const scriptJson = (deger: unknown) => JSON.stringify(deger).replace(/</g, '\\u003c');
+---
+<script type="application/json" id="ml-terim-verisi" set:html={scriptJson(veri)} />
+<script type="application/json" id="ml-terim-base" set:html={scriptJson(base)} />
+
+<script is:inline>
+  // Sonsuz kaydirmada sonraki rota alta ekleniyor; tarama tek seferlik olamaz.
+  // Fonksiyon disari aciliyor, her yeni blok icin kendi kokuyle cagriliyor.
+  window.mlTerimTara = function (kok) {
+    kok = kok || document;
+    var veriEl = document.getElementById('ml-terim-verisi');
+    var baseEl = document.getElementById('ml-terim-base');
+    if (!veriEl || document.body.hasAttribute('data-ml-no-terms')) return;
+
+    var terimler = JSON.parse(veriEl.textContent || '[]');
+    var base = JSON.parse((baseEl && baseEl.textContent) || '""');
+    if (!terimler.length) return;
+
+    var kullanildi = Object.create(null);
+    var YASAK = { A: 1, CODE: 1, PRE: 1, KBD: 1, H1: 1, H2: 1, H3: 1, BUTTON: 1, MARK: 1 };
+
+    function kacir(node) {
+      for (var p = node.parentNode; p && p !== document.body; p = p.parentNode) {
+        if (YASAK[p.nodeName]) return true;
+        if (p.classList && p.classList.contains('ml-gloss')) return true;
+        if (p.classList && p.classList.contains('ml-badge')) return true;
+      }
+      return false;
+    }
+
+    function kacisliRegex(s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    var alanlar = kok.querySelectorAll('.ml-prose, .ml-section__lede, .ml-section__body p');
+    var metinler = [];
+    alanlar.forEach(function (alan) {
+      var yurutec = document.createTreeWalker(alan, NodeFilter.SHOW_TEXT, null);
+      var n;
+      while ((n = yurutec.nextNode())) {
+        if (n.nodeValue && n.nodeValue.trim().length > 2 && !kacir(n)) metinler.push(n);
+      }
+    });
+
+    metinler.forEach(function (node) {
+      for (var i = 0; i < terimler.length; i++) {
+        var t = terimler[i];
+        if (kullanildi[t.slug]) continue;
+        for (var j = 0; j < t.yazimlar.length; j++) {
+          var re = new RegExp('(^|[^\\wçğıöşüÇĞİÖŞÜ])(' + kacisliRegex(t.yazimlar[j]) + ')(?![\\wçğıöşüÇĞİÖŞÜ])', 'i');
+          var m = re.exec(node.nodeValue);
+          if (!m) continue;
+
+          var basla = m.index + m[1].length;
+          var orta = node.splitText(basla);
+          orta.splitText(m[2].length);
+
+          var a = document.createElement('a');
+          a.className = 'ml-terim';
+          a.href = base + '/sozluk#' + t.slug;
+          a.setAttribute('data-tanim', t.kisaca);
+          a.appendChild(document.createTextNode(orta.nodeValue));
+          orta.parentNode.replaceChild(a, orta);
+
+          kullanildi[t.slug] = true;
+          return;
+        }
+      }
+    });
+  };
+
+  window.mlTerimTara(document);
+</script>
+
+<style is:global>
+  .ml-terim {
+    text-decoration: none;
+    border-bottom: 1px dashed var(--ml-scan);
+    position: relative;
+    cursor: help;
+  }
+  .ml-terim::after {
+    content: attr(data-tanim);
+    position: absolute;
+    left: 0;
+    top: calc(100% + 0.5rem);
+    z-index: 30;
+    width: max-content;
+    max-width: min(22rem, 78vw);
+    padding: 0.6rem 0.8rem;
+    font-family: var(--ml-font-body);
+    font-size: var(--ml-step--1);
+    line-height: 1.45;
+    color: #f5f7fb;
+    background: var(--ml-navy);
+    border: 2px solid var(--ml-scan);
+    border-radius: var(--ml-radius);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+    pointer-events: none;
+  }
+  .ml-terim:hover::after,
+  .ml-terim:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+</style>

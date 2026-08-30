@@ -1,0 +1,351 @@
+---
+/**
+ * Kod okuma gorunumu: solda satir numarali kod, sagda numarali notlar.
+ *
+ * Bir satira tiklayinca ilgili not vurgulanir, nota tiklayinca ilgili satirlar.
+ * JavaScript kapaliyken eslesme vurgusu kaybolur ama KOD VE NOTLARIN TAMAMI
+ * okunur kalir - icerik betige bagli degil.
+ *
+ * Kod metni elle yazilmaz: scripts/extract-code.mjs gercek kaynaktan keser.
+ */
+import SelfCheck from './SelfCheck.astro';
+
+interface Not {
+  satirlar: [number, number];
+  metin: string;
+}
+interface Props {
+  id: string;
+  baslik: string;
+  dosya: string;
+  dil: string;
+  neYapiyor: string;
+  nedenBoyle: string;
+  kaldirirsak: string;
+  notlar: Not[];
+  sina?: { soru: string; cevap: string }[];
+  zorluk: 'baslangic' | 'orta' | 'ileri';
+}
+const {
+  id,
+  baslik,
+  dosya,
+  dil,
+  neYapiyor,
+  nedenBoyle,
+  kaldirirsak,
+  notlar,
+  sina = [],
+  zorluk,
+} = Astro.props;
+
+// Uretilmis kod parcalari. Dosya yoksa bilesen sessizce bos donmez, uyarir.
+const veriler = import.meta.glob<{
+  default: {
+    dosya: string;
+    dil: string;
+    baslangic_satiri: number;
+    bitis_satiri: number;
+    satirlar: string[];
+    dosya_hash: string;
+    kesit_hash: string;
+    cekildi: string;
+  };
+}>('../data/kod/*.json', { eager: true });
+
+const anahtar = Object.keys(veriler).find((k) => k.endsWith(`/${id}.json`));
+const kod = anahtar ? (veriler[anahtar] as any).default : null;
+
+/**
+ * Cok kucuk bir vurgulayici: yalniz yorum ve dize.
+ * Tam bir sozdizimi vurgulayicisi eklemek harici bagimlilik demekti; okumaya en
+ * cok yarayan iki ayrimi elde tutmak yetiyor.
+ */
+function vurgula(satir: string, dil: string): string {
+  const kacir = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const yorumIsareti = dil === 'sql' ? '--' : '//';
+  const yorumYeri = satir.indexOf(yorumIsareti);
+
+  // Yorum isareti bir dizenin icindeyse yorum sayilmasin.
+  const oncekiTirnak = (satir.slice(0, yorumYeri).match(/"/g) || []).length;
+  const gercekYorum = yorumYeri >= 0 && oncekiTirnak % 2 === 0;
+
+  const kodKismi = gercekYorum ? satir.slice(0, yorumYeri) : satir;
+  const yorumKismi = gercekYorum ? satir.slice(yorumYeri) : '';
+
+  const dizeliKod = kacir(kodKismi).replace(
+    /(&quot;|")([^"]*)(&quot;|")/g,
+    '<span class="d">$1$2$3</span>',
+  );
+
+  return dizeliKod + (yorumKismi ? `<span class="y">${kacir(yorumKismi)}</span>` : '');
+}
+
+const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
+---
+<section class="ml-kw rv" id={id} data-kod-walk>
+  <header class="ml-kw__bas">
+    <p class="ml-kw__ust">
+      <span class="ml-kw__zorluk" data-z={zorluk}>{ZORLUK_ADI[zorluk]}</span>
+      <code>{dosya}{kod && `:${kod.baslangic_satiri}-${kod.bitis_satiri}`}</code>
+    </p>
+    <h3 class="ml-kw__ad">{baslik}</h3>
+  </header>
+
+  <dl class="ml-kw__uclu">
+    <div>
+      <dt>Ne yapıyor?</dt>
+      <dd>{neYapiyor}</dd>
+    </div>
+    <div>
+      <dt>Neden böyle?</dt>
+      <dd>{nedenBoyle}</dd>
+    </div>
+    <div class="ml-kw__kaldirirsak">
+      <dt>Kaldırırsak ne olur?</dt>
+      <dd>{kaldirirsak}</dd>
+    </div>
+  </dl>
+
+  {!kod ? (
+    <p class="ml-kw__yok">
+      Kod parçası henüz çıkarılmadı. <code>npm run kod</code> komutunu çalıştır.
+    </p>
+  ) : (
+    <div class="ml-kw__govde">
+      <pre class="ml-kw__kod"><code>{kod.satirlar.map((s: string, i: number) => (
+        <span
+          class="ml-kw__satir"
+          data-satir={kod.baslangic_satiri + i}
+          data-yerel={i + 1}
+        ><span class="ml-kw__no">{kod.baslangic_satiri + i}</span><span
+            class="ml-kw__metin"
+            set:html={vurgula(s, dil) || '&nbsp;'}
+          /></span>
+      ))}</code></pre>
+
+      <ol class="ml-kw__notlar">
+        {notlar.map((n, i) => (
+          <li>
+            <button type="button" data-bas={n.satirlar[0]} data-son={n.satirlar[1]}>
+              <span class="ml-kw__notno">{i + 1}</span>
+              <span class="ml-kw__notmetin">{n.metin}</span>
+              <span class="ml-kw__notsatir">
+                satır {n.satirlar[0] === n.satirlar[1]
+                  ? n.satirlar[0]
+                  : `${n.satirlar[0]}–${n.satirlar[1]}`}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )}
+
+  {sina.length > 0 && <SelfCheck sorular={sina} />}
+</section>
+
+<script is:inline>
+  (function () {
+    document.querySelectorAll('[data-kod-walk]').forEach(function (kok) {
+      // Bilesen bir sayfada birden cok kez basiliyor ve her ornek bu betigi de
+      // basiyor. Isaret olmadan ayni dugmeye N dinleyici baglanir; N cift ise
+      // tiklama kendi kendini iptal eder. Bu bayrak onu engelliyor.
+      if (kok.dataset.bagli === '1') return;
+      kok.dataset.bagli = '1';
+
+      var satirlar = Array.prototype.slice.call(kok.querySelectorAll('.ml-kw__satir'));
+      var dugmeler = Array.prototype.slice.call(kok.querySelectorAll('.ml-kw__notlar button'));
+      if (!satirlar.length || !dugmeler.length) return;
+
+      function temizle() {
+        satirlar.forEach(function (s) { s.classList.remove('ml-kw__satir--acik'); });
+        dugmeler.forEach(function (d) { d.setAttribute('aria-pressed', 'false'); });
+      }
+
+      function isaretle(bas, son, dugme) {
+        var zatenAcik = dugme.getAttribute('aria-pressed') === 'true';
+        temizle();
+        if (zatenAcik) return;
+        satirlar.forEach(function (s) {
+          var y = Number(s.dataset.yerel);
+          if (y >= bas && y <= son) s.classList.add('ml-kw__satir--acik');
+        });
+        dugme.setAttribute('aria-pressed', 'true');
+      }
+
+      dugmeler.forEach(function (d) {
+        d.setAttribute('aria-pressed', 'false');
+        d.addEventListener('click', function () {
+          isaretle(Number(d.dataset.bas), Number(d.dataset.son), d);
+        });
+      });
+
+      // Satira tiklayinca o satiri kapsayan ilk notu ac.
+      satirlar.forEach(function (s) {
+        s.addEventListener('click', function () {
+          var y = Number(s.dataset.yerel);
+          for (var i = 0; i < dugmeler.length; i++) {
+            var d = dugmeler[i];
+            if (y >= Number(d.dataset.bas) && y <= Number(d.dataset.son)) {
+              isaretle(Number(d.dataset.bas), Number(d.dataset.son), d);
+              return;
+            }
+          }
+        });
+      });
+    });
+  })();
+</script>
+
+<style>
+  .ml-kw {
+    margin-block: 2rem;
+    padding: 1.2rem 1.3rem 1.4rem;
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    background: var(--ml-paper-warm);
+    background-image: var(--ml-grain);
+    scroll-margin-top: 6rem;
+  }
+  .ml-kw__bas { margin-bottom: 1rem; }
+  .ml-kw__ust {
+    margin: 0 0 0.3rem;
+    max-width: none;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.8rem;
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+  }
+  .ml-kw__zorluk {
+    font-family: var(--ml-font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.45rem;
+    border: 1px solid var(--ml-line-soft);
+    border-radius: 2px;
+  }
+  .ml-kw__zorluk[data-z='baslangic'] { border-color: var(--ml-ok); color: var(--ml-ok); }
+  .ml-kw__zorluk[data-z='orta'] { border-color: var(--ml-warn); color: var(--ml-warn); }
+  .ml-kw__zorluk[data-z='ileri'] { border-color: var(--ml-risk); color: var(--ml-risk); }
+  .ml-kw__ad { margin: 0; font-size: var(--ml-step-2); }
+  .ml-kw__ust code { color: var(--ml-ink); }
+
+  .ml-kw__uclu { margin: 0 0 1.2rem; display: grid; gap: 0.65rem; }
+  .ml-kw__uclu div {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 0.2rem 1.2rem;
+  }
+  @media (max-width: 45rem) {
+    .ml-kw__uclu div { grid-template-columns: 1fr; }
+  }
+  .ml-kw__uclu dt {
+    font-family: var(--ml-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+    padding-top: 0.2rem;
+  }
+  .ml-kw__uclu dd { margin: 0; max-width: var(--ml-measure); }
+  .ml-kw__kaldirirsak { border-left: 3px solid var(--ml-warn); padding-left: 0.8rem; margin-left: -0.8rem; }
+
+  .ml-kw__govde {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  @media (max-width: 58rem) {
+    .ml-kw__govde { grid-template-columns: 1fr; }
+  }
+
+  .ml-kw__kod {
+    margin: 0;
+    padding: 0.8rem 0;
+    background: var(--ml-navy);
+    border: 2px solid var(--ml-line);
+    border-radius: var(--ml-radius);
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+  .ml-kw__satir {
+    display: flex;
+    gap: 0.9rem;
+    padding: 0 0.9rem;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .ml-kw__satir:hover { background: rgba(35, 201, 214, 0.08); }
+  .ml-kw__satir--acik {
+    background: rgba(35, 201, 214, 0.16);
+    border-left-color: var(--ml-scan);
+  }
+  .ml-kw__no {
+    flex: none;
+    width: 2.2rem;
+    text-align: right;
+    color: #7f8ca3;
+    user-select: none;
+  }
+  .ml-kw__metin { white-space: pre; color: #e8edf6; }
+  .ml-kw__kod :global(.y) { color: #7f8ea6; font-style: italic; }
+  .ml-kw__kod :global(.d) { color: #7fd8c4; }
+
+  .ml-kw__notlar {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+    counter-reset: not;
+  }
+  .ml-kw__notlar button {
+    font: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 1.6rem 1fr;
+    gap: 0.15rem 0.6rem;
+    padding: 0.6rem 0.7rem;
+    background: var(--ml-paper);
+    color: var(--ml-ink);
+    border: 2px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius);
+  }
+  .ml-kw__notlar button:hover { border-color: var(--ml-line); }
+  .ml-kw__notlar button[aria-pressed='true'] { border-color: var(--ml-scan); }
+  .ml-kw__notno {
+    grid-row: span 2;
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--ml-navy);
+    color: #f5f7fb;
+    font-family: var(--ml-font-mono);
+    font-size: 0.72rem;
+  }
+  .ml-kw__notmetin { font-size: var(--ml-step--1); line-height: 1.5; }
+  .ml-kw__notsatir {
+    font-family: var(--ml-font-mono);
+    font-size: 0.66rem;
+    color: var(--ml-ink-muted);
+  }
+
+  .ml-kw__yok {
+    max-width: none;
+    border-left: 3px solid var(--ml-warn);
+    padding: 0.5rem 0.8rem;
+    font-size: var(--ml-step--1);
+  }
+</style>

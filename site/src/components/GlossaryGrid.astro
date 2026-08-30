@@ -1,0 +1,210 @@
+---
+import GlossaryCard from './GlossaryCard.astro';
+
+/**
+ * Bir sozluk yarisinin izgarasi: kume filtresi + arama + kartlar.
+ * Sayfada birden fazla ornegi bulunur (genel yari / ManipuLens yarisi), bu yuzden
+ * her ornek kendi koku icinde calisir - secicilerin hicbiri belge genelinde degil.
+ */
+interface Terim {
+  slug: string;
+  terim: string;
+  kume: 'manipulasyon' | 'yapay-zeka' | 'sistem' | 'web';
+  kisaca: string;
+  ornek?: string;
+  kodCapasi?: string;
+  ilgili: string[];
+  motif?: boolean;
+}
+interface Props {
+  terimler: Terim[];
+  /** Ornegi ayirt eden kok kimligi; birden fazla izgara ayni sayfada durabilir. */
+  id: string;
+  /** Ilgili baglantilarin adlari tum sozlukten gelir, yalniz bu yaridan degil. */
+  adlar?: Record<string, string>;
+}
+const { terimler, id, adlar = {} } = Astro.props;
+
+const tumAdlar = {
+  ...Object.fromEntries(terimler.map((t) => [t.slug, t.terim])),
+  ...adlar,
+};
+
+const KUME_ADI: Record<string, string> = {
+  manipulasyon: 'Manipülasyon',
+  'yapay-zeka': 'Yapay zekâ',
+  sistem: 'Sistem',
+  web: 'Web ve uzantı',
+};
+
+/** Yalniz bu yaride gercekten bulunan kumeler dugme olur - bos filtre gosterilmez. */
+const mevcut = ['manipulasyon', 'yapay-zeka', 'sistem', 'web'].filter((k) =>
+  terimler.some((t) => t.kume === k),
+);
+const kumeler = [{ id: 'hepsi', ad: 'Hepsi' }, ...mevcut.map((k) => ({ id: k, ad: KUME_ADI[k] }))];
+const sayi = (k: string) =>
+  k === 'hepsi' ? terimler.length : terimler.filter((t) => t.kume === k).length;
+---
+<div class="ml-gloss-root" id={id}>
+  <div class="ml-gloss-tools">
+    {kumeler.length > 2 && (
+      <div class="ml-gloss-filter" role="group" aria-label="Küme filtresi">
+        {kumeler.map((k) => (
+          <button type="button" data-kume={k.id} aria-pressed={k.id === 'hepsi' ? 'true' : 'false'}>
+            {k.ad} <span class="ml-gloss-filter__n">{sayi(k.id)}</span>
+          </button>
+        ))}
+      </div>
+    )}
+    <div class="ml-gloss-search">
+      <input
+        type="search"
+        class="ml-gloss-q"
+        placeholder="Terim ara…"
+        autocomplete="off"
+        aria-label="Bu bölümde terim ara"
+      />
+    </div>
+  </div>
+
+  <p class="ml-gloss-count" role="status" aria-live="polite"></p>
+
+  <div class="ml-gloss-grid">
+    {terimler.map((t) => (
+      <GlossaryCard
+        slug={t.slug}
+        terim={t.terim}
+        kume={t.kume}
+        kisaca={t.kisaca}
+        ornek={t.ornek}
+        kodCapasi={t.kodCapasi}
+        ilgili={t.ilgili}
+        adlar={tumAdlar}
+        motif={t.motif}
+      />
+    ))}
+  </div>
+</div>
+
+<script is:inline define:vars={{ kokId: id }}>
+  (function () {
+    var kok = document.getElementById(kokId);
+    if (!kok) return;
+    var cards = Array.prototype.slice.call(kok.querySelectorAll('.ml-gloss'));
+    var buttons = Array.prototype.slice.call(kok.querySelectorAll('.ml-gloss-filter button'));
+    var input = kok.querySelector('.ml-gloss-q');
+    var out = kok.querySelector('.ml-gloss-count');
+    var aktifKume = 'hepsi';
+
+    function normalize(s) {
+      return s.toLocaleLowerCase('tr').trim();
+    }
+
+    function uygula() {
+      var q = normalize(input && input.value ? input.value : '');
+      var gorunen = 0;
+      cards.forEach(function (c) {
+        var kumeOk = aktifKume === 'hepsi' || c.dataset.kume === aktifKume;
+        var metinOk = !q || normalize(c.textContent || '').indexOf(q) !== -1;
+        var ok = kumeOk && metinOk;
+        c.hidden = !ok;
+        if (ok) gorunen++;
+      });
+      if (out) {
+        out.textContent =
+          gorunen === cards.length
+            ? cards.length + ' terim'
+            : gorunen + ' / ' + cards.length + ' terim gösteriliyor';
+      }
+    }
+
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        aktifKume = b.dataset.kume;
+        buttons.forEach(function (o) {
+          o.setAttribute('aria-pressed', o === b ? 'true' : 'false');
+        });
+        uygula();
+      });
+    });
+    if (input) input.addEventListener('input', uygula);
+
+    // Baska bir yaridaki terime link geldiyse (#slug) filtre onu gizlemesin.
+    window.addEventListener('hashchange', sifirlaVeGoster);
+    function sifirlaVeGoster() {
+      if (!location.hash) return;
+      var hedef = kok.querySelector(location.hash);
+      if (!hedef) return;
+      aktifKume = 'hepsi';
+      if (input) input.value = '';
+      buttons.forEach(function (o) {
+        o.setAttribute('aria-pressed', o.dataset.kume === 'hepsi' ? 'true' : 'false');
+      });
+      uygula();
+      hedef.scrollIntoView({ block: 'center' });
+    }
+
+    uygula();
+    sifirlaVeGoster();
+  })();
+</script>
+
+<style>
+  .ml-gloss-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .ml-gloss-filter { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .ml-gloss-filter button {
+    font: inherit;
+    font-size: var(--ml-step--1);
+    cursor: pointer;
+    padding: 0.3rem 0.7rem;
+    background: transparent;
+    color: var(--ml-ink);
+    border: 2px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius);
+  }
+  .ml-gloss-filter button:hover { border-color: var(--ml-line); }
+  .ml-gloss-filter button[aria-pressed='true'] {
+    background: var(--ml-navy);
+    color: #f5f7fb;
+    border-color: var(--ml-navy);
+  }
+  .ml-gloss-filter__n { opacity: 0.6; font-family: var(--ml-font-mono); font-size: 0.72em; }
+
+  .ml-gloss-search input {
+    font: inherit;
+    font-size: var(--ml-step--1);
+    padding: 0.35rem 0.7rem;
+    min-width: 12rem;
+    color: var(--ml-ink);
+    background: var(--ml-paper);
+    border: 2px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius);
+  }
+  .ml-gloss-search input:focus { border-color: var(--ml-scan); }
+
+  .ml-gloss-count {
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+    margin: 0 0 1.25rem;
+  }
+
+  .ml-gloss-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  @media (max-width: 62rem) {
+    .ml-gloss-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 40rem) {
+    .ml-gloss-grid { grid-template-columns: 1fr; }
+  }
+</style>

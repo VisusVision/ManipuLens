@@ -1,0 +1,109 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import GlossaryGrid from '../components/GlossaryGrid.astro';
+import Layer from '../components/Layer.astro';
+import { getCollection } from 'astro:content';
+
+const kumeSira = { manipulasyon: 0, 'yapay-zeka': 1, sistem: 2, web: 3 } as const;
+
+// Spot gorseli olan terimler. Motif adi slug ile ayni; Motif.astro icinde tanimli.
+// Ilk surumde yalniz manipulasyon dili gorselli, kalan kumeler tipografik kart.
+const MOTIFLI = new Set([
+  'manipulasyon',
+  'dilsel-manipulasyon',
+  'psikolojik-manipulasyon',
+  'davranissal-manipulasyon',
+  'algisal-manipulasyon',
+  'sosyal-manipulasyon',
+  'pazarlama-manipulasyonu',
+  'aciliyet',
+  'kitlik',
+  'sosyal-kanit',
+  'cerceveleme',
+  'guven-puani',
+]);
+
+const hepsi = (await getCollection('sozluk'))
+  .map((t) => ({
+    slug: t.id,
+    alan: t.data.alan,
+    terim: t.data.terim,
+    kume: t.data.kume,
+    kisaca: t.data.kisaca,
+    ornek: t.data.ornek,
+    kodCapasi: t.data.kod_capasi,
+    ilgili: t.data.ilgili,
+    motif: MOTIFLI.has(t.id),
+  }))
+  .sort(
+    (a, b) => kumeSira[a.kume] - kumeSira[b.kume] || a.terim.localeCompare(b.terim, 'tr'),
+  );
+
+// Iki yari: her yerde gecerli genel kavramlar, yalniz burada anlami olan proje terimleri.
+const genel = hepsi.filter((t) => t.alan === 'genel');
+const proje = hepsi.filter((t) => t.alan === 'manipulens');
+
+// Ilgili baglantilari yariyi asabilir; adlar tum sozlukten gelsin.
+const adlar = Object.fromEntries(hepsi.map((t) => [t.slug, t.terim]));
+---
+<Base
+  title="Sözlük"
+  description="ManipuLens ekibinin ortak dil sözleşmesi. İki yarı: genel kavramlar ve ManipuLens'e özel terimler."
+  noTerms
+>
+  <Section
+    as="h1"
+    num="00"
+    kicker="Önce dil"
+    title="Sözlük"
+    lede="Aynı toplantıda “orkestratör” kelimesinden üç farklı şey anlaşılıyorsa iş yavaşlar. Bu sayfa ekibin ortak dil sözleşmesi. Hepsini şimdi ezberleme — bir daha duyduğunda yabancı olmasınlar yeter."
+  >
+    <p class="ml-prose">
+      Sözlük ikiye ayrılır. <a href="#genel">Genel terimler</a> ManipuLens'ten bağımsız olarak
+      her yerde geçerlidir: manipülasyon dili, yapay zekâ, web. <a href="#proje">Proje terimleri</a>
+      ise yalnız bu projede bir anlam taşır — başka bir yerde aradığında bulamazsın, çünkü
+      ManipuLens'in kendi parçalarının adıdır.
+    </p>
+  </Section>
+
+  <Section
+    id="genel"
+    num="01"
+    kicker="Her yerde geçerli"
+    title="Genel terimler"
+    lede="Manipülasyonun kendi dili, yapay zekânın temel kavramları, web tarafının işine yarayan birkaç terim. Bu sayfayı kapattığında da geçerli kalırlar."
+  >
+    <GlossaryGrid id="sozluk-genel" terimler={genel} adlar={adlar} />
+  </Section>
+
+  <Section
+    id="proje"
+    num="02"
+    kicker="ManipuLens'e özel"
+    title="Proje terimleri"
+    lede="Bunlar ManipuLens'in kendi parçalarının adı. Her birinin kodda bir karşılığı var; teknik ayrıntı anahtarını açarsan dosya ve fonksiyon adını da görürsün."
+  >
+    <GlossaryGrid id="sozluk-proje" terimler={proje} adlar={adlar} />
+  </Section>
+
+  <Layer kind="technical" title="Sözlüğün kuralları">
+    <p>
+      Her tanım en fazla üç cümle. İlk cümle terimin ne olduğunu söyler, ikincisi en sık
+      yapılan yanlış anlamayı öldürür. Terim, okuyucunun bilmediği başka bir terimle
+      tanımlanmaz. Manipülasyon kümesindeki her terim gerçek bir örnek cümle taşımak
+      zorundadır — şema bunu <code>refine</code> ile derlemede kontrol eder.
+    </p>
+    <p>
+      <code>alan</code> alanı terimi iki yarıdan birine koyar: <code>genel</code> ya da
+      <code>manipulens</code>. <code>kume</code> ise yarı içindeki filtredir. Kod karşılığı
+      olan terim kod çapasını taşır; çapa yalnız teknik modda görünür, sade tanım terimsiz
+      kalır.
+    </p>
+    <p>
+      Tek doğru kaynak <code>src/content/sozluk/*.md</code>. Repo kökündeki
+      <code>docs/sozluk.md</code> elle yazılmaz, <code>npm run sozluk</code> ile bu
+      dosyalardan üretilir; <code>npm run build</code> her seferinde önce onu çalıştırır.
+    </p>
+  </Layer>
+</Base>

@@ -1,0 +1,19 @@
+{
+  "id": "denetim-onizleme",
+  "dosya": "src/audit.rs",
+  "dil": "rust",
+  "baslangic_satiri": 24,
+  "bitis_satiri": 30,
+  "satirlar": [
+    "pub const PREVIEW_CHARS: usize = 120;",
+    "",
+    "pub fn preview(text: &str) -> String {",
+    "    text.chars().take(PREVIEW_CHARS).collect()",
+    "}",
+    "",
+    "/// Olayı günlük JSONL dosyasına yazar ve konsola düşürür."
+  ],
+  "dosya_hash": "def43e34006f",
+  "kesit_hash": "2da84678e646",
+  "cekildi": "2026-08-29T12:27:39.191Z"
+}

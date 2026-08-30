@@ -1,0 +1,101 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import CodeWalk from '../components/CodeWalk.astro';
+import Layer from '../components/Layer.astro';
+import { getCollection, render } from 'astro:content';
+
+const parcalar = (await getCollection('kod')).sort((a, b) => a.data.order - b.data.order);
+const govdeler = await Promise.all(
+  parcalar.map(async (p) => ({ veri: p.data, id: p.id, Govde: (await render(p)).Content })),
+);
+
+const zorlukSayi = (z: string) => parcalar.filter((p) => p.data.zorluk === z).length;
+---
+<Base
+  title="Kod okuma"
+  description="Gerçek kod, satır satır: ne yapıyor, neden böyle, kaldırırsak ne olur."
+>
+  <Section
+    as="h1"
+    num="00"
+    kicker="Vibe coding panzehiri"
+    title="Kod okuma"
+    lede="Kod çalışıyor ama neyin neye yaradığını bilmiyorsan, benzer bir yer yazman gerektiğinde yine tahmin edeceksin. Bu bölüm ezber için değil, okuma refleksi için var."
+  >
+    <p class="ml-prose">
+      Buradaki her parça <strong>gerçek koddan</strong> geliyor — elle kopyalanmıyor,
+      kaynaktan kesiliyor. Her parça üç soruyu birden cevaplıyor:
+    </p>
+    <ol class="ml-uclu-liste">
+      <li><strong>Ne yapıyor?</strong> Tek cümle, terimsiz.</li>
+      <li><strong>Neden böyle?</strong> Alternatifi neydi, neden seçilmedi.</li>
+      <li><strong>Kaldırırsak ne olur?</strong> Hangi test kırılır, kullanıcı ne yaşar.</li>
+    </ol>
+    <p class="ml-prose">
+      Üçüncüsü en önemlisi. Bir satırın varlık sebebini test eden tek soru bu; cevabı yoksa ya
+      satır gereksizdir ya da henüz kimse anlamamıştır. İkisi de yazmaya değer bir bulgudur.
+      Cevabı <em>“böyle alışılmış”</em> olan bir parça bu listeye girmiyor.
+    </p>
+
+    <p class="ml-kod-ozet">
+      <span><strong>{parcalar.length}</strong> parça</span>
+      <span><strong>{zorlukSayi('baslangic')}</strong> başlangıç</span>
+      <span><strong>{zorlukSayi('orta')}</strong> orta</span>
+      <span><strong>{zorlukSayi('ileri')}</strong> ileri</span>
+    </p>
+
+    <Layer kind="technical" title="Kod nasıl güncel kalıyor" as="h2">
+      <p>
+        <code>scripts/extract-code.mjs</code> her derlemede kaynağı yeniden okuyor, satır
+        aralığını kesiyor ve dosyanın hash'ini kaydediyor. Kaynak değişip açıklama
+        güncellenmezse <code>npm run kod:kontrol</code> hata veriyor. Elle kopyalanan kod
+        sessizce eskir; üretilen kod eskiyemez, çünkü eskidiği anda gürültü çıkarır.
+      </p>
+      <p>
+        Şema üç sorunun üçünü de zorunlu tutuyor. Biri boş bırakılırsa derleme duruyor —
+        “sonra yazarım” diye eksik parça yayına giremiyor.
+      </p>
+    </Layer>
+  </Section>
+
+  {govdeler.map(({ veri, id, Govde }, i) => (
+    <Section
+      num={String(i + 1).padStart(2, '0')}
+      kicker={veri.parca}
+      title={veri.title}
+      id={`p-${id}`}
+    >
+      <div class="ml-prose ml-kod-giris"><Govde /></div>
+      <CodeWalk
+        id={id}
+        baslik={veri.title}
+        dosya={veri.dosya}
+        dil={veri.dil}
+        neYapiyor={veri.ne_yapiyor}
+        nedenBoyle={veri.neden_boyle}
+        kaldirirsak={veri.kaldirirsak}
+        notlar={veri.notlar}
+        sina={veri.sina}
+        zorluk={veri.zorluk}
+      />
+    </Section>
+  ))}
+</Base>
+
+<style>
+  .ml-uclu-liste { max-width: var(--ml-measure); }
+  .ml-uclu-liste li { margin-bottom: 0.3rem; }
+  .ml-kod-ozet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+    margin: 1.25rem 0;
+    max-width: none;
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+  }
+  .ml-kod-ozet strong { color: var(--ml-ink); font-size: var(--ml-step-1); }
+  .ml-kod-giris { margin-bottom: 0.5rem; }
+</style>

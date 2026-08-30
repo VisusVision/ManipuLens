@@ -1,0 +1,130 @@
+---
+/** Kaynak-gerceklik envanterinden turetilen teknoloji haritasi. */
+const katmanlar = [
+  {
+    katman: 'Rehber sitesi',
+    dil: 'Astro bileşenleri + TypeScript + CSS',
+    sistem: 'Astro 5, statik üretim',
+    kaynak: 'site/src/',
+    gorev: 'Bu dokümantasyonu derler; ürünün analiz zincirine dahil değildir.',
+  },
+  {
+    katman: 'Tarayıcı uzantısı',
+    dil: 'JavaScript, HTML, CSS',
+    sistem: 'Chrome Extension Manifest V3',
+    kaynak: 'extension/',
+    gorev: 'Seçili metni alır, API isteğini kurar ve sonucu açık sayfada işaretler.',
+  },
+  {
+    katman: 'Yerel API',
+    dil: 'Rust 2021',
+    sistem: 'Axum 0.7 + Tokio',
+    kaynak: 'src/main.rs',
+    gorev: 'Kimlik, hız limiti, doğrulama ve on HTTP uç noktasını yönetir.',
+  },
+  {
+    katman: 'Ajan motoru',
+    dil: 'Rust + JSON prompt sözleşmesi',
+    sistem: 'Ollama · llama3',
+    kaynak: 'src/agents.rs',
+    gorev: 'Aynı yerel modeli altı farklı sistem promptuyla çalıştırır.',
+  },
+  {
+    katman: 'Orkestrasyon',
+    dil: 'Rust async',
+    sistem: 'tokio::join!',
+    kaynak: 'src/orchestrator.rs',
+    gorev: 'Altı ajanı paralel yürütür, hataları yalıtır ve sonuçları sentezler.',
+  },
+  {
+    katman: 'Kalıcı veri',
+    dil: 'SQL + JSONL',
+    sistem: 'SQLite WAL · rusqlite',
+    kaynak: 'src/db.rs · src/audit.rs',
+    gorev: 'Hesapları, oturumları ve 120 karakterlik analiz önizlemelerini yerelde saklar.',
+  },
+];
+
+const istek = `const response = await fetch("http://127.0.0.1:3000/v1/analyze", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": \`Bearer \${authToken}\`
+  },
+  body: JSON.stringify({ text: selectedText, lang: "tr" })
+});`;
+---
+<div class="ml-stack">
+  <p class="ml-stack__giris">
+    ManipuLens tek dilli bir uygulama değil. Kullanıcı yüzü JavaScript, güvenlik ve
+    orkestrasyon Rust, model iletişimi JSON, kayıt katmanı SQL kullanıyor. Sınırlar HTTP
+    isteği ve açık veri yapılarıyla birbirinden ayrılıyor.
+  </p>
+
+  <div class="ml-stack__akis" aria-label="Teknik veri akışı">
+    <span>Seçili metin</span><b aria-hidden="true">→</b>
+    <span>MV3 uzantısı</span><b aria-hidden="true">→</b>
+    <span>Rust API</span><b aria-hidden="true">→</b>
+    <span>6 × llama3</span><b aria-hidden="true">→</b>
+    <span>Sentezör</span><b aria-hidden="true">→</b>
+    <span>Rapor + vurgu</span>
+  </div>
+
+  <div class="ml-stack__table-wrap" tabindex="0" aria-label="Teknoloji tablosu, yatay kaydırılabilir">
+    <table>
+      <thead><tr><th>Katman</th><th>Dil</th><th>Sistem</th><th>Kaynak</th><th>Sorumluluk</th></tr></thead>
+      <tbody>
+        {katmanlar.map((k) => (
+          <tr>
+            <th scope="row">{k.katman}</th>
+            <td>{k.dil}</td>
+            <td>{k.sistem}</td>
+            <td><code>{k.kaynak}</code></td>
+            <td>{k.gorev}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ml-stack__kod">
+    <div>
+      <p class="ml-stack__etiket">Gerçek sınır · extension/background.js</p>
+      <h3>JavaScript’ten Rust API’ye giden istek</h3>
+      <p>
+        Uzantı modelle doğrudan konuşmuyor. JSON gövdesi ve Bearer token yerel API’ye gider;
+        Rust tarafı doğrulamayı geçmeden Ollama çağrılmaz.
+      </p>
+    </div>
+    <pre><code>{istek}</code></pre>
+  </div>
+</div>
+
+<style>
+  .ml-stack__giris { font-size: var(--ml-step-1); line-height: 1.5; }
+  .ml-stack__akis {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 1.4rem 0;
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+  }
+  .ml-stack__akis span { border: 1px solid var(--ml-line); padding: 0.35rem 0.55rem; }
+  .ml-stack__akis b { color: var(--ml-scan); }
+  .ml-stack__table-wrap { overflow-x: auto; border: 1px solid var(--ml-line-soft); }
+  table { width: 100%; min-width: 58rem; border-collapse: collapse; font-size: var(--ml-step--1); }
+  th, td { padding: 0.65rem 0.75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--ml-line-soft); }
+  thead th { font-family: var(--ml-font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ml-scan); }
+  tbody th { color: #f5f7fb; white-space: nowrap; }
+  td { color: var(--ml-ink-muted); }
+  .ml-stack__kod { display: grid; grid-template-columns: minmax(14rem, 0.7fr) minmax(0, 1.3fr); gap: 1.2rem; align-items: start; margin-top: 1.5rem; }
+  .ml-stack__kod h3 { margin: 0 0 0.55rem; }
+  .ml-stack__kod pre { margin: 0; font-size: 0.78rem; border-color: var(--ml-line); }
+  .ml-stack__etiket { margin: 0 0 0.35rem; font-family: var(--ml-font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ml-scan); }
+  @media (max-width: 48rem) {
+    .ml-stack__kod { grid-template-columns: 1fr; }
+    .ml-stack__akis b { transform: rotate(90deg); }
+  }
+</style>

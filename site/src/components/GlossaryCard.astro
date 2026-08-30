@@ -1,0 +1,125 @@
+---
+/**
+ * Tek sozluk terimi karti.
+ * Sade tanim her zaman gorunur; kod capasi yalniz teknik modda acilir.
+ * Motifi olan terim (12 manipulasyon terimi) kartin ustunde spot gorsel tasir.
+ */
+import Motif from './Motif.astro';
+interface Props {
+  slug: string;
+  terim: string;
+  kume: 'manipulasyon' | 'yapay-zeka' | 'sistem' | 'web';
+  kisaca: string;
+  ornek?: string;
+  kodCapasi?: string;
+  ilgili?: string[];
+  /** ilgili slug -> gorunen terim adi */
+  adlar?: Record<string, string>;
+  /** Bu terimin spot gorseli var mi (slug motif adiyla ayni olmali). */
+  motif?: boolean;
+}
+const { slug, terim, kume, kisaca, ornek, kodCapasi, ilgili = [], adlar = {}, motif = false } = Astro.props;
+
+const kumeAdi = {
+  manipulasyon: 'Manipülasyon',
+  'yapay-zeka': 'Yapay zekâ',
+  sistem: 'Sistem',
+  web: 'Web ve uzantı',
+}[kume];
+---
+<article class:list={['ml-gloss', motif && 'ml-gloss--motifli']} id={slug} data-kume={kume}>
+  {motif && (
+    <div class="ml-gloss__motif">
+      <Motif ad={slug} boyut={56} />
+    </div>
+  )}
+  <p class="ml-gloss__kume">{kumeAdi}</p>
+  <h3 class="ml-gloss__terim">{terim}</h3>
+  <p class="ml-gloss__kisaca">{kisaca}</p>
+
+  {ornek && (
+    <p class="ml-gloss__ornek">
+      <span class="ml-gloss__etiket">Örnek</span>
+      {ornek}
+    </p>
+  )}
+
+  {kodCapasi && (
+    <p class="ml-gloss__kod ml-technical">
+      <span class="ml-gloss__etiket">Kodda</span>
+      <code>{kodCapasi}</code>
+    </p>
+  )}
+
+  {ilgili.length > 0 && (
+    <p class="ml-gloss__ilgili">
+      <span class="ml-gloss__etiket">İlgili</span>
+      {ilgili.map((s, i) => (
+        <>
+          {i > 0 && <span aria-hidden="true"> · </span>}
+          <a href={`#${s}`}>{adlar[s] ?? s}</a>
+        </>
+      ))}
+    </p>
+  )}
+</article>
+
+<style>
+  .ml-gloss {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.1rem 1.25rem 1.25rem;
+    background: var(--ml-paper-warm);
+    background-image: var(--ml-grain);
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    scroll-margin-top: 6rem;
+  }
+  .ml-gloss[hidden] { display: none; }
+  .ml-gloss:hover,
+  .ml-gloss:focus-within {
+    transform: translateY(-4px);
+    box-shadow: var(--ml-shadow);
+  }
+  .ml-gloss:target { border-color: var(--ml-scan); box-shadow: var(--ml-shadow); }
+
+  .ml-gloss__motif {
+    display: flex;
+    justify-content: flex-start;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.15rem;
+    border-bottom: 1px solid var(--ml-line-soft);
+  }
+  .ml-gloss--motifli:hover .ml-motif { color: var(--ml-ink); }
+  .ml-gloss__kume {
+    margin: 0;
+    font-family: var(--ml-font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+  .ml-gloss__terim { margin: 0; font-size: var(--ml-step-1); }
+  .ml-gloss__kisaca { margin: 0; max-width: none; }
+  .ml-gloss__ornek,
+  .ml-gloss__kod,
+  .ml-gloss__ilgili {
+    margin: 0;
+    max-width: none;
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+  }
+  .ml-gloss__ornek { border-left: 3px solid var(--ml-scan); padding-left: 0.7rem; }
+  .ml-gloss__etiket {
+    display: block;
+    font-family: var(--ml-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+  .ml-gloss__ilgili { margin-top: auto; padding-top: 0.35rem; }
+  .ml-gloss__ilgili a { color: var(--ml-ink); }
+</style>

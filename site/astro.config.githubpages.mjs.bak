@@ -1,0 +1,11 @@
+// @ts-check
+import { defineConfig } from 'astro/config';
+
+// Yayin hedefi GitHub Pages: proje sayfasi icin `base` ayarlanir.
+// Ozel alan adi kullanilirsa `base` kaldirilir, `site` guncellenir.
+export default defineConfig({
+  site: 'https://visusvision.github.io',
+  base: '/ManipuLens',
+  trailingSlash: 'ignore',
+  build: { format: 'directory' },
+});

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+
+# Trello anahtarlari
+.env
+
+# Local Netlify folder
+.netlify

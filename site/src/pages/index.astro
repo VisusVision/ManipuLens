@@ -1,0 +1,159 @@
+---
+import Base from '../layouts/Base.astro';
+import Layer from '../components/Layer.astro';
+import Section from '../components/Section.astro';
+import Motif from '../components/Motif.astro';
+import EvidenceBadge from '../components/EvidenceBadge.astro';
+import SystemStack from '../components/SystemStack.astro';
+import { getCollection } from 'astro:content';
+
+const ajanlar = (await getCollection('ajanlar')).sort((a, b) => a.data.order - b.data.order);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Base title="Başlangıç" description="ManipuLens nedir, ne yapar, hangi durumda?">
+  <section class="ml-hero rv">
+    <p class="ml-eyebrow">Yaşayan proje rehberi</p>
+    <h1>Bir metnin sizi ikna mı ettiğini, yönlendirdiğini mi anlayın.</h1>
+    <p class="ml-lede ml-prose">
+      ManipuLens, bir web sayfasında seçtiğiniz metni <strong>kendi bilgisayarınızda</strong>
+      çalışan altı uzman ajana gönderir. Ajanlar metni farklı açılardan okur, bir yönetici ajan
+      sonuçları tek rapora indirger ve sayfadaki şüpheli cümleler renkle işaretlenir.
+    </p>
+    <p class="ml-lede ml-prose">
+      Metin hiçbir bulut servisine gitmez; model yerel Ollama üzerinde çalışır.
+    </p>
+    <EvidenceBadge owner="TODO" needsReverify={true} />
+
+    <!-- Uc motif, urunun tamamini tek bakista anlatir: sec - okut - yerelde kalir. -->
+    <ol class="ml-triptik">
+      <li>
+        <Motif ad="secim" boyut={52} />
+        <strong>Seçersin</strong>
+        <span>Şüphelendiğin cümleyi işaretlersin.</span>
+      </li>
+      <li aria-hidden="true" class="ml-triptik__ok">→</li>
+      <li>
+        <Motif ad="prizma" boyut={52} />
+        <strong>Altı açıdan okunur</strong>
+        <span>Tek metin, altı farklı uzman bakışı.</span>
+      </li>
+      <li aria-hidden="true" class="ml-triptik__ok">→</li>
+      <li>
+        <Motif ad="kasa" boyut={52} />
+        <strong>Yerelde kalır</strong>
+        <span>Metin bilgisayarından çıkmaz.</span>
+      </li>
+    </ol>
+  </section>
+
+  <Layer kind="technical" title="Teknik mimari: hangi dil, hangi sistem?" as="h2" wide>
+    <p>
+      Chrome MV3 uzantısı, seçili metni <code>POST /v1/analyze</code> ile Axum/Tokio tabanlı
+      Rust servisine gönderir (<code>Authorization: Bearer &lt;token&gt;</code>).
+      <code>orchestrator::run_orchestrator</code> altı ajanı <code>tokio::join!</code> ile
+      paralel çalıştırır, ardından "Sentezör" çağrısıyla <code>FinalReport</code> üretir.
+      Sentezör başarısız olursa <code>fallback_summary()</code> en yüksek güven skorlu ajandan
+      yerel bir özet kurar. Sonuç SQLite <code>history</code> tablosuna ve günlük JSONL denetim
+      kaydına yazılır.
+    </p>
+    <SystemStack />
+  </Layer>
+
+  <Section
+    num="01"
+    kicker="Kim bakıyor"
+    title="Altı uzman ajan"
+    lede="Metni tek bir model değil, altı farklı bakış açısı aynı anda okur. Her ajanın kendi sorusu, kendi rengi var; o renk sitede nerede görünürse o ajanı işaret eder."
+  >
+    <ul class="ml-agent-grid">
+      {ajanlar.map((a) => (
+        <li style={`--agent: ${a.data.color}`}>
+          <a href={`${base}/ajanlar/${a.id}`}>
+            <span class="ml-agent__dot" aria-hidden="true"></span>
+            <strong>{a.data.title}</strong>
+            <span class="ml-agent__desc">{a.data.kisaca}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </Section>
+
+  <Section
+    num="02"
+    kicker="Rota"
+    title="Nereden başlamalı?"
+    lede="Rehberin ana rotası sırayla okunur. Her sayfa önce sade katmanı, sonra teknik katmanı verir."
+  >
+    <ul>
+      <li><a href={`${base}/nasil-calisir`}>Nasıl çalışır?</a> — metin seçiminden rapora uzanan zincir.</li>
+      <li><a href={`${base}/parcalar`}>Parçalar</a> — uzantı, API, ajanlar, veritabanı, Ollama.</li>
+      <li><a href={`${base}/kurulum`}>Kurulum</a> — yerelde ayağa kaldırma ve doğrulama.</li>
+      <li><a href={`${base}/guncellemeler`}>Güncellemeler</a> — ne değişti, sade ve teknik anlatımla.</li>
+    </ul>
+  </Section>
+</Base>
+
+<style>
+  .ml-eyebrow {
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+    margin: 0 0 0.5rem;
+  }
+  .ml-hero h1 { max-width: 20ch; margin: 0 0 1rem; }
+  .ml-lede { font-size: var(--ml-step-1); line-height: 1.5; }
+  .ml-agent-grid {
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  }
+  .ml-agent-grid a {
+    display: grid;
+    gap: 0.35rem;
+    height: 100%;
+    padding: 1rem;
+    text-decoration: none;
+    background: var(--ml-paper-warm);
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    border-left: 6px solid var(--agent);
+  }
+  .ml-agent-grid a:hover { box-shadow: var(--ml-shadow); }
+  .ml-agent__dot {
+    width: 0.7rem; height: 0.7rem; border-radius: 50%;
+    background: var(--agent);
+  }
+  .ml-agent__desc { font-size: var(--ml-step--1); color: var(--ml-ink-muted); }
+  .ml-next ul { max-width: var(--ml-measure); }
+  .ml-hero { padding-bottom: clamp(2rem, 6vw, 4rem); }
+  .ml-triptik {
+    list-style: none;
+    margin: 2rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem 1.25rem;
+  }
+  .ml-triptik li {
+    display: grid;
+    gap: 0.2rem;
+    max-width: 13rem;
+  }
+  .ml-triptik strong { font-family: var(--ml-font-display); font-size: var(--ml-step-0); }
+  .ml-triptik span { font-size: var(--ml-step--1); color: var(--ml-ink-muted); line-height: 1.45; }
+  .ml-triptik__ok {
+    align-self: center;
+    font-family: var(--ml-font-mono);
+    color: var(--ml-scan);
+    font-size: var(--ml-step-1);
+  }
+  @media (max-width: 40rem) {
+    .ml-triptik__ok { display: none; }
+  }
+</style>

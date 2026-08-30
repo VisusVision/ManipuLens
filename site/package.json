@@ -1,0 +1,19 @@
+{
+  "name": "manipulens-rehber",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "node scripts/build-sozluk.mjs && node scripts/extract-code.mjs && astro build",
+    "sozluk": "node scripts/build-sozluk.mjs",
+    "pano": "node scripts/fetch-trello.mjs",
+    "kod": "node scripts/extract-code.mjs",
+    "kod:kontrol": "node scripts/extract-code.mjs --kontrol",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "astro": "^5.13.0"
+  }
+}

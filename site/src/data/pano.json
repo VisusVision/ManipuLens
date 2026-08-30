@@ -1,0 +1,16 @@
+{
+  "durum": "veri-yok",
+  "sebep": "TRELLO_KEY / TRELLO_TOKEN tanimli degil",
+  "pano": {
+    "kod": "5KCEsJ51",
+    "ad": null,
+    "url": "https://trello.com/b/5KCEsJ51"
+  },
+  "cekildi": "2026-08-29T11:41:45.243Z",
+  "sutunlar": [],
+  "uyeler": [],
+  "sayilar": {
+    "kart": 0,
+    "gosterilen": 0
+  }
+}

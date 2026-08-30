@@ -1,0 +1,148 @@
+---
+/** Trello panosundan gelen tek gorev karti. */
+import { guvenliTrelloUrl } from '../utils/trello-url';
+interface Kisi {
+  ad: string;
+  harfler: string;
+}
+interface Etiket {
+  ad: string;
+  renk: string;
+}
+interface Props {
+  ad: string;
+  aciklama?: string;
+  kimde?: Kisi[];
+  etiketler?: Etiket[];
+  bitis?: string | null;
+  bitisTamam?: boolean;
+  url: string;
+}
+const { ad, aciklama, kimde = [], etiketler = [], bitis, bitisTamam = false, url } = Astro.props;
+const kartUrl = guvenliTrelloUrl(url);
+
+const bitisTarihi = bitis ? new Date(bitis) : null;
+const gecikti = !!bitisTarihi && !bitisTamam && bitisTarihi.getTime() < Date.now();
+const bitisMetni = bitisTarihi
+  ? bitisTarihi.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+  : null;
+---
+<article class:list={['ml-kart', gecikti && 'ml-kart--gecikti']}>
+  {etiketler.length > 0 && (
+    <p class="ml-kart__etiketler">
+      {etiketler.map((e) => (
+        <span class="ml-kart__etiket" data-renk={e.renk}>{e.ad}</span>
+      ))}
+    </p>
+  )}
+
+  <h3 class="ml-kart__ad">
+    {kartUrl ? <a href={kartUrl} rel="noopener noreferrer" target="_blank">{ad}</a> : ad}
+  </h3>
+
+  {aciklama && <p class="ml-kart__aciklama">{aciklama}</p>}
+
+  <div class="ml-kart__alt">
+    {kimde.length > 0 ? (
+      <p class="ml-kart__kisiler">
+        {kimde.map((k) => (
+          <span class="ml-kart__kisi" title={k.ad}>
+            <span class="ml-kart__harf" aria-hidden="true">{k.harfler}</span>
+            {k.ad}
+          </span>
+        ))}
+      </p>
+    ) : (
+      <p class="ml-kart__kisiler ml-kart__kisiler--bos">Kimse üstlenmemiş</p>
+    )}
+
+    {bitisMetni && (
+      <p class="ml-kart__bitis">
+        {bitisTamam ? '✓ ' : gecikti ? 'Gecikti · ' : 'Bitiş · '}
+        {bitisMetni}
+      </p>
+    )}
+  </div>
+</article>
+
+<style>
+  .ml-kart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.9rem 1rem 1rem;
+    background: var(--ml-paper);
+    background-image: var(--ml-grain);
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+  }
+  .ml-kart--gecikti { border-left: 6px solid var(--ml-risk); }
+
+  .ml-kart__etiketler { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0; max-width: none; }
+  .ml-kart__etiket {
+    font-family: var(--ml-font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.4rem;
+    border: 1px solid var(--ml-line-soft);
+    border-radius: 2px;
+    color: var(--ml-ink-muted);
+  }
+  .ml-kart__etiket[data-renk='green'] { border-color: var(--ml-ok); color: var(--ml-ok); }
+  .ml-kart__etiket[data-renk='yellow'],
+  .ml-kart__etiket[data-renk='orange'] { border-color: var(--ml-warn); color: var(--ml-warn); }
+  .ml-kart__etiket[data-renk='red'] { border-color: var(--ml-risk); color: var(--ml-risk); }
+  .ml-kart__etiket[data-renk='blue'],
+  .ml-kart__etiket[data-renk='sky'] { border-color: var(--ml-scan); color: var(--ml-scan); }
+
+  .ml-kart__ad { margin: 0; font-size: var(--ml-step-0); line-height: 1.25; }
+  .ml-kart__ad a { text-decoration: none; }
+  .ml-kart__ad a:hover { text-decoration: underline; text-decoration-color: var(--ml-scan); }
+
+  .ml-kart__aciklama {
+    margin: 0;
+    max-width: none;
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+    line-height: 1.5;
+  }
+
+  .ml-kart__alt {
+    margin-top: auto;
+    padding-top: 0.35rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.9rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ml-kart__kisiler { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; max-width: none; }
+  .ml-kart__kisi {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--ml-step--1);
+  }
+  .ml-kart__kisiler--bos { font-size: var(--ml-step--1); color: var(--ml-ink-muted); font-style: italic; }
+  .ml-kart__harf {
+    display: inline-grid;
+    place-items: center;
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 50%;
+    background: var(--ml-navy);
+    color: #f5f7fb;
+    font-family: var(--ml-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
+  }
+  .ml-kart__bitis {
+    margin: 0;
+    max-width: none;
+    font-family: var(--ml-font-mono);
+    font-size: 0.68rem;
+    color: var(--ml-ink-muted);
+  }
+  .ml-kart--gecikti .ml-kart__bitis { color: var(--ml-risk); }
+</style>

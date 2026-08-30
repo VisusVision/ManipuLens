@@ -9,3 +9,10 @@ history.jsonl
 analiz_log.txt
 desktop.ini
 *.rar
+
+# Site
+site/node_modules/
+site/.astro/
+site/dist/
+site/.netlify/
+server.log

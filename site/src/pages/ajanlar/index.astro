@@ -1,0 +1,65 @@
+---
+import Base from '../../layouts/Base.astro';
+import Section from '../../components/Section.astro';
+import Layer from '../../components/Layer.astro';
+import { getCollection } from 'astro:content';
+
+const ajanlar = (await getCollection('ajanlar')).sort((a, b) => a.data.order - b.data.order);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Base title="Ajan atlası" description="ManipuLens'in altı uzman ajanı: görev, renk, kaynak kod.">
+  <Section
+    as="h1"
+    num="00"
+    kicker="Altı uzman"
+    title="Ajan atlası"
+    lede="Altı uzman ajan aynı metni farklı sorularla okur. Her renk koddan gelir; bulunan cümle sayfada o ajanın rengiyle işaretlenir."
+  >
+    <table class="ml-table">
+      <thead>
+        <tr><th>Ajan</th><th>Ne arar</th><th class="ml-technical">Kaynak</th></tr>
+      </thead>
+      <tbody>
+        {ajanlar.map((a) => (
+          <tr style={`--agent: ${a.data.color}`}>
+            <td><a href={`${base}/ajanlar/${a.id}`}>{a.data.title}</a></td>
+            <td>{a.data.kisaca}</td>
+            <td class="ml-technical"><code>{a.data.source_fn}</code></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+
+    <Layer kind="technical" title="Altı ajan, tek model ve tek çıktı sözleşmesi" as="h2">
+      <p>
+        Ajanlar altı ayrı model değildir. Altısı da Rust içindeki aynı
+        <code>call_ollama_agent()</code> yardımcısıyla yerel <code>llama3</code> modeline gider.
+        Değişen yalnız sistem promptudur; dönüş tipi her zaman <code>AgentAnalysis</code> olur.
+      </p>
+      <pre><code>{`AgentAnalysis {
+  manipulation_type: String,
+  detected: bool,
+  confidence_score: f32,
+  aciklama: String,
+  target_sentences: Vec<String>
+}`}</code></pre>
+      <p>
+        Aynı şema sayesinde <code>tokio::join!</code> sonuçları tek listeye toplanabilir. Bir
+        ajan farklı alan döndürse sentezörün tipi bozulur ve Rust derlemesi bunu daha çalışmadan
+        yakalar.
+      </p>
+    </Layer>
+  </Section>
+</Base>
+
+<style>
+  .ml-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
+  .ml-table th, .ml-table td {
+    text-align: left;
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid var(--ml-line-soft);
+    vertical-align: top;
+  }
+  .ml-table tbody tr { border-left: 6px solid var(--agent); }
+  .ml-table th { font-size: var(--ml-step--1); text-transform: uppercase; letter-spacing: 0.08em; }
+</style>

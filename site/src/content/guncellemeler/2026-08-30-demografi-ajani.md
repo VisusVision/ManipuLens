@@ -1,0 +1,37 @@
+---
+title: "Demografi ajanı: kendi tarama geçmişinizden profil çıkarımı"
+date: 2026-08-30
+version: "agents-0.2.0"
+component: "agents"
+owner: "Enes"
+status: "released"
+visibility: "team"
+simple_summary: "Yedinci bir ajan eklendi. Kendi taradığınız metinlerin geçmişine bakıp yaş aralığı, eğitim seviyesi, tüketici eğilimi ve ilgi alanları gibi tahminler üretiyor. Bu tahminler kesin bilgi değil; ajan yeterince emin değilse alanı 'bilinmiyor' olarak bırakıyor. Profili istediğiniz an silebiliyorsunuz."
+ne_ise_yarar: "Hangi tür manipülasyona daha çok denk geldiğinizi ve hangi konuların önünüze çıktığını gösteriyor. Ayrıca hangi kullanıcı grubunun hangi manipülasyonla hedeflendiğini ölçmenin ilk adımı."
+technical_summary: "src/agents.rs içinde analyze_demographic: kullanıcının sayaçlarını ve son 30 metin önizlemesini okuyup yaş aralığı, cinsiyet, eğitim seviyesi, tüketici eğilimi, ilgi alanları ve özet üretiyor. Analiz akışına 7. ajan olarak EKLENMEDİ — run_orchestrator zaten 7 Ollama çağrısı yapıyor, sekizincisi doğrudan kullanıcının bekleme süresine binerdi. İki katmanlı tasarım: sayaçlar her analizde LLM'siz güncelleniyor, çıkarım 5 analizde bir (ya da çıkarım 24 saatten eskiyse) tokio::spawn ile isteğin dışında koşuyor. sanitize_demographic, güveni 0.60 altındaki her tahmini 'bilinmiyor'a çekiyor; ajan hata verirse mevcut profil olduğu gibi korunuyor."
+why_changed: "Profil çıkarımı istendi, fakat analiz süresini uzatmadan ve tahmini kesinlik gibi sunmadan yapılması şarttı."
+impact: "Kullanıcının beklediği analiz süresi değişmedi. Profil ilk 5 analizden sonra oluşuyor; o ana kadar 'henüz yeterli veri yok' durumu dönüyor."
+tests: "Gerçek Ollama ile 10 analiz koşuldu: 5. analizde çıkarım üretildi, 6-9 arası tetiklenmedi, 10. analizde ikinci kez üretildi. 39/39 test yeşil."
+karsilastirma:
+  - alan: "Analiz süresi"
+    once: "7 model çağrısı"
+    sonra: "7 model çağrısı — çıkarım istek dışında koşuyor"
+  - alan: "Çıkarım sıklığı"
+    once: "Çıkarım yoktu"
+    sonra: "5 analizde bir, ya da çıkarım 24 saatten eskiyse"
+  - alan: "Düşük güvenli tahmin"
+    once: "Tahmin üretilmiyordu"
+    sonra: "0.60 altındaki her alan 'bilinmiyor'a çekiliyor"
+  - alan: "Hassas alanlar"
+    once: "Konu gündemde değildi"
+    sonra: "Etnik köken, din, sağlık, cinsel yönelim, siyasi görüş hem prompt'ta yasak hem çıktı şemasında yok"
+  - alan: "Ajan hatası"
+    once: "Böyle bir ajan yoktu"
+    sonra: "Mevcut profil olduğu gibi korunuyor, boş yazılmıyor"
+known_issues:
+  - "Cinsiyet ve eğitim seviyesi alanları tarama geçmişinden zayıf sinyal; sert güven kapısı var ama alanların kalıp kalmayacağı henüz karara bağlanmadı."
+  - "Çıkarım kalitesi ana analizle aynı modele (llama3 8B) bağlı; ana analizin tutarlılığı düzelmeden profil kalitesi de sınırlı kalır."
+commit_or_pr: "https://github.com/VisusVision/ManipuLens/commit/d992153"
+verified_at_commit: "d992153"
+verified_at: 2026-08-30
+---

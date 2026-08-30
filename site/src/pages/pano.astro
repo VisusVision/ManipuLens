@@ -1,0 +1,116 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import BoardColumn from '../components/BoardColumn.astro';
+import Layer from '../components/Layer.astro';
+import pano from '../data/pano.json';
+import { guvenliTrelloUrl } from '../utils/trello-url';
+
+const veriVar = pano.durum === 'tamam' && pano.sutunlar.length > 0;
+const panoUrl = guvenliTrelloUrl(pano.pano.url);
+
+const cekildi = pano.cekildi
+  ? new Date(pano.cekildi).toLocaleString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  : null;
+
+const toplamKart = pano.sutunlar.reduce((n: number, s: any) => n + s.kartlar.length, 0);
+---
+<Base
+  title="Pano"
+  description="ManipuLens görev panosu: hangi iş kimde, ne yapılıyor, ne sırada bekliyor."
+>
+  <Section
+    as="h1"
+    num="00"
+    kicker="Kim ne yapıyor"
+    title="Görev panosu"
+    lede="Trello panosunun sitedeki yansıması. Hangi iş kimde, açıklaması ne, hangi aşamada. Kartın kendisine gitmek için başlığına tıkla."
+  >
+    <p class="ml-pano__damga">
+      {cekildi ? <>Son çekim: <strong>{cekildi}</strong></> : 'Henüz çekim yapılmadı'}
+      {veriVar && <> · {toplamKart} kart gösteriliyor</>}
+      <span class="ml-pano__uyari">Bu sayfa canlı değil; yukarıdaki saatteki hâli gösterir.</span>
+    </p>
+
+    {!veriVar && (
+      <div class="ml-pano__bos">
+        <p><strong>Pano verisi henüz yok.</strong></p>
+        <p>
+          Sebep: <code>{pano.sebep ?? 'bilinmiyor'}</code>
+        </p>
+        <p>
+          Pano özel olduğu için çekim bir API anahtarı ister. Anahtar bu depoya
+          <strong>yazılmaz</strong>; GitHub Secrets içinde durur ve yalnız derleme sırasında
+          kullanılır. Kurulum adımları <code>site/README.md</code> içinde.
+        </p>
+        <p>
+          Panoya doğrudan gitmek için:{' '}
+          {panoUrl ? <a href={panoUrl}>Trello panosu</a> : 'bağlantı doğrulanamadı'}
+        </p>
+      </div>
+    )}
+  </Section>
+
+  {veriVar && (
+    <div class="ml-pano">
+      {pano.sutunlar.map((s: any) => (
+        <BoardColumn ad={s.ad} durum={s.durum} kartlar={s.kartlar} />
+      ))}
+    </div>
+  )}
+
+  <Layer kind="technical" title="Bu sayfa nasıl doluyor" as="h2">
+    <p>
+      Veri tarayıcıdan değil, derleme zamanında çekilir:
+      <code>scripts/fetch-trello.mjs</code> Trello REST API'sinden liste, kart ve üye bilgisini
+      alır, <code>src/data/pano.json</code> dosyasına yazar. Sayfa bu JSON'u statik olarak basar.
+      Tarayıcıya hiçbir anahtar gönderilmez, ziyaretçiden Trello'ya hiçbir istek gitmez.
+    </p>
+    <p>
+      Görünürlük filtresi <code>TRELLO_FILTRE</code> ile belirlenir. Varsayılan
+      <code>beyaz</code>: yalnız <code>site</code> etiketi taşıyan kartlar dışarı çıkar, geri
+      kalan her şey gizli kalır. Kart açıklamasında <code>&lt;!-- gizli --&gt;</code> işaretinden
+      sonrası kesilir.
+    </p>
+    <p>
+      Tazelik GitHub Actions ile gelir: zamanlanmış çalışma <code>pano.json</code> dosyasını
+      tazeleyip commit eder, site yeniden derlenir. Elle tazelemek için:
+      <code>npm run pano</code>.
+    </p>
+  </Layer>
+</Base>
+
+<style>
+  .ml-pano {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+    align-items: start;
+    margin-block: 1.5rem;
+  }
+  .ml-pano__damga {
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+    border-left: 3px solid var(--ml-scan);
+    padding: 0.4rem 0.8rem;
+    background: var(--ml-paper-warm);
+    max-width: none;
+  }
+  .ml-pano__uyari { display: block; margin-top: 0.15rem; opacity: 0.85; }
+  .ml-pano__bos {
+    margin-top: 1.25rem;
+    padding: 1.1rem 1.3rem;
+    border: var(--ml-border);
+    border-left: 6px solid var(--ml-warn);
+    border-radius: var(--ml-radius);
+    background: var(--ml-paper-warm);
+  }
+  .ml-pano__bos p { margin: 0 0 0.6rem; }
+  .ml-pano__bos p:last-child { margin-bottom: 0; }
+</style>

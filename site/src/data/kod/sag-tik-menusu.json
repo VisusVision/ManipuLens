@@ -1,0 +1,22 @@
+{
+  "id": "sag-tik-menusu",
+  "dosya": "extension/background.js",
+  "dil": "js",
+  "baslangic_satiri": 1,
+  "bitis_satiri": 10,
+  "satirlar": [
+    "// Eklenti yüklendiğinde sağ tık menüsünü oluştur",
+    "chrome.runtime.onInstalled.addListener(() => {",
+    "  chrome.contextMenus.create({",
+    "    id: \"analyze-selection\",",
+    "    title: \"Seçili Metni ManipuLens ile Analiz Et\",",
+    "    contexts: [\"selection\"]",
+    "  });",
+    "",
+    "  ensureClientId();",
+    "});"
+  ],
+  "dosya_hash": "0430326f2d05",
+  "kesit_hash": "c2681a69008a",
+  "cekildi": "2026-08-29T12:27:39.222Z"
+}

@@ -1,0 +1,181 @@
+---
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import Layer from '../components/Layer.astro';
+import EvidenceBadge from '../components/EvidenceBadge.astro';
+---
+<Base
+  title="Kurulum"
+  description="ManipuLens'i sıfırdan çalıştırma: önkoşullar, dört adım, doğrulama, sorun giderme."
+>
+  <Section
+    as="h1"
+    num="00"
+    kicker="Sıfırdan"
+    title="Kurulum"
+    lede="Dört adım. Her adımın sonunda “başarılıysa ne görürsün” yazıyor — bir şey görünmüyorsa oradan devam etme, sorun giderme bölümüne bak."
+  >
+    <EvidenceBadge owner="TODO" needsReverify={true} />
+
+    <h2>Önkoşullar</h2>
+    <ul class="ml-prose">
+      <li><strong>Rust</strong> (kararlı sürüm) — <code>cargo --version</code> çalışmalı.</li>
+      <li><strong>Ollama</strong> — yerel model bunun üzerinden çalışır.</li>
+      <li><strong>Chrome</strong> (veya Chromium tabanlı bir tarayıcı) — geliştirici modu açık.</li>
+      <li>Yaklaşık <strong>5 GB boş disk</strong> — modelin kendisi için.</li>
+    </ul>
+    <p class="ml-prose">
+      SMTP ayarı <strong>zorunlu değil</strong>. Yapılandırılmamışsa doğrulama kodu e-posta
+      yerine sunucu konsoluna yazılır; tek başına çalışırken bu yeterlidir.
+    </p>
+  </Section>
+
+  <Section num="01" kicker="Adım 1" title="Modeli indir">
+    <pre><code>ollama pull llama3</code></pre>
+    <p class="ml-prose">
+      Model adı <code>src/agents.rs</code> ve <code>src/orchestrator.rs</code> içinde sabittir.
+      Başka bir model kullanacaksan iki dosyada da değiştirmen gerekir.
+    </p>
+    <p class="ml-basarili">
+      <strong>Başarılıysa:</strong> <code>ollama list</code> çıktısında <code>llama3</code>
+      görünür.
+    </p>
+  </Section>
+
+  <Section num="02" kicker="Adım 2" title="Sunucuyu çalıştır">
+    <pre><code>cargo run</code></pre>
+    <p class="ml-prose">
+      Sunucu <code>127.0.0.1:3000</code> adresini dinler. Bu adres bilerek seçilmiştir:
+      <strong>yalnız bu makineden</strong> erişilebilir, aynı ağdaki başka bir cihazdan değil.
+    </p>
+    <p class="ml-prose">
+      Ollama varsayılan olarak <code>http://localhost:11434</code> adresinde beklenir.
+      Farklı bir adres kullanıyorsan <code>OLLAMA_URL</code> ortam değişkenini ayarla.
+    </p>
+    <p class="ml-basarili">
+      <strong>Başarılıysa:</strong> <code>curl http://127.0.0.1:3000/healthz</code> komutu
+      <code>{'{"status":"ok"}'}</code> döndürür.
+    </p>
+
+    <Layer kind="technical" title="Ortam değişkenleri">
+      <p>
+        Sunucu harici bir <code>dotenv</code> bağımlılığı kullanmaz; <code>.env</code>
+        dosyasını kendi okur ve <strong>zaten tanımlı olan değişkenlerin üzerine yazmaz</strong>.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Değişken</th><th>Varsayılan</th><th>Ne işe yarar</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>OLLAMA_URL</code></td><td><code>http://localhost:11434</code></td><td>Yerel model adresi</td></tr>
+          <tr><td><code>SMTP_HOST</code></td><td>—</td><td>Boşsa kod konsola yazılır</td></tr>
+          <tr><td><code>SMTP_PORT</code></td><td><code>587</code></td><td>465 = implicit TLS, diğerleri STARTTLS</td></tr>
+          <tr><td><code>SMTP_USER</code> / <code>SMTP_PASS</code></td><td>—</td><td>E-posta gönderimi</td></tr>
+          <tr><td><code>SMTP_FROM</code></td><td>—</td><td>Gönderen adresi</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Bu değerler depoya yazılmaz.</strong> <code>.env</code> dosyası yereldedir;
+        depoda yalnız içi boş <code>.env.example</code> bulunur.
+      </p>
+    </Layer>
+  </Section>
+
+  <Section num="03" kicker="Adım 3" title="Uzantıyı yükle">
+    <ol class="ml-prose">
+      <li><code>chrome://extensions</code> adresini aç.</li>
+      <li>Sağ üstten <strong>Geliştirici modu</strong>nu aç.</li>
+      <li><strong>Paketlenmemiş öğe yükle</strong> ile <code>extension/</code> klasörünü seç.</li>
+    </ol>
+    <p class="ml-prose">Derleme adımı yoktur; klasör doğrudan yüklenir.</p>
+    <p class="ml-basarili">
+      <strong>Başarılıysa:</strong> Uzantılar listesinde ManipuLens görünür ve herhangi bir
+      sayfada metin seçip sağ tıkladığında menüde ManipuLens çıkar.
+    </p>
+  </Section>
+
+  <Section num="04" kicker="Adım 4" title="Hesap aç ve dene">
+    <p class="ml-prose">
+      Uzantının açılır penceresinden kayıt ol. Doğrulama kodu SMTP yapılandırıldıysa
+      e-postana, yapılandırılmadıysa <strong>sunucu konsoluna</strong> yazılır.
+    </p>
+    <p class="ml-prose">
+      Ardından herhangi bir sayfada bir cümle seç, sağ tıkla, ManipuLens'i çalıştır.
+    </p>
+    <p class="ml-basarili">
+      <strong>Başarılıysa:</strong> Birkaç saniye içinde açılır pencerede rapor görünür ve
+      şüpheli cümleler sayfada renklenir.
+    </p>
+  </Section>
+
+  <Section
+    num="05"
+    kicker="Bir şey olmadıysa"
+    title="Sorun giderme"
+    lede="Sık karşılaşılan dört durum ve gerçek sebepleri."
+  >
+    <dl class="ml-sorun">
+      <div>
+        <dt>Sağ tık menüsünde ManipuLens yok</dt>
+        <dd>
+          Uzantı yüklendikten sonra açık sekmeler yenilenmemiştir. Sekmeyi yenile. Menü hâlâ
+          yoksa <code>chrome://extensions</code> sayfasında uzantının hata verip vermediğine bak.
+        </dd>
+      </div>
+      <div>
+        <dt>“Bağlantı kurulamadı” hatası</dt>
+        <dd>
+          Sunucu çalışmıyor. <code>cargo run</code> penceresi açık mı? Adres uzantıda
+          <strong>sabit</strong> yazılıdır (<code>127.0.0.1:3000</code>); farklı bir portta
+          çalıştırdıysan uzantı bulamaz.
+        </dd>
+      </div>
+      <div>
+        <dt>Analiz başlıyor ama boş sonuç dönüyor</dt>
+        <dd>
+          Ollama kapalı ya da model indirilmemiş olabilir. <code>ollama list</code> ile kontrol
+          et. Bulut yedeği <strong>yoktur</strong> — bu bilinçli bir karardır.
+        </dd>
+      </div>
+      <div>
+        <dt>Doğrulama kodu e-postaya gelmiyor</dt>
+        <dd>
+          SMTP yapılandırılmamışsa kod sunucu konsoluna yazılır; oradan oku. Yapılandırdıysan
+          ve yine gelmiyorsa sunucu logunda gönderim hatası görünür.
+        </dd>
+      </div>
+      <div>
+        <dt>“Çok fazla istek” uyarısı</dt>
+        <dd>
+          Hız limitine takıldın: kullanıcı başına <strong>60 saniyede 10 analiz</strong>. Yanıt
+          kalan saniyeyi söyler.
+        </dd>
+      </div>
+    </dl>
+  </Section>
+</Base>
+
+<style>
+  .ml-basarili {
+    max-width: var(--ml-measure);
+    border-left: 3px solid var(--ml-ok);
+    padding: 0.4rem 0.8rem;
+    background: var(--ml-paper-warm);
+    font-size: var(--ml-step--1);
+  }
+  pre { max-width: var(--ml-measure); }
+  .ml-sorun { margin: 0; display: grid; gap: 1rem; }
+  .ml-sorun div {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ml-line-soft);
+  }
+  .ml-sorun dt {
+    font-family: var(--ml-font-display);
+    font-weight: 700;
+    font-size: var(--ml-step-1);
+    margin-bottom: 0.3rem;
+  }
+  .ml-sorun dd { margin: 0; max-width: var(--ml-measure); color: var(--ml-ink-muted); }
+  table { width: 100%; border-collapse: collapse; font-size: var(--ml-step--1); }
+  th, td { text-align: left; padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--ml-line-soft); }
+</style>

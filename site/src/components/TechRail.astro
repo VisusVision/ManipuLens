@@ -1,0 +1,69 @@
+---
+/**
+ * Teknik modun her rotada gorunen kaynak hatti.
+ * Urun calisma zamani ile rehber sitesini birbirine karistirmadan, zinciri tek satirda verir.
+ */
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const adimlar = [
+  { ad: 'Chrome MV3', alt: 'JavaScript', href: `${base}/parcalar/uzanti` },
+  { ad: 'Axum + Tokio', alt: 'Rust 2021', href: `${base}/parcalar/sunucu` },
+  { ad: '6 ajan + sentezör', alt: 'async orkestrasyon', href: `${base}/parcalar/orkestrator` },
+  { ad: 'Ollama · llama3', alt: 'yerel model', href: `${base}/parcalar/model` },
+  { ad: 'SQLite + JSONL', alt: 'yerel kayıt', href: `${base}/parcalar/veri` },
+];
+---
+<aside class="ml-tech-rail ml-technical ml-dark" aria-label="ManipuLens teknik çalışma hattı">
+  <div class="ml-shell ml-tech-rail__inner">
+    <span class="ml-tech-rail__label">Çalışma hattı</span>
+    <ol>
+      {adimlar.map((adim, i) => (
+        <li>
+          <a href={adim.href}>
+            <strong>{adim.ad}</strong>
+            <span>{adim.alt}</span>
+          </a>
+          {i < adimlar.length - 1 && <span class="ml-tech-rail__ok" aria-hidden="true">→</span>}
+        </li>
+      ))}
+    </ol>
+  </div>
+</aside>
+
+<style>
+  .ml-tech-rail {
+    background: var(--ml-navy);
+    border-bottom: 1px solid color-mix(in srgb, var(--ml-scan) 40%, transparent);
+  }
+  .ml-tech-rail__inner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+    padding-block: 0.55rem;
+  }
+  .ml-tech-rail__label {
+    flex: none;
+    font-family: var(--ml-font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ml-scan);
+  }
+  ol {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  li { display: flex; align-items: center; gap: 0.55rem; flex: none; }
+  a { display: grid; text-decoration: none; line-height: 1.2; }
+  strong { font-family: var(--ml-font-mono); font-size: 0.72rem; color: #f5f7fb; }
+  a span { font-size: 0.65rem; color: var(--ml-ink-muted); }
+  .ml-tech-rail__ok { color: var(--ml-scan); }
+  @media (max-width: 64rem) {
+    .ml-tech-rail__inner { align-items: flex-start; overflow-x: auto; scrollbar-width: thin; }
+  }
+</style>

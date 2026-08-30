@@ -1,0 +1,43 @@
+---
+/**
+ * Iki seviyeli anlatim sozlesmesinin tek blogu.
+ * kind='technical' -> yalniz teknik modda gorunur.
+ * kind='simple'    -> yalniz sade modda gorunur.
+ * kind='both'      -> her zaman gorunur (varsayilan).
+ */
+interface Props {
+  kind?: 'simple' | 'technical' | 'both';
+  title?: string;
+  /** Katmanin bulundugu baslik seviyesine gore h2/h3 secilir. */
+  as?: 'h2' | 'h3';
+  /** Uzun tablo ve mimari semalarda olcu sinirini kaldirir. */
+  wide?: boolean;
+  /** Sayfaya girerken yumusak gorunme hareketi. */
+  reveal?: boolean;
+}
+const { kind = 'both', title, as = 'h3', wide = false, reveal = true } = Astro.props;
+const cls = kind === 'technical' ? 'ml-technical' : kind === 'simple' ? 'ml-simple-only' : '';
+const Heading = as;
+---
+<section class:list={['ml-layer', cls, kind === 'technical' && 'ml-dark', reveal && 'rv']}>
+  {title && <Heading class="ml-layer__title">{title}</Heading>}
+  <div class:list={['ml-prose', wide && 'ml-layer__wide']}><slot /></div>
+</section>
+
+<style>
+  .ml-layer {
+    background: var(--ml-paper-warm);
+    color: var(--ml-ink);
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow);
+    padding: 1.25rem 1.5rem;
+    margin-block: 1.5rem;
+  }
+  .ml-layer__title {
+    margin: 0 0 0.75rem;
+    font-size: var(--ml-step-1);
+  }
+  .ml-layer.ml-dark { background: var(--ml-navy); }
+  .ml-layer__wide { max-width: none; }
+</style>

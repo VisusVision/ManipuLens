@@ -1,0 +1,48 @@
+---
+/**
+ * Bolum iskeleti - sitedeki her uzun sayfa bunu kullanir.
+ * Dort sabit parca: numara + kicker (ust etiket) + h2 + lede.
+ * Okuyucu her bolumde nerede oldugunu bilir; sayfa uzar ama kaybolmaz.
+ */
+interface Props {
+  num?: string;
+  kicker?: string;
+  title: string;
+  lede?: string;
+  id?: string;
+  /** Koyu analiz yuzeyi (teknik katman bolumleri icin). */
+  dark?: boolean;
+  /** h2 yerine h1 - sayfanin ilk bolumu icin. */
+  as?: 'h1' | 'h2';
+  reveal?: boolean;
+}
+const { num, kicker, title, lede, id, dark = false, as = 'h2', reveal = true } = Astro.props;
+const Heading = as;
+---
+<section
+  id={id}
+  class:list={['ml-section', dark && 'ml-dark ml-section--dark', reveal && 'rv']}
+>
+  {(num || kicker) && (
+    <div class="ml-section__head">
+      {num && <span class="ml-section__num">{num}</span>}
+      {kicker && <span class="ml-section__kicker">{kicker}</span>}
+    </div>
+  )}
+  <Heading class="ml-section__title">{title}</Heading>
+  {lede && <p class="ml-section__lede">{lede}</p>}
+  <div class="ml-section__body"><slot /></div>
+</section>
+
+<style>
+  .ml-section--dark {
+    background: var(--ml-navy);
+    background-image: var(--ml-grain);
+    color: var(--ml-ink);
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    padding-inline: clamp(1.2rem, 4vw, 2.5rem);
+    margin-block: 2rem;
+  }
+  .ml-section--dark:first-of-type { padding-top: clamp(2rem, 5vw, 3rem); }
+</style>

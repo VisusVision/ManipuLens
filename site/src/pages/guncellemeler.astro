@@ -1,0 +1,133 @@
+---
+import Base from '../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+// Taslak kayitlar listede gorunur ama "taslak" isaretiyle; insan onayi olmadan
+// yayin sayilmaz. Ekip disina acilacak surumde visibility === 'public' filtresi eklenir.
+const kayitlar = (await getCollection('guncellemeler')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf(),
+);
+
+const durumEtiket: Record<string, string> = {
+  draft: 'Taslak',
+  released: 'Yayınlandı',
+  reverted: 'Geri alındı',
+};
+---
+<Base title="Güncellemeler" description="Her değişiklik sade ve teknik iki anlatımla.">
+  <h1>Güncellemeler</h1>
+  <p class="ml-lede ml-prose">
+    Her kayıt iki anlatım taşır: herkesin anlayacağı özet ve teknik ayrıntı. Kod birleşmiş
+    olması yetmez; test kanıtı ve iki özet olmadan bir değişiklik "yayınlandı" sayılmaz.
+  </p>
+
+  {kayitlar.length === 0 && <p>Henüz kayıt yok.</p>}
+
+  <ul class="ml-updates">
+    {kayitlar.map((k) => (
+      <li class="rv">
+        <header>
+          <span class={`ml-status ml-status--${k.data.status}`}>{durumEtiket[k.data.status]}</span>
+          <time datetime={k.data.date.toISOString()}>{k.data.date.toISOString().slice(0, 10)}</time>
+          <span class="ml-chip">{k.data.component}</span>
+          {k.data.version && <span class="ml-chip">{k.data.version}</span>}
+        </header>
+        <h2>{k.data.title}</h2>
+        <p class="ml-simple">{k.data.simple_summary}</p>
+        {k.data.ne_ise_yarar && (
+          <p class="ml-use"><strong>Ne işe yarar:</strong> {k.data.ne_ise_yarar}</p>
+        )}
+
+        {k.data.karsilastirma.length > 0 && (
+          <div class="ml-ba">
+            <h3>Önce / sonra</h3>
+            <table>
+              <thead>
+                <tr><th>Alan</th><th>Önce</th><th>Sonra</th></tr>
+              </thead>
+              <tbody>
+                {k.data.karsilastirma.map((satir) => (
+                  <tr>
+                    <th scope="row">{satir.alan}</th>
+                    <td class="ml-ba-once">{satir.once}</td>
+                    <td class="ml-ba-sonra">{satir.sonra}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div class="ml-technical ml-tech-block">
+          <p>{k.data.technical_summary}</p>
+          {k.data.why_changed && <p><strong>Neden:</strong> {k.data.why_changed}</p>}
+          {k.data.impact && <p><strong>Etki:</strong> {k.data.impact}</p>}
+          {k.data.tests && <p><strong>Test:</strong> {k.data.tests}</p>}
+          {k.data.known_issues.length > 0 && (
+            <p><strong>Bilinen sorunlar:</strong> {k.data.known_issues.join('; ')}</p>
+          )}
+        </div>
+        <footer>
+          <span>sahip: {k.data.owner}</span>
+          {k.data.commit_or_pr && <a href={k.data.commit_or_pr}>kod</a>}
+          {k.data.trello_card && <a href={k.data.trello_card}>Trello kartı</a>}
+          {k.data.verified_at_commit && <code>{k.data.verified_at_commit.slice(0, 7)}</code>}
+        </footer>
+      </li>
+    ))}
+  </ul>
+</Base>
+
+<style>
+  .ml-lede { font-size: var(--ml-step-1); max-width: var(--ml-measure); }
+  .ml-updates { list-style: none; margin: 2rem 0 0; padding: 0; display: grid; gap: 1.2rem; }
+  .ml-updates li {
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    background: var(--ml-paper-warm);
+    padding: 1.1rem 1.3rem;
+  }
+  .ml-updates h2 { font-size: var(--ml-step-1); margin: 0.4rem 0 0.6rem; }
+  .ml-updates header, .ml-updates footer {
+    display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center;
+    font-size: var(--ml-step--1); color: var(--ml-ink-muted);
+  }
+  .ml-updates footer { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed var(--ml-line-soft); }
+  .ml-simple { max-width: var(--ml-measure); margin: 0; }
+  .ml-use { max-width: var(--ml-measure); margin: 0.6rem 0 0; }
+
+  /* Once/sonra: iki durum yan yana durur, "iyilestirildi" demeden fark gorunur.
+     Dar ekranda tablo kendi icinde kayar - sayfa govdesi yatay kaymaz. */
+  .ml-ba { margin-top: 1rem; overflow-x: auto; }
+  .ml-ba h3 {
+    font-size: var(--ml-step--1);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ml-ink-muted);
+    margin: 0 0 0.5rem;
+  }
+  .ml-ba table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: var(--ml-step--1); }
+  .ml-ba th, .ml-ba td { text-align: left; vertical-align: top; padding: 0.5rem 0.7rem; border-top: 1px solid var(--ml-line-soft); }
+  .ml-ba thead th { border-top: 0; border-bottom: 2px solid var(--ml-line-soft); font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ml-ink-muted); }
+  .ml-ba tbody th { width: 22%; font-weight: 700; }
+  .ml-ba-once { color: var(--ml-ink-muted); }
+  /* Yeni durum sol kenarindaki tarama rengiyle isaretlenir; renk tek basina
+     anlam tasimasin diye baslik sutunu da ayrimi yaziyla veriyor. */
+  .ml-ba-sonra { border-left: 3px solid var(--ml-scan); }
+  .ml-tech-block {
+    margin-top: 0.9rem; padding: 0.8rem 1rem;
+    background: var(--ml-navy); color: #dfe6f2;
+    border-left: 3px solid var(--ml-scan); border-radius: var(--ml-radius);
+    font-size: var(--ml-step--1);
+  }
+  .ml-tech-block p { margin: 0.35rem 0; max-width: var(--ml-measure); }
+  .ml-chip {
+    font-family: var(--ml-font-mono);
+    border: 1px solid var(--ml-line-soft);
+    border-radius: 999px; padding: 0.1rem 0.6rem;
+  }
+  .ml-status { font-weight: 700; color: var(--ml-ink); }
+  .ml-status--draft { color: var(--ml-warn); }
+  .ml-status--released { color: var(--ml-ok); }
+  .ml-status--reverted { color: var(--ml-risk); }
+</style>

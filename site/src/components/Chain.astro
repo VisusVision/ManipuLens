@@ -1,0 +1,296 @@
+---
+/**
+ * Yedi halkali zincir: metin seciminden sayfanin boyanmasina.
+ *
+ * Icerik JS icinde gomulu degil - halkalar `src/content/zincir/*.md` dosyalarindan
+ * gelir ve HTML'e basilir. Betik yalnizca hangi halkanin acik oldugunu yonetir,
+ * yani JavaScript kapaliyken de butun metin okunabilir durumda kalir.
+ *
+ * Etkilesim: tikla · ok tuslari · `r` sifirla · Home/End uclara git.
+ */
+import { getCollection, render } from 'astro:content';
+
+const girdiler = (await getCollection('zincir')).sort((a, b) => a.data.order - b.data.order);
+
+// Teknik katmanin Markdown'i derleme zamaninda HTML'e cevrilir; sayfa statik kalir.
+const halkalar = await Promise.all(
+  girdiler.map(async (h) => ({ veri: h.data, Teknik: (await render(h)).Content })),
+);
+const no = (n: number) => String(n).padStart(2, '0');
+---
+<div class="ml-zincir" id="ml-zincir">
+  <div class="ml-zincir__ray" role="tablist" aria-label="Analiz zinciri">
+    {halkalar.map(({ veri }, i) => (
+      <button
+        type="button"
+        role="tab"
+        class="ml-halka"
+        id={`halka-${no(veri.order)}`}
+        aria-selected={i === 0 ? 'true' : 'false'}
+        aria-controls={`panel-${no(veri.order)}`}
+        tabindex={i === 0 ? 0 : -1}
+      >
+        <span class="ml-halka__no">{no(veri.order)}</span>
+        <span class="ml-halka__ad">{veri.title}</span>
+      </button>
+    ))}
+  </div>
+
+  <div class="ml-zincir__cubuk" aria-hidden="true">
+    <span class="ml-zincir__dolgu" style="width: 0%"></span>
+  </div>
+
+  <p class="ml-zincir__yardim">
+    <span>Halkaya tıkla, ok tuşlarıyla ilerle; halka odaktayken <kbd>r</kbd> ile başa dön.</span>
+    <span class="ml-zincir__sayac" role="status" aria-live="polite"></span>
+  </p>
+
+  <div class="ml-zincir__paneller">
+    {halkalar.map(({ veri, Teknik }, i) => (
+      <section
+        class="ml-panel"
+        id={`panel-${no(veri.order)}`}
+        role="tabpanel"
+        aria-labelledby={`halka-${no(veri.order)}`}
+        hidden={i !== 0}
+      >
+        <p class="ml-panel__kicker">
+          <span class="ml-panel__no">{no(veri.order)}</span>
+          {veri.kicker}
+        </p>
+        <h2 class="ml-panel__ad">{veri.title}</h2>
+        <p class="ml-panel__sade">{veri.sade}</p>
+
+        <dl class="ml-panel__olculer">
+          <div>
+            <dt>Süre</dt>
+            <dd>{veri.sure}</dd>
+          </div>
+          <div class="ml-technical">
+            <dt>Kodda</dt>
+            <dd><code>{veri.kod}</code></dd>
+          </div>
+        </dl>
+
+        <div class="ml-panel__teknik ml-technical ml-dark">
+          <h3>Teknik detay</h3>
+          <Teknik />
+        </div>
+
+        <p class="ml-panel__hata">
+          <strong>Bozulursa:</strong> {veri.hata}
+        </p>
+      </section>
+    ))}
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    var kok = document.getElementById('ml-zincir');
+    if (!kok) return;
+    var sekmeler = Array.prototype.slice.call(kok.querySelectorAll('.ml-halka'));
+    var paneller = Array.prototype.slice.call(kok.querySelectorAll('.ml-panel'));
+    var dolgu = kok.querySelector('.ml-zincir__dolgu');
+    var sayac = kok.querySelector('.ml-zincir__sayac');
+    if (!sekmeler.length) return;
+
+    var aktif = 0;
+
+    function goster(i, odakla) {
+      aktif = Math.max(0, Math.min(sekmeler.length - 1, i));
+      sekmeler.forEach(function (s, j) {
+        var secili = j === aktif;
+        s.setAttribute('aria-selected', secili ? 'true' : 'false');
+        s.tabIndex = secili ? 0 : -1;
+        s.classList.toggle('ml-halka--gecildi', j < aktif);
+      });
+      paneller.forEach(function (p, j) {
+        p.hidden = j !== aktif;
+      });
+      if (dolgu) {
+        dolgu.style.width = ((aktif + 1) / sekmeler.length) * 100 + '%';
+      }
+      if (sayac) {
+        sayac.textContent = 'Halka ' + (aktif + 1) + ' / ' + sekmeler.length;
+      }
+      if (odakla) sekmeler[aktif].focus();
+    }
+
+    sekmeler.forEach(function (s, i) {
+      s.addEventListener('click', function () {
+        goster(i, false);
+      });
+    });
+
+    kok.addEventListener('keydown', function (e) {
+      var k = e.key;
+      if (k === 'ArrowRight' || k === 'ArrowDown') {
+        goster(aktif + 1, true);
+        e.preventDefault();
+      } else if (k === 'ArrowLeft' || k === 'ArrowUp') {
+        goster(aktif - 1, true);
+        e.preventDefault();
+      } else if (k === 'Home') {
+        goster(0, true);
+        e.preventDefault();
+      } else if (k === 'End') {
+        goster(sekmeler.length - 1, true);
+        e.preventDefault();
+      } else if ((k === 'r' || k === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        goster(0, true);
+        e.preventDefault();
+      }
+    });
+
+    goster(0, false);
+  })();
+</script>
+
+<style>
+  .ml-zincir { margin-block: 1.5rem; }
+
+  .ml-zincir__ray {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.4rem;
+  }
+  @media (max-width: 55rem) {
+    .ml-zincir__ray { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 32rem) {
+    .ml-zincir__ray { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .ml-halka {
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.55rem 0.6rem 0.65rem;
+    color: var(--ml-ink);
+    background: var(--ml-paper-warm);
+    border: 2px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius);
+    transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+  }
+  .ml-halka:hover { border-color: var(--ml-line); }
+  .ml-halka--gecildi { background: var(--ml-paper); border-color: var(--ml-scan-dim); }
+  .ml-halka[aria-selected='true'] {
+    background: var(--ml-navy);
+    color: #f5f7fb;
+    border-color: var(--ml-navy);
+    transform: translateY(-3px);
+  }
+  .ml-halka__no {
+    font-family: var(--ml-font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    opacity: 0.7;
+  }
+  .ml-halka[aria-selected='true'] .ml-halka__no { color: #23c9d6; opacity: 1; }
+  .ml-halka__ad { font-size: var(--ml-step--1); line-height: 1.25; }
+
+  .ml-zincir__cubuk {
+    height: 4px;
+    margin-top: 0.7rem;
+    background: var(--ml-line-soft);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ml-zincir__dolgu {
+    display: block;
+    height: 100%;
+    background: var(--ml-scan);
+    transition: width 0.3s ease;
+  }
+
+  .ml-zincir__yardim {
+    margin: 0.5rem 0 1.25rem;
+    max-width: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+    justify-content: space-between;
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: var(--ml-ink-muted);
+  }
+  .ml-zincir__yardim kbd {
+    border: 1px solid var(--ml-line-soft);
+    border-radius: 3px;
+    padding: 0 0.25rem;
+  }
+
+  .ml-panel {
+    padding: 1.25rem 1.4rem 1.4rem;
+    background: var(--ml-paper-warm);
+    background-image: var(--ml-grain);
+    border: var(--ml-border);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow);
+    animation: ml-panel-gir 0.28s ease;
+  }
+  @keyframes ml-panel-gir {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ml-panel { animation: none; }
+    .ml-halka[aria-selected='true'] { transform: none; }
+    .ml-zincir__dolgu { transition: none; }
+  }
+
+  .ml-panel__kicker {
+    margin: 0 0 0.3rem;
+    max-width: none;
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+  .ml-panel__no { color: var(--ml-scan); }
+  .ml-panel__ad { margin: 0 0 0.6rem; font-size: var(--ml-step-2); }
+  .ml-panel__sade { margin: 0 0 1rem; font-size: var(--ml-step-1); line-height: 1.5; }
+
+  .ml-panel__olculer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2rem;
+    margin: 0 0 1rem;
+    padding: 0.6rem 0;
+    border-block: 1px solid var(--ml-line-soft);
+  }
+  .ml-panel__olculer dt {
+    font-family: var(--ml-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+  .ml-panel__olculer dd { margin: 0.1rem 0 0; font-size: var(--ml-step--1); }
+
+  .ml-panel__teknik {
+    padding: 1rem 1.2rem;
+    margin-bottom: 1rem;
+    background: var(--ml-navy);
+    border-radius: var(--ml-radius);
+  }
+  .ml-panel__teknik h3 { margin: 0 0 0.5rem; font-size: var(--ml-step-0); }
+  .ml-panel__teknik :global(p) { margin: 0 0 0.6rem; max-width: var(--ml-measure); }
+
+  .ml-panel__hata {
+    margin: 0;
+    max-width: none;
+    font-size: var(--ml-step--1);
+    border-left: 3px solid var(--ml-warn);
+    padding-left: 0.7rem;
+  }
+  .ml-panel > .ml-panel__hata { margin-top: 0.4rem; }
+</style>

@@ -1,0 +1,248 @@
+---
+import '../styles/global.css';
+import ModeToggle from '../components/ModeToggle.astro';
+import TermLink from '../components/TermLink.astro';
+import TechRail from '../components/TechRail.astro';
+import SideRail from '../components/SideRail.astro';
+import EndlessScroll from '../components/EndlessScroll.astro';
+import ModeBanner from '../components/ModeBanner.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Otomatik sozluk terim baglamayi kapatir (sozluk sayfasinda gereksiz). */
+  noTerms?: boolean;
+}
+const {
+  title,
+  description = 'ManipuLens yaşayan proje rehberi',
+  noTerms = false,
+} = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const nav = [
+  { href: `${base}/`, label: 'Başlangıç' },
+  { href: `${base}/nasil-calisir`, label: 'Nasıl çalışır?' },
+  { href: `${base}/parcalar`, label: 'Parçalar' },
+  { href: `${base}/ajanlar`, label: 'Ajan atlası' },
+  { href: `${base}/kod`, label: 'Kod okuma' },
+  { href: `${base}/sozluk`, label: 'Sözlük' },
+  { href: `${base}/pano`, label: 'Pano' },
+  { href: `${base}/guncellemeler`, label: 'Güncellemeler' },
+  { href: `${base}/kurulum`, label: 'Kurulum' },
+  { href: `${base}/kararlar`, label: 'Kararlar' },
+  { href: `${base}/gizlilik`, label: 'Gizlilik' },
+  { href: `${base}/sss`, label: 'SSS' },
+  { href: `${base}/yol-haritasi`, label: 'Yol haritası' },
+];
+const current = Astro.url.pathname.replace(/\/$/, '') || base;
+const isCurrent = (href: string) => {
+  const target = href.replace(/\/$/, '');
+  return target === base
+    ? current === base
+    : current === target || current.startsWith(`${target}/`);
+};
+---
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · ManipuLens</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={`${base}/favicon.svg`} type="image/svg+xml" />
+    <script is:inline>
+      // Anahtar secimini boyama oncesi uygula; yanip sonme olmasin.
+      document.documentElement.classList.add('ml-js');
+      try {
+        document.documentElement.dataset.mlMode =
+          localStorage.getItem('manipulens:mode') === 'teknik' ? 'teknik' : 'sade';
+      } catch (e) {
+        document.documentElement.dataset.mlMode = 'sade';
+      }
+    </script>
+  </head>
+  <body data-ml-no-terms={noTerms ? "" : undefined}>
+    <a class="ml-skip" href="#icerik">İçeriğe geç</a>
+
+    <SideRail nav={nav} current={current} base={base} />
+
+    <div class="ml-app-page">
+
+    <header class="ml-header">
+      <div class="ml-shell ml-header__inner">
+        <a class="ml-brand" href={`${base}/`}>
+          <span class="ml-brand__lens" aria-hidden="true"></span>
+          ManipuLens<span class="ml-brand__sub">rehber</span>
+        </a>
+        <nav aria-label="Ana bölümler">
+          <ul>
+            {nav.map((n) => (
+              <li>
+                <a href={n.href} aria-current={isCurrent(n.href) ? 'page' : undefined}>
+                  {n.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <ModeToggle />
+      </div>
+    </header>
+
+    <TechRail />
+
+    <ModeBanner />
+
+    <main id="icerik" class="ml-shell" tabindex="-1"><slot /></main>
+
+    <EndlessScroll nav={nav} current={current} />
+
+    <TermLink />
+
+    <script is:inline>
+      // Scroll reveal - sifir bagimlilik. Hareket azaltma acikken hic calismaz.
+      (function () {
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var destek = 'IntersectionObserver' in window;
+        var io = destek && !reduce
+          ? new IntersectionObserver(function (entries) {
+              entries.forEach(function (e) {
+                if (e.isIntersecting) {
+                  e.target.classList.add('rv--in');
+                  io.unobserve(e.target);
+                }
+              });
+            }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 })
+          : null;
+
+        function tara() {
+          document.querySelectorAll('.rv:not(.rv--in)').forEach(function (el) {
+            if (getComputedStyle(el).display === 'none') return;
+            if (!io) el.classList.add('rv--in');
+            else io.observe(el);
+          });
+        }
+
+        tara();
+        // Sade modda gizli teknik bloklar geometri tasimaz. Mod acilinca yeniden tara.
+        document.addEventListener('manipulens:mode-change', function () {
+          requestAnimationFrame(tara);
+        });
+        // Sonsuz kaydirma alta yeni rota ekliyor; o blok da taranmali.
+        window.mlRevealTara = tara;
+      })();
+    </script>
+
+    <footer class="ml-footer ml-dark">
+      <div class="ml-shell">
+        <p>
+          ManipuLens · <a href="https://github.com/VisusVision/ManipuLens">VisusVision/ManipuLens</a>
+        </p>
+        <p class="ml-footer__note">
+          Bu rehberin kaynak doğrusu çalışan koddur. Her sayfa hangi commit'te doğrulandığını gösterir.
+        </p>
+      </div>
+    </footer>
+    </div>
+  </body>
+</html>
+
+<style>
+  .ml-app-page { min-width: 0; }
+  @media (min-width: 60.0625rem) {
+    .ml-app-page { margin-left: 15.5rem; }
+  }
+  .ml-header {
+    border-bottom: var(--ml-border);
+    background: var(--ml-paper);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .ml-header__inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.35rem 1.5rem;
+    padding-block: 0.8rem;
+  }
+  .ml-brand {
+    font-family: var(--ml-font-display);
+    font-size: var(--ml-step-1);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ml-brand__lens {
+    width: 1.1em;
+    height: 1.1em;
+    border: 2px solid var(--ml-ink);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 3px var(--ml-scan-dim);
+  }
+  .ml-brand__sub {
+    font-family: var(--ml-font-mono);
+    font-size: 0.55em;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+    margin-left: 0.4rem;
+  }
+  nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1.1rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: var(--ml-step--1);
+  }
+  .ml-header nav { grid-column: 1 / -1; grid-row: 2; }
+  .ml-header__inner :global(.ml-toggle) {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  nav a { text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; }
+  nav a:hover { border-bottom-color: var(--ml-line-soft); }
+  nav a[aria-current='page'] { border-bottom-color: var(--ml-scan); }
+  @media (min-width: 60.0625rem) {
+    .ml-header nav { display: none; }
+    .ml-header__inner { grid-template-columns: minmax(0, 1fr) auto; }
+  }
+  @media (max-width: 48rem) {
+    .ml-header__inner {
+      gap: 0.35rem 0.75rem;
+      padding-block: 0.55rem 0.25rem;
+    }
+    .ml-brand { min-width: 0; }
+    .ml-brand__sub { display: none; }
+    .ml-header nav {
+      grid-column: 1 / -1;
+      width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: thin;
+    }
+    .ml-header nav ul {
+      width: max-content;
+      flex-wrap: nowrap;
+      gap: 0 0.9rem;
+    }
+    .ml-header nav a {
+      display: block;
+      padding-block: 0.8rem;
+      white-space: nowrap;
+    }
+  }
+  main { padding-block: clamp(2rem, 6vw, 4.5rem); }
+  .ml-footer {
+    background: var(--ml-navy);
+    color: var(--ml-ink);
+    border-top: 3px solid var(--ml-scan);
+    padding-block: 2rem;
+    font-size: var(--ml-step--1);
+  }
+  .ml-footer__note { color: var(--ml-ink-muted); max-width: var(--ml-measure); }
+</style>

@@ -1,0 +1,178 @@
+@import './fonts.css';
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 8rem;
+  /* Terim balonu gibi mutlak konumlu ogeler sayfayi yatay kaydirmasin.
+     `clip` secildi cunku `hidden` sticky basligi bozar. */
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  /* Terim balonu gibi mutlak konumlu ogeler sayfayi yatay kaydirmasin. */
+  overflow-x: clip;
+  background: var(--ml-paper);
+  color: var(--ml-ink);
+  font-family: var(--ml-font-body);
+  font-size: var(--ml-step-0);
+  line-height: 1.65;
+  /* Kagit dokusu: harici asset yok, iki katmanli nokta gradyani (bkz. --ml-grain). */
+  background-image: var(--ml-grain);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Kagit yuzeyi kullanan her kutu ayni dokuyu alir. */
+.ml-grain { background-image: var(--ml-grain); }
+
+h1, h2, h3, h4 { font-family: var(--ml-font-display); font-weight: 700; }
+h1 { font-size: var(--ml-step-3); line-height: 1.02; letter-spacing: -0.015em; }
+h2 { font-size: var(--ml-step-2); line-height: 1.1; letter-spacing: -0.01em; }
+h3 { font-size: var(--ml-step-1); line-height: 1.2; }
+h4 { font-size: var(--ml-step-0); line-height: 1.3; }
+p { max-width: var(--ml-measure); }
+
+/* Vurgu: blok degil, alttan dolan serit. */
+mark {
+  background: linear-gradient(transparent 58%, var(--ml-scan-dim) 58%);
+  color: inherit;
+  padding: 0 0.1em;
+}
+
+a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-color: var(--ml-scan); }
+
+code, pre, kbd { font-family: var(--ml-font-mono); font-size: 0.9em; }
+:not(pre) > code {
+  background: var(--ml-scan-dim);
+  padding: 0.1em 0.35em;
+  border-radius: var(--ml-radius);
+  overflow-wrap: anywhere;
+}
+pre {
+  background: var(--ml-navy);
+  color: #f5f7fb;
+  padding: 1rem 1.2rem;
+  border: var(--ml-border);
+  border-radius: var(--ml-radius);
+  overflow-x: auto;
+}
+
+.ml-shell { width: min(100% - var(--ml-gutter) * 2, 78rem); margin-inline: auto; }
+.ml-prose { max-width: var(--ml-measure); }
+
+/* Klavye gezinmesi gorunur kalsin. */
+:focus-visible { outline: 3px solid var(--ml-scan); outline-offset: 2px; }
+
+.ml-skip {
+  position: absolute; left: -9999px;
+  background: var(--ml-navy); color: #fff; padding: 0.6rem 1rem; z-index: 100;
+}
+.ml-skip:focus { left: 1rem; top: 1rem; }
+
+/* Sade / teknik anahtari: gorunurlugu <html data-ml-mode> kontrol eder. */
+[data-ml-mode='sade'] .ml-technical { display: none; }
+[data-ml-mode='teknik'] .ml-simple-only { display: none; }
+
+/* Teknik modda acilan blok gozle secilebilmeli. Kendi zemini olan yuzeyler
+   (koyu katman, calisma hatti, durum seridi) zaten ayrisiyor; geri kalan satir
+   ici teknik parcalar tarama rengiyle isaretleniyor. */
+[data-ml-mode='teknik']
+  .ml-technical:not(.ml-layer):not(.ml-tech-rail):not(.ml-mode-banner):not(.ml-dark) {
+  border-left: 3px solid var(--ml-scan);
+  padding-left: 0.8rem;
+  background: var(--ml-scan-dim);
+  border-radius: 0 var(--ml-radius) var(--ml-radius) 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ---------- Bolum iskeleti (Section.astro) ---------- */
+.ml-section { padding-block: clamp(2.5rem, 7vw, 5rem); border-top: 1px solid var(--ml-line-soft); }
+.ml-section:first-of-type { border-top: 0; padding-top: 0; }
+.ml-section__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  margin-bottom: 0.6rem;
+  font-family: var(--ml-font-mono);
+  font-size: var(--ml-step--1);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ml-ink-muted);
+}
+.ml-section__num { color: var(--ml-scan); font-variant-numeric: tabular-nums; }
+.ml-section__num::after {
+  content: '';
+  display: inline-block;
+  width: 2.5rem;
+  height: 1px;
+  margin-left: 0.7rem;
+  vertical-align: middle;
+  background: var(--ml-line-soft);
+}
+.ml-section__title { margin: 0 0 0.75rem; max-width: 22ch; }
+.ml-section__lede {
+  font-size: var(--ml-step-1);
+  line-height: 1.5;
+  max-width: 58ch;
+  margin: 0 0 1.75rem;
+}
+.ml-section__body > :first-child { margin-top: 0; }
+
+/* ---------- Scroll reveal ----------
+   JS yuklenmezse icerik gorunur kalir; hareket yalniz .ml-js isaretiyle devreye girer. */
+.ml-js .rv { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.ml-js .rv.rv--in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ml-js .rv { opacity: 1; transform: none; transition: none; }
+}
+
+/* ---------- Mod gecisi: kaybolan blok gorunur olsun ---------- */
+/* Blok sessizce silinmesin: sade'ye donerken once soluyor, sonra display kalkiyor.
+   JS yoksa (ml-js sinifi yok) hicbir gecis yok, davranis eskisi gibi ani. */
+.ml-js .ml-technical,
+.ml-js .ml-simple-only {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.ml-js .ml-mode-out { opacity: 0; transform: translateY(-5px); }
+
+@keyframes ml-mode-gel {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.ml-js .ml-mode-in { animation: ml-mode-gel 0.3s ease both; }
+
+/* Ne olup bittigini soyleyen gecici serit. Iki yonde de cikar. */
+.ml-mode-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 60;
+  transform: translateX(-50%) translateY(0.5rem);
+  background: var(--ml-navy);
+  color: #f5f7fb;
+  font-family: var(--ml-font-mono);
+  font-size: var(--ml-step--1);
+  padding: 0.55rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--ml-scan) 55%, transparent);
+  border-radius: var(--ml-radius);
+  box-shadow: var(--ml-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ml-mode-toast[data-acik] { opacity: 1; transform: translateX(-50%) translateY(0); }
+.ml-mode-toast__sayi { color: #23c9d6; }
