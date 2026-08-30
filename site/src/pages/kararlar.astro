@@ -118,12 +118,29 @@ const kararlar = [
 
   {kararlar.map((k) => (
     <Section num={k.no} kicker="Karar" title={k.baslik}>
-      <dl class="ml-karar">
-        <div><dt>Seçilen</dt><dd>{k.secilen}</dd></div>
-        <div><dt>Elenen</dt><dd>{k.elenen}</dd></div>
-        <div><dt>Gerekçe</dt><dd>{k.gerekce}</dd></div>
-        <div class="ml-karar__bedel"><dt>Bedeli</dt><dd>{k.bedel}</dd></div>
-      </dl>
+      <div class="ml-karar">
+        <div class="ml-karar__secimler">
+          <div class="ml-karar__secim ml-karar__secim--secilen">
+            <h3 class="ml-karar__etiket">Seçilen</h3>
+            <p class="ml-karar__tercih">{k.secilen}</p>
+          </div>
+          <div class="ml-karar__secim ml-karar__secim--elenen">
+            <h3 class="ml-karar__etiket">Elenen</h3>
+            <p>{k.elenen}</p>
+          </div>
+        </div>
+
+        <div class="ml-karar__aciklama">
+          <div class="ml-karar__gerekce">
+            <h3 class="ml-karar__etiket">Gerekçe</h3>
+            <p>{k.gerekce}</p>
+          </div>
+          <aside class="ml-karar__bedel" aria-label="Kararın bedeli">
+            <h3 class="ml-karar__etiket">Bedeli</h3>
+            <p>{k.bedel}</p>
+          </aside>
+        </div>
+      </div>
     </Section>
   ))}
 
@@ -197,27 +214,91 @@ const kararlar = [
   .ml-kanit th { font-family: var(--ml-font-mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; }
   .ml-kanit td:first-child { width: 14rem; font-weight: 650; }
 
-  .ml-karar { margin: 0; display: grid; gap: 0.75rem; }
-  .ml-karar div {
+  .ml-karar {
+    margin-top: 1.35rem;
+  }
+  .ml-karar__secimler {
     display: grid;
-    grid-template-columns: 7rem 1fr;
-    gap: 0.3rem 1.2rem;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    border-block: 1px solid var(--ml-line-soft);
   }
-  @media (max-width: 40rem) {
-    .ml-karar div { grid-template-columns: 1fr; }
+  .ml-karar__secim {
+    min-width: 0;
+    padding: clamp(1rem, 2.4vw, 1.4rem);
   }
-  .ml-karar dt {
+  .ml-karar__secim--secilen {
+    border-left: 3px solid var(--ml-scan);
+    background: linear-gradient(90deg, var(--ml-scan-dim), transparent 78%);
+  }
+  .ml-karar__secim--elenen {
+    border-left: 1px solid var(--ml-line-soft);
+    background: color-mix(in srgb, var(--ml-paper-warm) 58%, transparent);
+  }
+  .ml-karar__etiket {
+    margin: 0 0 0.45rem;
     font-family: var(--ml-font-mono);
     font-size: 0.66rem;
-    letter-spacing: 0.12em;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
     text-transform: uppercase;
     color: var(--ml-ink-muted);
-    padding-top: 0.2rem;
   }
-  .ml-karar dd { margin: 0; max-width: var(--ml-measure); }
+  .ml-karar__secim p,
+  .ml-karar__aciklama p {
+    margin: 0;
+  }
+  .ml-karar__tercih {
+    font-family: var(--ml-font-display);
+    font-size: var(--ml-step-1);
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ml-ink);
+  }
+  .ml-karar__secim--elenen p {
+    color: var(--ml-ink-muted);
+  }
+  .ml-karar__aciklama {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(15rem, 0.85fr);
+    gap: clamp(1rem, 2.5vw, 1.5rem);
+    align-items: start;
+    margin-top: clamp(1.15rem, 2.5vw, 1.6rem);
+  }
+  .ml-karar__gerekce {
+    padding: 0.25rem clamp(0.25rem, 1vw, 0.7rem);
+  }
+  .ml-karar__gerekce p {
+    max-width: 60ch;
+    font-size: var(--ml-step-0);
+    line-height: 1.65;
+  }
   .ml-karar__bedel {
+    padding: 1rem 1.1rem 1.05rem;
+    border: 1px solid color-mix(in srgb, var(--ml-warn) 24%, var(--ml-line-soft));
     border-left: 3px solid var(--ml-warn);
-    padding-left: 0.8rem;
-    margin-left: -0.8rem;
+    border-radius: 0 var(--ml-radius) var(--ml-radius) 0;
+    background: color-mix(in srgb, var(--ml-warn) 7%, var(--ml-paper));
+  }
+  .ml-karar__bedel .ml-karar__etiket {
+    color: var(--ml-warn);
+  }
+  .ml-karar__bedel p {
+    font-size: var(--ml-step--1);
+    line-height: 1.6;
+  }
+  @media (max-width: 50rem) {
+    .ml-karar__aciklama {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 36rem) {
+    .ml-karar__secimler {
+      grid-template-columns: 1fr;
+    }
+    .ml-karar__secim--elenen {
+      border-top: 1px solid var(--ml-line-soft);
+      border-left: 3px solid var(--ml-line-soft);
+    }
   }
 </style>
