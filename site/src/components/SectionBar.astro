@@ -1,17 +1,21 @@
 ---
 /**
- * Sayfa ustunde duran ana baslik secici.
+ * Dar ekranda sayfanin kendi bolumlerini gosteren serit.
  *
- * SideRail siteler arasi gezinme yapiyor (hangi sayfadayim), FloatingControls
- * bir onceki/sonraki basliga atliyor. Eksik olan sey sayfanin kendi ana
- * bolumlerini bir bakista gorup istedigine atlamakti: uzun sayfada okuyucu
- * "burada neler var" sorusuna cevap bulamiyordu.
+ * Masaustunde bu is yan raya ait: `SideRail` aktif rotanin altina ayni bolum
+ * listesini numaralayarak basiyor ve kaydirdikca ilerletiyor. Serit orada ayni
+ * listeyi ikinci kez basiyordu - iki yapiskan katman, tek bilgi. 60rem ustunde
+ * serit kapali; ayni betik o genislikte basligin konum satirini (`data-crumb`)
+ * besliyor, boylece okunan bolum tek satirda gorunur.
+ *
+ * 60rem altinda yan ray hic yok (`SideRail` display: none), sayfa ici gezinme
+ * yalniz bu serittir - orada gorunur kalir.
  *
  * Basliklar sunucuda bilinmiyor - her sayfa Section bilesenini kendi kurguyla
- * cagiriyor - bu yuzden serit tarayicida `.ml-section` dugumlerinden
+ * cagiriyor - bu yuzden liste tarayicida `.ml-section` dugumlerinden
  * dolduruluyor. Betik calismazsa serit hic gorunmez; icerik etkilenmez.
  *
- * Sonsuz kaydirma yeni rota ekledikce serit tazeleniyor: `ml-section-bar:tazele`
+ * Sonsuz kaydirma yeni rota ekledikce liste tazeleniyor: `ml-section-bar:tazele`
  * olayini EndlessScroll gonderiyor.
  */
 ---
@@ -29,6 +33,14 @@
     var serit = document.querySelector('[data-section-bar]');
     var liste = document.querySelector('[data-section-bar-list]');
     if (!serit || !liste) return;
+
+    /* Yan ray 60rem ustunde aciliyor. Ayni esik burada da gecerli: rayin oldugu
+       yerde serit kapali, olmadigi yerde acik. */
+    var genis = window.matchMedia('(min-width: 60.0625rem)');
+
+    var kunye = document.querySelector('[data-crumb-section]');
+    var kunyeGrup = document.querySelector('[data-crumb-group]');
+    var kunyeSayfa = document.querySelector('[data-crumb-page]');
 
     var kayitlar = [];
 
@@ -76,13 +88,38 @@
         a.textContent = metin;
         li.appendChild(a);
         liste.appendChild(li);
-        kayitlar.push({ bolum: bolum, link: a });
+        kayitlar.push({ bolum: bolum, link: a, id: id, metin: metin });
       });
 
-      // Tek baslik varsa serit bilgi tasimiyor; yer kaplamasin.
-      serit.hidden = kayitlar.length < 2;
+      // Tek baslik varsa serit bilgi tasimiyor; genis ekranda zaten yan ray var.
+      serit.hidden = kayitlar.length < 2 || genis.matches;
       yukseklikleriOlc();
-      if (!serit.hidden) isaretle();
+      isaretle();
+    }
+
+    /** Konum satirindaki sayfa ve grup adini yan raydan oku - tek kaynak ray. */
+    function kunyeRotaTazele() {
+      var ray = document.querySelector('.ml-side-rail');
+      if (!ray || !kunyeSayfa) return;
+      var aktifRota = ray.querySelector('.ml-side-rail__route[aria-current="page"]');
+      if (!aktifRota) return;
+
+      var etiket = aktifRota.querySelector('.ml-side-rail__label');
+      if (etiket) kunyeSayfa.textContent = (etiket.textContent || '').trim();
+
+      if (!kunyeGrup) return;
+      // Grup basligi rayda ayri bir `li`; aktif rotadan geriye dogru en yakini.
+      var kutu = aktifRota.parentElement;
+      var grup = '';
+      while (kutu) {
+        kutu = kutu.previousElementSibling;
+        if (kutu && kutu.classList.contains('ml-side-rail__cat')) {
+          grup = (kutu.textContent || '').trim();
+          break;
+        }
+      }
+      kunyeGrup.textContent = grup;
+      kunyeGrup.hidden = grup === '';
     }
 
     /** Ustten biraz asagisi "okunan yer" sayilir; baslik tam tepedeyken de secili kalsin. */
@@ -104,7 +141,23 @@
         }
       });
 
-      if (secili) kaydirGorunume(secili.link);
+      // Serit kapaliyken de calisir: genis ekranda okunan bolum basliktaki
+      // konum satirinda gorunur, dar ekranda serit zaten listeyi tasiyor.
+      if (kunye) {
+        // Bazi sayfalarda ilk bolumun basligi sayfa adiyla ayni ("Kod okuma >
+        // Kod okuma"). Ayni metni iki kez yazmak konum bilgisi tasimaz.
+        var sayfaAdi = kunyeSayfa ? (kunyeSayfa.textContent || '').trim().toLowerCase() : '';
+        var ayni = secili && secili.metin.trim().toLowerCase() === sayfaAdi;
+        if (secili && kayitlar.length > 1 && !ayni) {
+          kunye.textContent = secili.metin;
+          kunye.setAttribute('href', '#' + secili.id);
+          kunye.hidden = false;
+        } else {
+          kunye.hidden = true;
+        }
+      }
+
+      if (secili && !serit.hidden) kaydirGorunume(secili.link);
     }
 
     /** Serit yatay kayiyorsa secili baslik gorunur kalsin. */
@@ -124,7 +177,7 @@
       bekliyor = true;
       requestAnimationFrame(function () {
         bekliyor = false;
-        if (!serit.hidden) isaretle();
+        isaretle();
       });
     }
 
@@ -133,7 +186,13 @@
       yukseklikleriOlc();
       scrollda();
     }, { passive: true });
-    document.addEventListener('ml-section-bar:tazele', doldur);
+    document.addEventListener('ml-section-bar:tazele', function () {
+      doldur();
+      kunyeRotaTazele();
+    });
+    document.addEventListener('manipulens:rota-degisti', kunyeRotaTazele);
+
+    genis.addEventListener('change', doldur);
 
     doldur();
   })();

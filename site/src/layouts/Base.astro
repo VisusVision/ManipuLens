@@ -79,6 +79,17 @@ const isCurrent = (href: string) => {
     : current === target || current.startsWith(`${target}/`);
 };
 
+/**
+ * Ust seritteki konum satiri. Masaustunde marka blogu gizleniyor (yan raydaki
+ * marka ile birebir ayniydi, iki mercek + iki baslik yan yana duruyordu);
+ * bosalan yere hangi grupta ve hangi sayfada oldugunu yazan satir geliyor.
+ * Sunucuda hesaplaniyor ki betik calismasa da dogru dursun.
+ */
+const activeGroup =
+  navGroups.find((g) => g.items?.some((i) => isCurrent(i.href)))?.label ?? null;
+const activePage =
+  [...nav].reverse().find((n) => isCurrent(n.href))?.label ?? title;
+
 const isGroupActive = (items?: { href: string }[]) => {
   if (!items) return false;
   return items.some((item) => isCurrent(item.href));
@@ -115,6 +126,13 @@ const isGroupActive = (items?: { href: string }[]) => {
           <span class="ml-brand__lens" aria-hidden="true"></span>
           ManipuLens<span class="ml-brand__sub">rehber</span>
         </a>
+        <div class="ml-crumb" data-crumb>
+          {activeGroup && (
+            <span class="ml-crumb__group" data-crumb-group>{activeGroup}</span>
+          )}
+          <span class="ml-crumb__page" data-crumb-page>{activePage}</span>
+          <a class="ml-crumb__section" data-crumb-section href="#icerik" hidden></a>
+        </div>
         <nav class="ml-nav" aria-label="Ana bölümler">
           <ul class="ml-nav__list">
             {navGroups.map((g) => (
@@ -323,6 +341,56 @@ const isGroupActive = (items?: { href: string }[]) => {
     margin-left: 0.25rem;
   }
 
+  /* Konum satiri: masaustunde markanin yerini alir. Dar ekranda yan ray yok,
+     orada marka gorunur ve bu satir gizlenir - iki yuzey ayni anda kimlik
+     tasimaz. */
+  .ml-crumb {
+    display: none;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+  }
+  .ml-crumb__group {
+    flex: none;
+    font-family: var(--ml-font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+  .ml-crumb__group::after {
+    content: '/';
+    margin-left: 0.5rem;
+    color: var(--ml-line-soft);
+  }
+  .ml-crumb__page {
+    flex: none;
+    font-family: var(--ml-font-display);
+    font-size: var(--ml-step-0);
+    font-weight: 700;
+    color: var(--ml-ink);
+  }
+  .ml-crumb__section {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--ml-font-mono);
+    font-size: var(--ml-step--1);
+    color: var(--ml-scan);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-crumb__section[hidden] { display: none; }
+  .ml-crumb__section::before {
+    content: '›';
+    margin-right: 0.5rem;
+    color: var(--ml-line-soft);
+  }
+  .ml-crumb__section:hover { border-bottom-color: var(--ml-scan); }
+
   .ml-nav { display: flex; align-items: center; }
   .ml-mobile-nav { display: none; }
   .ml-nav__list {
@@ -421,6 +489,10 @@ const isGroupActive = (items?: { href: string }[]) => {
 
   @media (min-width: 60.0625rem) {
     .ml-header nav { display: none; }
+    /* Yan ray zaten mercek + ManipuLens + alt basligi tasiyor; ustte ikinci
+       kopyasi duruyordu. Kimlik tek yerde kalir, ust serit konuma ayrilir. */
+    .ml-brand { display: none; }
+    .ml-crumb { display: flex; }
   }
   @media (max-width: 60rem) {
     .ml-header__inner {
