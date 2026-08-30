@@ -105,6 +105,62 @@ const { nav, current } = Astro.props;
       }, 2400);
     }
 
+    /**
+     * Getirilen rotanin kendi bicimlerini bu belgeye tasi.
+     *
+     * Astro her bilesenin kapsamli CSS'ini o bilesenin gectigi sayfaya koyar:
+     * kucuk olanlar satir ici <style>, buyuk olanlar ayri bir chunk <link>.
+     * Biz yalniz #icerik dugumunu adoptNode ile aliyorduk; yeni rotada ilk kez
+     * gorunen bilesenlerin (sozluk izgarasi, kod okuma notlari...) bicimi
+     * belgeye hic girmiyor, blok ciplak HTML olarak duruyordu.
+     *
+     * Ayni bicim ikinci kez eklenmesin diye link'ler yola, satir ici bloklar
+     * icerige gore ayikleniyor.
+     */
+    var eklenenBicimler = Object.create(null);
+    function bicimleriTasi(belge) {
+      var bekleyen = [];
+
+      Array.prototype.forEach.call(
+        belge.querySelectorAll('link[rel="stylesheet"]'),
+        function (l) {
+          var yol = new URL(l.getAttribute('href'), location.href).href;
+          if (eklenenBicimler[yol]) return;
+          if (document.querySelector('link[rel="stylesheet"][href="' + l.getAttribute('href') + '"]')) {
+            eklenenBicimler[yol] = true;
+            return;
+          }
+          eklenenBicimler[yol] = true;
+          var yeni = document.createElement('link');
+          yeni.rel = 'stylesheet';
+          yeni.href = yol;
+          // Bicim inmeden icerik eklenirse blok bir an ciplak gorunur.
+          bekleyen.push(new Promise(function (bitti) {
+            yeni.onload = yeni.onerror = bitti;
+            setTimeout(bitti, 2000);
+          }));
+          document.head.appendChild(yeni);
+        },
+      );
+
+      Array.prototype.forEach.call(belge.querySelectorAll('style'), function (st) {
+        var govde = st.textContent || '';
+        if (!govde.trim()) return;
+        var anahtar = 'satirici:' + govde.length + ':' + govde.slice(0, 120);
+        if (eklenenBicimler[anahtar]) return;
+        eklenenBicimler[anahtar] = true;
+        var varOlan = Array.prototype.some.call(document.querySelectorAll('style'), function (m) {
+          return m.textContent === govde;
+        });
+        if (varOlan) return;
+        var yeni = document.createElement('style');
+        yeni.textContent = govde;
+        document.head.appendChild(yeni);
+      });
+
+      return bekleyen.length ? Promise.all(bekleyen) : Promise.resolve();
+    }
+
     function betikleriCalistir(kok) {
       Array.prototype.forEach.call(kok.querySelectorAll('script'), function (eski) {
         var yeni = document.createElement('script');
@@ -152,6 +208,7 @@ const { nav, current } = Astro.props;
           var kaynak = belge.getElementById('icerik');
           if (!kaynak) throw new Error('icerik yok');
 
+          return bicimleriTasi(belge).then(function () {
           var isaret = ayracOlustur(hedef.label, hedef.href, false);
           main.appendChild(isaret);
 
@@ -167,6 +224,7 @@ const { nav, current } = Astro.props;
             if (window.mlTerimTara) window.mlTerimTara(el);
           });
           if (window.mlRevealTara) window.mlRevealTara();
+          document.dispatchEvent(new Event('ml-section-bar:tazele'));
 
           bloklar.push({
             href: hedef.href,
@@ -184,6 +242,7 @@ const { nav, current } = Astro.props;
             if (sonEl) sonEl.hidden = false;
           }
           olc();
+          });
         })
         .catch(function () {
           yukleniyorAsagi = false;
@@ -210,6 +269,7 @@ const { nav, current } = Astro.props;
           var kaynak = belge.getElementById('icerik');
           if (!kaynak) throw new Error('icerik yok');
 
+          return bicimleriTasi(belge).then(function () {
           var eskiScrollYukseklik = document.documentElement.scrollHeight;
           var eskiScrollY = window.scrollY;
 
@@ -236,6 +296,7 @@ const { nav, current } = Astro.props;
             if (window.mlTerimTara) window.mlTerimTara(el);
           });
           if (window.mlRevealTara) window.mlRevealTara();
+          document.dispatchEvent(new Event('ml-section-bar:tazele'));
 
           bloklar.unshift({
             href: hedef.href,
@@ -256,6 +317,7 @@ const { nav, current } = Astro.props;
             yukariBitti = true;
           }
           olc();
+          });
         })
         .catch(function () {
           yukleniyorYukari = false;

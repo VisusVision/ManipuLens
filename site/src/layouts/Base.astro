@@ -8,6 +8,7 @@ import EndlessScroll from '../components/EndlessScroll.astro';
 import ModeBanner from '../components/ModeBanner.astro';
 import SearchModal from '../components/SearchModal.astro';
 import FloatingControls from '../components/FloatingControls.astro';
+import SectionBar from '../components/SectionBar.astro';
 
 interface Props {
   title: string;
@@ -176,6 +177,8 @@ const isGroupActive = (items?: { href: string }[]) => {
       </div>
     </header>
 
+    <SectionBar />
+
     <TechRail />
 
     <ModeBanner />
@@ -212,7 +215,29 @@ const isGroupActive = (items?: { href: string }[]) => {
           });
         }
 
+        /**
+         * Guvenlik agi: gorunum animasyonu icerigi gizliyor, aciyor olan
+         * IntersectionObserver. Gozlemci gizli belgede (arka plan sekmesi,
+         * on izleme paneli, bazi gomulu gorunumler) hicbir kayit teslim etmez;
+         * o durumda sayfa bos krem bir yuzey olarak kalir. Bu yuzden hem
+         * belge gorunur olunca yeniden taraniyor hem de kisa bir sure sonra
+         * ekranda olan ne varsa geometriye bakip aciliyor.
+         */
+        function ekrandakileriAc() {
+          document.querySelectorAll('.rv:not(.rv--in)').forEach(function (el) {
+            var k = el.getBoundingClientRect();
+            if (k.height === 0) return;
+            if (k.top < window.innerHeight && k.bottom > 0) el.classList.add('rv--in');
+          });
+        }
+
         tara();
+        setTimeout(ekrandakileriAc, 1200);
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState !== 'visible') return;
+          tara();
+          requestAnimationFrame(ekrandakileriAc);
+        });
         // Sade modda gizli teknik bloklar geometri tasimaz. Mod acilinca yeniden tara.
         document.addEventListener('manipulens:mode-change', function () {
           requestAnimationFrame(tara);

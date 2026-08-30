@@ -1,0 +1,212 @@
+---
+/**
+ * Sayfa ustunde duran ana baslik secici.
+ *
+ * SideRail siteler arasi gezinme yapiyor (hangi sayfadayim), FloatingControls
+ * bir onceki/sonraki basliga atliyor. Eksik olan sey sayfanin kendi ana
+ * bolumlerini bir bakista gorup istedigine atlamakti: uzun sayfada okuyucu
+ * "burada neler var" sorusuna cevap bulamiyordu.
+ *
+ * Basliklar sunucuda bilinmiyor - her sayfa Section bilesenini kendi kurguyla
+ * cagiriyor - bu yuzden serit tarayicida `.ml-section` dugumlerinden
+ * dolduruluyor. Betik calismazsa serit hic gorunmez; icerik etkilenmez.
+ *
+ * Sonsuz kaydirma yeni rota ekledikce serit tazeleniyor: `ml-section-bar:tazele`
+ * olayini EndlessScroll gonderiyor.
+ */
+---
+<div class="ml-section-bar" data-section-bar hidden>
+  <div class="ml-shell ml-section-bar__inner">
+    <span class="ml-section-bar__label" aria-hidden="true">Bu sayfada</span>
+    <nav class="ml-section-bar__nav" aria-label="Sayfa bölümleri">
+      <ul class="ml-section-bar__list" data-section-bar-list></ul>
+    </nav>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    var serit = document.querySelector('[data-section-bar]');
+    var liste = document.querySelector('[data-section-bar-list]');
+    if (!serit || !liste) return;
+
+    var kayitlar = [];
+
+    /* Yapiskan katman yuksekligi: serit basligin altina otursun, bir baslige
+       atlandiginda hedef bu iki seridin arkasinda kalmasin. */
+    function yukseklikleriOlc() {
+      var kok = document.documentElement;
+      var baslik = document.querySelector('.ml-header');
+      var basY = baslik ? baslik.getBoundingClientRect().height : 0;
+      kok.style.setProperty('--ml-header-h', basY + 'px');
+      var seritY = serit.hidden ? 0 : serit.getBoundingClientRect().height;
+      kok.style.setProperty('--ml-sticky-h', basY + seritY + 'px');
+    }
+
+    function baslikMetni(bolum) {
+      var b = bolum.querySelector('.ml-section__title');
+      return b ? (b.textContent || '').trim() : '';
+    }
+
+    /** Kimligi olmayan bolume tiklanabilmesi icin kararli bir kimlik ver. */
+    function kimlikVer(bolum, sira) {
+      if (bolum.id) return bolum.id;
+      var yeni = 'bolum-' + sira;
+      while (document.getElementById(yeni)) yeni += '-x';
+      bolum.id = yeni;
+      return yeni;
+    }
+
+    function doldur() {
+      var bolumler = Array.prototype.slice.call(
+        document.querySelectorAll('#icerik .ml-section'),
+      );
+      liste.textContent = '';
+      kayitlar = [];
+
+      bolumler.forEach(function (bolum, i) {
+        var metin = baslikMetni(bolum);
+        if (!metin) return;
+        var id = kimlikVer(bolum, i + 1);
+
+        var li = document.createElement('li');
+        var a = document.createElement('a');
+        a.className = 'ml-section-bar__link';
+        a.href = '#' + id;
+        a.textContent = metin;
+        li.appendChild(a);
+        liste.appendChild(li);
+        kayitlar.push({ bolum: bolum, link: a });
+      });
+
+      // Tek baslik varsa serit bilgi tasimiyor; yer kaplamasin.
+      serit.hidden = kayitlar.length < 2;
+      yukseklikleriOlc();
+      if (!serit.hidden) isaretle();
+    }
+
+    /** Ustten biraz asagisi "okunan yer" sayilir; baslik tam tepedeyken de secili kalsin. */
+    function isaretle() {
+      var esik = 140;
+      var secili = null;
+      for (var i = 0; i < kayitlar.length; i++) {
+        if (kayitlar[i].bolum.getBoundingClientRect().top <= esik) secili = kayitlar[i];
+      }
+      if (!secili && kayitlar.length) secili = kayitlar[0];
+
+      kayitlar.forEach(function (k) {
+        var aktif = k === secili;
+        k.link.classList.toggle('is-active', aktif);
+        if (aktif) {
+          k.link.setAttribute('aria-current', 'true');
+        } else {
+          k.link.removeAttribute('aria-current');
+        }
+      });
+
+      if (secili) kaydirGorunume(secili.link);
+    }
+
+    /** Serit yatay kayiyorsa secili baslik gorunur kalsin. */
+    function kaydirGorunume(link) {
+      var kutu = liste.parentElement;
+      if (!kutu || kutu.scrollWidth <= kutu.clientWidth) return;
+      var l = link.getBoundingClientRect();
+      var k = kutu.getBoundingClientRect();
+      if (l.left < k.left || l.right > k.right) {
+        kutu.scrollLeft += l.left - k.left - k.width / 2 + l.width / 2;
+      }
+    }
+
+    var bekliyor = false;
+    function scrollda() {
+      if (bekliyor) return;
+      bekliyor = true;
+      requestAnimationFrame(function () {
+        bekliyor = false;
+        if (!serit.hidden) isaretle();
+      });
+    }
+
+    window.addEventListener('scroll', scrollda, { passive: true });
+    window.addEventListener('resize', function () {
+      yukseklikleriOlc();
+      scrollda();
+    }, { passive: true });
+    document.addEventListener('ml-section-bar:tazele', doldur);
+
+    doldur();
+  })();
+</script>
+
+<style>
+  .ml-section-bar {
+    position: sticky;
+    /* Baslik da yapiskan; serit onun altina oturmali. Yukseklik betikte olculup
+       --ml-header-h'e yaziliyor, olculemezse makul bir varsayilan kaliyor. */
+    top: var(--ml-header-h, 3.6rem);
+    z-index: 19;
+    background: color-mix(in srgb, var(--ml-paper) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--ml-line-soft);
+  }
+  .ml-section-bar[hidden] { display: none; }
+
+  .ml-section-bar__inner {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-height: 2.6rem;
+  }
+
+  .ml-section-bar__label {
+    flex: none;
+    font-family: var(--ml-font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ml-ink-muted);
+  }
+
+  /* Baslik sayisi ekrana sigmazsa serit yatay kayar, satir kirilmaz. */
+  .ml-section-bar__nav {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ml-section-bar__nav::-webkit-scrollbar { display: none; }
+
+  .ml-section-bar__list {
+    display: flex;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .ml-section-bar__list li { margin: 0; }
+
+  .ml-section-bar__link {
+    display: block;
+    white-space: nowrap;
+    padding: 0.5rem 0.6rem;
+    font-size: var(--ml-step--1);
+    line-height: 1.2;
+    color: var(--ml-ink-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: color var(--ml-duration) var(--ml-ease),
+                border-color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-section-bar__link:hover { color: var(--ml-ink); }
+  .ml-section-bar__link.is-active {
+    color: var(--ml-scan);
+    border-bottom-color: var(--ml-scan);
+    font-weight: 600;
+  }
+
+  @media (max-width: 48rem) {
+    .ml-section-bar__label { display: none; }
+  }
+</style>
