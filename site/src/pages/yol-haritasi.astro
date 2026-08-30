@@ -26,10 +26,10 @@ const maddeler: { ad: string; durum: Durum; not: string }[] = [
   { ad: 'Yaşayan rehber sitesi', durum: 'calisiyor', not: '26 statik sayfa yerel derlemede üretiliyor; kaynak ve dokümantasyon aynı repoda.' },
   { ad: 'Kod okuma ve depo haritası', durum: 'calisiyor', not: 'Gerçek kod kesitleri, satır açıklamaları ve dosya kritiklik haritası hazır.' },
   { ad: 'Sayfaların commit doğrulaması', durum: 'calisiyor', not: 'Kaynak iddiaları d992153 commit’i ve 39 geçen Rust testiyle yeniden doğrulandı.' },
+  { ad: 'Canlı rehber yayını', durum: 'calisiyor', not: 'Güncel statik derleme Netlify üretim ortamında yayımlanıyor; depo haritası ve yeni navigasyon canlı sürümde mevcut.' },
 
   // Yapım aşamasında
   { ad: 'Trello panosunun sitede görünmesi', durum: 'yapimda', not: 'Çekim betiği, sayfa ve iş akışı yazıldı. API anahtarı tanımlanınca dolacak.' },
-  { ad: 'Canlı sürümün güncellenmesi', durum: 'yapimda', not: 'Netlify yayını açık; canlı sürüm güncel yerel site commitlerinin gerisinde.' },
 
   // Planlanan
   { ad: 'Uzaktan erişim', durum: 'planlanan', not: 'Uzantıdaki sunucu adresi şu an sabit. Açılmadan önce HTTPS ve gerçek CORS kısıtı gerekiyor.' },
@@ -142,14 +142,14 @@ const sayi = (d: Durum) => maddeler.filter((m) => m.durum === d).length;
   <Section
     num="05"
     kicker="Yayın durumu"
-    title="Yerel sürüm neden canlıdan ileride"
-    lede="Kod ve rehber artık aynı repoda; kalan fark yayın dalının güncel commitleri henüz almamış olması."
+    title="Kod ve canlı sürüm aynı çizgide"
+    lede="Kod, rehber ve üretim yayını aynı doğrulanmış statik çıktıyı kullanıyor."
   >
     <p class="ml-prose">
       Güncel kod, rehber ve dokümantasyon artık <code>GuncelArayuz_Local</code> dalında tek
-      ağaçta duruyor. Yerel derleme 26 sayfayı üretiyor; Netlify’daki canlı kopya ise eski
-      navigasyonu gösteriyor ve depo haritası rotasını henüz içermiyor. Güncel commitler
-      yayımlandığında bu fark kapanacak.
+      ağaçta duruyor. Doğrulanmış yerel derleme 26 sayfayı üretiyor; aynı statik çıktı
+      Netlify üretim ortamına aktarılıyor. Yayından sonra ana rotalar, mobil navigasyon,
+      arama penceresi ve depo haritası canlı adres üzerinden yeniden denetleniyor.
     </p>
   </Section>
 </Base>
