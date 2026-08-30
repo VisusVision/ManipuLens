@@ -2,6 +2,7 @@
 /**
  * Yüzen Akıllı Eylem Çubuğu:
  * - Sayfa içi okuma ilerleme dairesi (%)
+ * - Bir sonraki ana başlığa kaydıran tek tık butonu (↓)
  * - Hızlı Sade / Teknik mod anahtarı
  * - Klavye kısayolları yardımcısı (?)
  * - En yukarı çık (Back to Top) butonu
@@ -44,6 +45,18 @@
     <span class="ml-floating-btn__icon ml-floating-btn__icon--sade">👁️</span>
     <span class="ml-floating-btn__icon ml-floating-btn__icon--teknik">⚙️</span>
     <span class="ml-floating-btn__mode-text" data-floating-mode-text>Sade</span>
+  </button>
+
+  <!-- Bir Aşağı Ana Başlığa Kaydır Butonu -->
+  <button
+    type="button"
+    class="ml-floating-btn ml-floating-btn--next"
+    data-floating-next-btn
+    aria-label="Bir sonraki ana başlığa kaydır (J)"
+    title="Sonraki ana başlık (J)"
+  >
+    <span class="ml-floating-btn__icon">↓</span>
+    <span class="ml-floating-btn__label">Sonraki Başlık</span>
   </button>
 
   <!-- En Yukarı Çık & İlerleme Dairesi -->
@@ -97,11 +110,11 @@
     <div class="ml-kbd-modal__body">
       <div class="ml-kbd-row">
         <div class="ml-kbd-keys"><kbd>J</kbd> / <kbd>↓</kbd></div>
-        <div class="ml-kbd-desc">Sonraki bölüme yumuşak kaydır</div>
+        <div class="ml-kbd-desc">Sonraki ana başlığa yumuşak kaydır</div>
       </div>
       <div class="ml-kbd-row">
         <div class="ml-kbd-keys"><kbd>K</kbd> / <kbd>↑</kbd></div>
-        <div class="ml-kbd-desc">Önceki bölüme yumuşak kaydır</div>
+        <div class="ml-kbd-desc">Önceki ana başlığa yumuşak kaydır</div>
       </div>
       <div class="ml-kbd-row">
         <div class="ml-kbd-keys"><kbd>T</kbd></div>
@@ -131,6 +144,7 @@
   function mlYuzenKontrollerKur() {
     var bar = document.querySelector('[data-floating-controls]');
     var topBtn = document.querySelector('[data-floating-top-btn]');
+    var nextBtn = document.querySelector('[data-floating-next-btn]');
     var ringBar = document.querySelector('[data-floating-ring-bar]');
     var pctText = document.querySelector('[data-floating-pct]');
     var modeBtn = document.querySelector('[data-floating-mode-btn]');
@@ -171,7 +185,35 @@
       });
     }
 
-    // 2. Mod Senkronizasyonu
+    // 2. Bir Aşağı Ana Başlığa Kaydır
+    function sonrakiBasligaGit() {
+      var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca], .ml-endless-ayrac'));
+      var curY = window.scrollY + 100;
+      var hedef = null;
+
+      for (var i = 0; i < sections.length; i++) {
+        var top = sections[i].getBoundingClientRect().top + window.scrollY;
+        if (top > curY + 20) {
+          hedef = top;
+          break;
+        }
+      }
+
+      if (hedef !== null) {
+        window.scrollTo({ top: hedef - 60, behavior: 'smooth' });
+      } else {
+        window.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' });
+      }
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        sonrakiBasligaGit();
+      });
+    }
+
+    // 3. Mod Senkronizasyonu
     function modDegistir() {
       var current = document.documentElement.getAttribute('data-ml-mode') || 'sade';
       var next = current === 'teknik' ? 'sade' : 'teknik';
@@ -197,7 +239,7 @@
       });
     }
 
-    // 3. Mobil İçindekiler Çekmecesi
+    // 4. Mobil İçindekiler Çekmecesi
     function tocDoldur() {
       if (!tocList) return;
       tocList.innerHTML = '';
@@ -267,7 +309,7 @@
       });
     });
 
-    // 4. Kısayol Modalı
+    // 5. Kısayol Modalı
     function kbdAc() {
       if (kbdModal) {
         kbdModal.hidden = false;
@@ -298,7 +340,7 @@
       });
     });
 
-    // 5. Global Klavye Gezinme Dinleyicisi (J / K / T / G / ?)
+    // 6. Global Klavye Gezinme Dinleyicisi (J / K / T / G / ?)
     window.addEventListener('keydown', function (e) {
       var tag = (document.activeElement && document.activeElement.tagName) || '';
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -320,25 +362,17 @@
       } else if (e.key === 'j' || e.key === 'J') {
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
-          var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca]'));
-          var curY = window.scrollY + 100;
-          for (var i = 0; i < sections.length; i++) {
-            var top = sections[i].getBoundingClientRect().top + window.scrollY;
-            if (top > curY + 20) {
-              window.scrollTo({ top: top - 70, behavior: 'smooth' });
-              break;
-            }
-          }
+          sonrakiBasligaGit();
         }
       } else if (e.key === 'k' || e.key === 'K') {
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
-          var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca]'));
+          var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca], .ml-endless-ayrac'));
           var curY = window.scrollY + 40;
           for (var i = sections.length - 1; i >= 0; i--) {
             var top = sections[i].getBoundingClientRect().top + window.scrollY;
             if (top < curY - 20) {
-              window.scrollTo({ top: Math.max(0, top - 70), behavior: 'smooth' });
+              window.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
               break;
             }
           }
@@ -397,12 +431,30 @@
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    transition: background var(--ml-duration) var(--ml-ease), color var(--ml-duration) var(--ml-ease), border-color var(--ml-duration) var(--ml-ease);
+    transition: background var(--ml-duration) var(--ml-ease), color var(--ml-duration) var(--ml-ease), border-color var(--ml-duration) var(--ml-ease), transform var(--ml-duration) var(--ml-ease);
   }
   .ml-floating-btn:hover {
     background: var(--ml-scan-dim);
     border-color: var(--ml-scan);
     color: var(--ml-ink);
+  }
+  .ml-floating-btn:active {
+    transform: scale(0.96);
+  }
+
+  .ml-floating-btn--next {
+    background: var(--ml-scan-dim);
+    color: var(--ml-scan);
+    border-color: rgba(35, 201, 214, 0.35);
+  }
+  .ml-floating-btn--next:hover {
+    background: var(--ml-scan);
+    color: #f5f7fb;
+    border-color: var(--ml-scan);
+  }
+  .ml-floating-btn--next .ml-floating-btn__icon {
+    font-size: 0.95rem;
+    font-weight: 700;
   }
 
   .ml-floating-btn--kbd {
@@ -418,6 +470,8 @@
   }
   @media (max-width: 60rem) {
     .ml-floating-btn--toc { display: inline-flex; }
+    .ml-floating-btn--next .ml-floating-btn__label { display: none; }
+    .ml-floating-btn--next { width: 2.35rem; padding: 0; }
   }
 
   .ml-floating-btn--mode .ml-floating-btn__icon--teknik { display: none; }
