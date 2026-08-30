@@ -90,6 +90,11 @@ pre {
 
 /* Klavye gezinmesi gorunur kalsin. */
 :focus-visible { outline: 2px solid var(--ml-scan); outline-offset: 3px; }
+/* Ana icerik atlama hedefi: tabindex="-1" tasiyor, atlama linkinden odak aliyor.
+   Odak halkasi burada sayfa boyu (bin piksel) iki dikey cizgi olarak goruluyordu;
+   yer isareti degil gorsel gurultu. Odak yine main'e gidiyor, halka basilmiyor. */
+#icerik:focus,
+#icerik:focus-visible { outline: none; }
 
 .ml-skip {
   position: absolute; left: -9999px;

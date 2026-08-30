@@ -199,8 +199,10 @@ const sayi = (k: string) =>
 
   .ml-gloss-grid {
     display: grid;
-    gap: 0.8rem;
+    /* Satir ve sutun arasi ayni: kartlar birbirine yapisik gorunmesin. */
+    gap: 1.15rem;
     grid-template-columns: repeat(3, 1fr);
+    align-items: start;
   }
   @media (max-width: 62rem) {
     .ml-gloss-grid { grid-template-columns: repeat(2, 1fr); }

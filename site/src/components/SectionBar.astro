@@ -185,9 +185,13 @@
     padding: 0;
     list-style: none;
   }
-  .ml-section-bar__list li { margin: 0; }
+  /* Liste ogeleri ve linkler betikte createElement ile basiliyor; Astro'nun
+     kapsam ozniteligi yalniz sablondaki dugumlere gidiyor. Kapsamli yazilinca bu
+     kurallar hicbir zaman tutmuyordu: link `display: inline` kalip serit icinde
+     satir kiriyordu. Adlar zaten `ml-section-bar__` onekli, genel yazmak guvenli. */
+  .ml-section-bar__list :global(li) { margin: 0; flex: none; }
 
-  .ml-section-bar__link {
+  :global(.ml-section-bar__link) {
     display: block;
     white-space: nowrap;
     padding: 0.5rem 0.6rem;
@@ -199,8 +203,8 @@
     transition: color var(--ml-duration) var(--ml-ease),
                 border-color var(--ml-duration) var(--ml-ease);
   }
-  .ml-section-bar__link:hover { color: var(--ml-ink); }
-  .ml-section-bar__link.is-active {
+  :global(.ml-section-bar__link:hover) { color: var(--ml-ink); }
+  :global(.ml-section-bar__link.is-active) {
     color: var(--ml-scan);
     border-bottom-color: var(--ml-scan);
     font-weight: 600;
