@@ -12,7 +12,8 @@
  * ikonlarini tasir (15-20px). Ikisini karistirma.
  *
  * Cizimler `src/lib/icons.ts` icinde; SearchModal ayni haritayi tarayicida
- * kullaniyor, bu yuzden kopya tutulmuyor.
+ * kullaniyor, bu yuzden kopya tutulmuyor. `.ml-icon` bicimi global.css'te:
+ * ayni ikonlar betikle de basiliyor, kapsamli stil oralara ulasmiyor.
  */
 import { ICON_PATHS, ICON_FALLBACK } from '../lib/icons';
 
@@ -43,11 +44,3 @@ const dekoratif = !alt;
   aria-label={alt}
   set:html={cizim}
 />
-
-<style>
-  .ml-icon {
-    display: block;
-    flex: none;
-    color: inherit;
-  }
-</style>

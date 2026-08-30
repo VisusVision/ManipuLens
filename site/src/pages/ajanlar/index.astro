@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import Section from '../../components/Section.astro';
 import Layer from '../../components/Layer.astro';
+import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
 
 const ajanlar = (await getCollection('ajanlar')).sort((a, b) => a.data.order - b.data.order);
@@ -47,21 +48,21 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           class="ml-sim-btn is-active"
           data-preset="1"
         >
-          🚨 Kıtlık & Aciliyet
+          Kıtlık & Aciliyet
         </button>
         <button
           type="button"
           class="ml-sim-btn"
           data-preset="2"
         >
-          👑 Sosyal Kanıt & Otorite
+          Sosyal Kanıt & Otorite
         </button>
         <button
           type="button"
           class="ml-sim-btn"
           data-preset="3"
         >
-          😨 Korku & Çerçeveleme
+          Korku & Çerçeveleme
         </button>
       </div>
 
@@ -73,7 +74,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           placeholder="İncelemek istediğiniz metni buraya yapıştırın veya yukarıdaki hazır örneklerden birine tıklayın..."
         >DİKKAT! Son 2 ürün kaldı. Hemen sipariş vermezseniz bu dev indirim bir daha ASLA tekrarlanmayacak! Stoklar tükeniyor.</textarea>
         <button type="button" class="ml-sim-run-btn" data-sim-run>
-          <span>⚡ Ajanları Çalıştır</span>
+          <Icon ad="ajan" boyut={16} />
+          <span>Ajanları Çalıştır</span>
         </button>
       </div>
 
@@ -91,7 +93,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </div>
 
         <div class="ml-sim-findings">
-          <h4>🎯 Tespit Edilen Cümleler & Ajan Eşleşmeleri:</h4>
+          <h4>Tespit Edilen Cümleler & Ajan Eşleşmeleri:</h4>
           <div class="ml-sim-rendered-text" data-sim-text-output>
             <!-- Dinamik renklendirilmiş metin -->
           </div>

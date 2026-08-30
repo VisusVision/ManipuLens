@@ -42,6 +42,15 @@ export const ICON_PATHS: Record<string, string> = {
 
   // Etiket - "Sozluk" kumesi.
   sozluk: '<path d="M3.5 11.5V4.5h7l9.5 9.5-7 7z"/><circle cx="7.5" cy="8.5" r="1.4"/>',
+
+  // Ust uste iki sayfa - kod kesiti kopyalama dugmesi.
+  kopyala: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5.5 15H5a1 1 0 01-1-1V5a1 1 0 011-1h9a1 1 0 011 1v.5"/>',
+
+  // Onay - kopyalama basarili geri bildirimi.
+  onay: '<path d="M4.5 12.5l5 5 10-11"/>',
+
+  // Ayrac - bolum degisimi bildirimi.
+  bolum: '<path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/>',
 };
 
 /** Bilinmeyen ad geldiginde sessizce dusmesin diye tek yedek. */

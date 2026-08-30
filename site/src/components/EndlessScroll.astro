@@ -8,6 +8,8 @@
  * betik yeni bir dugum olarak yeniden basiliyor. Sozluk balonlari ve gorunum
  * animasyonu da yeni blok icin yeniden taraniyor.
  */
+import { iconSvg } from '../lib/icons';
+
 interface NavItem {
   href: string;
   label: string;
@@ -27,7 +29,7 @@ const { nav, current } = Astro.props;
   <p>Rehberin sonu. Yukarı dönebilir ya da raydan bir bölüme atlayabilirsin.</p>
 </div>
 
-<script is:inline define:vars={{ nav, current }}>
+<script is:inline define:vars={{ nav, current, ikonBolum: iconSvg('bolum', 15) }}>
   function mlSonsuzKur() {
     var main = document.getElementById('icerik');
     if (!main) return;
@@ -95,7 +97,7 @@ const { nav, current } = Astro.props;
     var toastTimeout = null;
     function toastGoster(label) {
       if (!toast) return;
-      toast.innerHTML = '<span class="ml-chapter-toast__icon">🧭</span> <span>Bölüm: <strong>' + label + '</strong></span>';
+      toast.innerHTML = '<span class="ml-chapter-toast__icon">' + ikonBolum + '</span> <span>Bölüm: <strong>' + label + '</strong></span>';
       toast.setAttribute('data-acik', '');
       if (toastTimeout) clearTimeout(toastTimeout);
       toastTimeout = setTimeout(function () {

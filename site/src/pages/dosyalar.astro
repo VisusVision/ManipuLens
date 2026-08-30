@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
+import Icon from '../components/Icon.astro';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -342,7 +343,7 @@ const moduller = [
       </div>
 
       <div class="ml-filemap-search">
-        <span class="ml-filemap-search__icon" aria-hidden="true">🔍</span>
+        <span class="ml-filemap-search__icon" aria-hidden="true"><Icon ad="ara" boyut={15} /></span>
         <input
           type="search"
           class="ml-filemap-search__input"
@@ -366,7 +367,7 @@ const moduller = [
           <div class="ml-file-card__head">
             <div class="ml-file-card__title-box">
               <span class="ml-file-card__icon" aria-hidden="true">
-                {d.dil === 'Rust' ? '🦀' : d.dil === 'JavaScript' ? '📜' : d.dil === 'JSON' ? '📋' : '⚙️'}
+                <Icon ad="sayfa" boyut={20} />
               </span>
               <div>
                 <h3 class="ml-file-card__path">{d.yol}</h3>
@@ -382,12 +383,12 @@ const moduller = [
 
           <div class="ml-file-card__body">
             <div class="ml-file-card__section">
-              <span class="ml-file-card__label">🎯 Ne Yapıyor?</span>
+              <span class="ml-file-card__label">Ne Yapıyor?</span>
               <p class="ml-file-card__desc">{d.neYapiyor}</p>
             </div>
 
             <div class="ml-file-card__section">
-              <span class="ml-file-card__label">📦 İçindekiler & Bileşenler</span>
+              <span class="ml-file-card__label">İçindekiler & Bileşenler</span>
               <ul class="ml-file-card__list">
                 {d.icerik.map((item) => (
                   <li>{item}</li>
@@ -396,7 +397,7 @@ const moduller = [
             </div>
 
             <div class="ml-file-card__section ml-file-card__section--warning">
-              <span class="ml-file-card__label">⚠️ Kaldırırsak Ne Olur?</span>
+              <span class="ml-file-card__label">Kaldırırsak Ne Olur?</span>
               <p class="ml-file-card__warn-text">{d.kaldirirsak}</p>
             </div>
           </div>
@@ -404,7 +405,7 @@ const moduller = [
           {d.kodLinki && (
             <div class="ml-file-card__foot">
               <a class="ml-file-card__code-link" href={d.kodLinki}>
-                <span>💻 Bu dosyanın kaynak kod analizini oku</span>
+                <span>Bu dosyanın kaynak kod analizini oku</span>
                 <span aria-hidden="true">→</span>
               </a>
             </div>

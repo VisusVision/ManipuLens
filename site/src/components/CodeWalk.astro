@@ -9,6 +9,7 @@
  * Kod metni elle yazilmaz: scripts/extract-code.mjs gercek kaynaktan keser.
  */
 import SelfCheck from './SelfCheck.astro';
+import Icon from './Icon.astro';
 
 interface Not {
   satirlar: [number, number];
@@ -118,7 +119,8 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
         <div class="ml-kw__kod-bar">
           <span class="ml-kw__kod-lang">{dil} · {dosya}</span>
           <button type="button" class="ml-kw__copy-btn" data-copy-code aria-label="Kodu kopyala">
-            <span class="ml-kw__copy-icon">📋</span>
+            <span class="ml-kw__copy-icon" data-ikon="kopyala"><Icon ad="kopyala" boyut={15} /></span>
+            <span class="ml-kw__copy-icon" data-ikon="onay"><Icon ad="onay" boyut={15} /></span>
             <span class="ml-kw__copy-text">Kopyala</span>
           </button>
         </div>
@@ -173,13 +175,10 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
           }).join('\n');
 
           navigator.clipboard.writeText(kodMetni).then(function () {
-            var icon = copyBtn.querySelector('.ml-kw__copy-icon');
             var text = copyBtn.querySelector('.ml-kw__copy-text');
-            if (icon) icon.textContent = '✓';
             if (text) text.textContent = 'Kopyalandı';
             copyBtn.classList.add('is-copied');
             setTimeout(function () {
-              if (icon) icon.textContent = '📋';
               if (text) text.textContent = 'Kopyala';
               copyBtn.classList.remove('is-copied');
             }, 2000);
@@ -345,6 +344,11 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
     color: #34d399;
     border-color: #34d399;
   }
+  /* Iki ikon da isaretlemede duruyor; hangisinin gorunecegini durum seciyor.
+     Boylece betigin ikon markup'ini tasimasi gerekmiyor. */
+  .ml-kw__copy-icon[data-ikon='onay'] { display: none; }
+  .is-copied .ml-kw__copy-icon[data-ikon='kopyala'] { display: none; }
+  .is-copied .ml-kw__copy-icon[data-ikon='onay'] { display: inline-flex; }
   .ml-kw__kod {
     margin: 0;
     padding: 0.8rem 0;

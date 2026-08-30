@@ -213,3 +213,22 @@ pre {
 }
 .ml-mode-toast[data-acik] { opacity: 1; transform: translateX(-50%) translateY(0); }
 .ml-mode-toast__sayi { color: #23c9d6; font-weight: 700; }
+
+/* --- Arayuz ikonlari ---------------------------------------------------- */
+/* Icon.astro sunucuda basiyor, arama sonuclari / kopyala dugmesi / bolum
+   bildirimi ise tarayicida innerHTML ile basiyor. Betikle basilan SVG'de
+   Astro'nun kapsam ozniteligi olmadigi icin bu kural genel: iki yol da ayni
+   gorunsun. Renk her zaman kapsayicidan miras alinir. */
+.ml-icon {
+  display: block;
+  flex: none;
+  color: inherit;
+}
+/* Ikon tasiyan span'lar metinle ayni satirda hizali dursun. */
+.ml-kw__copy-icon,
+.ml-chapter-toast__icon,
+.ml-file-card__icon,
+.ml-filemap-search__icon {
+  display: inline-flex;
+  align-items: center;
+}
