@@ -10,7 +10,14 @@ interface Props {
   needsReverify?: boolean;
 }
 const { commit, verifiedAt, owner, needsReverify = false } = Astro.props;
-const tarih = verifiedAt?.toISOString().slice(0, 10);
+const tarih = verifiedAt
+  ? new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Europe/Istanbul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(verifiedAt)
+  : undefined;
 const gorunenSahip = owner?.trim().toLocaleLowerCase('tr-TR') === 'todo' ? undefined : owner;
 ---
 <p class:list={['ml-badge', needsReverify && 'ml-badge--stale']}>
