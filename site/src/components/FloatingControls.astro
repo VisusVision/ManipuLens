@@ -5,7 +5,11 @@
  * - Hızlı Sade / Teknik mod anahtarı
  * - Klavye kısayolları yardımcısı (?)
  * - Mobilde alt çekmece içindekiler (TOC) butonu
+ *
+ * İkonlar Icon.astro'dan gelir: emoji işletim sisteminin renk paletiyle
+ * geldiği için krem/lacivert/turkuaz dilin dışında duruyordu.
  */
+import Icon from './Icon.astro';
 ---
 
 <div class="ml-floating-controls" data-floating-controls aria-label="Hızlı sayfa kontrolleri">
@@ -17,7 +21,7 @@
     aria-label="Sayfa içindekiler"
     title="Sayfa içindekiler"
   >
-    <span class="ml-floating-btn__icon">📑</span>
+    <span class="ml-floating-btn__icon"><Icon ad="icindekiler" /></span>
     <span class="ml-floating-btn__label">İçindekiler</span>
   </button>
 
@@ -29,7 +33,7 @@
     aria-label="Klavye kısayolları (?)"
     title="Klavye kısayolları (?)"
   >
-    <span class="ml-floating-btn__icon">⌨️</span>
+    <span class="ml-floating-btn__icon"><Icon ad="klavye" /></span>
   </button>
 
   <!-- Hızlı Mod Değiştirici -->
@@ -40,8 +44,8 @@
     aria-label="Sade ve teknik mod arasında geçiş yap (T)"
     title="Sade / Teknik mod (T)"
   >
-    <span class="ml-floating-btn__icon ml-floating-btn__icon--sade">👁️</span>
-    <span class="ml-floating-btn__icon ml-floating-btn__icon--teknik">⚙️</span>
+    <span class="ml-floating-btn__icon ml-floating-btn__icon--sade"><Icon ad="sade" /></span>
+    <span class="ml-floating-btn__icon ml-floating-btn__icon--teknik"><Icon ad="teknik" /></span>
     <span class="ml-floating-btn__mode-text" data-floating-mode-text>Sade</span>
   </button>
 
@@ -86,8 +90,8 @@
   <div class="ml-toc-drawer__backdrop" data-toc-close></div>
   <div class="ml-toc-drawer__panel">
     <div class="ml-toc-drawer__header">
-      <strong>📑 Bu Sayfanın Bölümleri</strong>
-      <button type="button" class="ml-toc-drawer__close" data-toc-close aria-label="Kapat">✕</button>
+      <strong>Bu Sayfanın Bölümleri</strong>
+      <button type="button" class="ml-toc-drawer__close" data-toc-close aria-label="Kapat"><Icon ad="kapat" boyut={16} /></button>
     </div>
     <ol class="ml-toc-drawer__list" data-toc-list>
       <!-- Dinamik bölümler -->
@@ -100,8 +104,8 @@
   <div class="ml-kbd-modal__backdrop" data-kbd-close></div>
   <div class="ml-kbd-modal__panel" role="dialog" aria-modal="true" aria-label="Klavye Kısayolları">
     <div class="ml-kbd-modal__header">
-      <strong>⌨️ Klavye Gezinme Kısayolları</strong>
-      <button type="button" class="ml-kbd-modal__close" data-kbd-close aria-label="Kapat">✕</button>
+      <strong>Klavye Gezinme Kısayolları</strong>
+      <button type="button" class="ml-kbd-modal__close" data-kbd-close aria-label="Kapat"><Icon ad="kapat" boyut={16} /></button>
     </div>
     <div class="ml-kbd-modal__body">
       <div class="ml-kbd-row">
@@ -463,9 +467,10 @@
     .ml-floating-btn--toc { display: inline-flex; }
   }
 
+  .ml-floating-btn__icon { display: inline-flex; align-items: center; }
   .ml-floating-btn--mode .ml-floating-btn__icon--teknik { display: none; }
   :global([data-ml-mode='teknik']) .ml-floating-btn--mode .ml-floating-btn__icon--sade { display: none; }
-  :global([data-ml-mode='teknik']) .ml-floating-btn--mode .ml-floating-btn__icon--teknik { display: inline; }
+  :global([data-ml-mode='teknik']) .ml-floating-btn--mode .ml-floating-btn__icon--teknik { display: inline-flex; }
 
   /* Simetrik Gezinme Grubu */
   .ml-floating-nav-pill {

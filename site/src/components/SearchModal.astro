@@ -1,24 +1,32 @@
 ---
+/**
+ * Spotlight arama. Sonuc ikonlari kume duzeyinde (Sayfa / Ajan / Parca / Kod /
+ * Sozluk) tek renk SVG'dir: sonuclar zaten kumeye gore grupli, sayfa basina
+ * ayri emoji hem gereksiz gurultuydu hem de isletim sisteminin renk paletiyle
+ * geldigi icin sitenin krem/lacivert/turkuaz diline oturmuyordu.
+ */
 import { getCollection } from 'astro:content';
+import Icon from './Icon.astro';
+import { iconSvg } from '../lib/icons';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // 1. Sayfalar
 const sayfalar = [
-  { baslik: 'Başlangıç', aciklama: 'ManipuLens nedir, neyi çözer, neden var?', href: `${base}/`, kategori: 'Sayfa', simge: '🏠' },
-  { baslik: 'Nasıl Çalışır?', aciklama: 'Sistemin uçtan uca akışı, DOM taramadan raporlamaya', href: `${base}/nasil-calisir`, kategori: 'Sayfa', simge: '🔄' },
-  { baslik: 'Sözlük', aciklama: '42 manipülasyon, yapay zeka ve sistem terimi', href: `${base}/sozluk`, kategori: 'Sayfa', simge: '📖' },
-  { baslik: 'Canlı Pano', aciklama: 'Ajanların gerçek zamanlı durumları ve analiz kuyruğu', href: `${base}/pano`, kategori: 'Sayfa', simge: '📊' },
-  { baslik: 'Parçalar', aciklama: '6 ana mimari blok (Uzantı, Sunucu, Model, vb.)', href: `${base}/parcalar`, kategori: 'Sayfa', simge: '🧩' },
-  { baslik: 'Ajan Atlası', aciklama: '6 uzmanlaşmış manipülasyon tespit ajanı', href: `${base}/ajanlar`, kategori: 'Sayfa', simge: '⚡' },
-  { baslik: 'Kod Okuma', aciklama: 'Gerçek kaynak kod kesitleri ve satır satır analiz', href: `${base}/kod`, kategori: 'Sayfa', simge: '💻' },
-  { baslik: 'Depo Haritası', aciklama: 'Depodaki dosyaların görevi ve kritiklik analizi', href: `${base}/dosyalar`, kategori: 'Sayfa', simge: '🗂️' },
-  { baslik: 'Güncellemeler', aciklama: 'Geliştirme günlükleri, sürümler ve yenilikler', href: `${base}/guncellemeler`, kategori: 'Sayfa', simge: '🚀' },
-  { baslik: 'Kurulum Kılavuzu', aciklama: 'Yerel ve sunucu kurulum adımları', href: `${base}/kurulum`, kategori: 'Sayfa', simge: '🛠️' },
-  { baslik: 'Mimari Kararlar', aciklama: 'Tasarım tercihleri ve ADR kayıtları', href: `${base}/kararlar`, kategori: 'Sayfa', simge: '⚖️' },
-  { baslik: 'Gizlilik ve Güvenlik', aciklama: 'Veri saklama, yerel işleme ve izinler', href: `${base}/gizlilik`, kategori: 'Sayfa', simge: '🔒' },
-  { baslik: 'Sıkça Sorulan Sorular', aciklama: 'SSS, yaygın sorular ve yanıtları', href: `${base}/sss`, kategori: 'Sayfa', simge: '❓' },
-  { baslik: 'Yol Haritası', aciklama: 'Gelecek planları ve özellik takvimi', href: `${base}/yol-haritasi`, kategori: 'Sayfa', simge: '🗺️' },
+  { baslik: 'Başlangıç', aciklama: 'ManipuLens nedir, neyi çözer, neden var?', href: `${base}/`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Nasıl Çalışır?', aciklama: 'Sistemin uçtan uca akışı, DOM taramadan raporlamaya', href: `${base}/nasil-calisir`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Sözlük', aciklama: '42 manipülasyon, yapay zeka ve sistem terimi', href: `${base}/sozluk`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Canlı Pano', aciklama: 'Ajanların gerçek zamanlı durumları ve analiz kuyruğu', href: `${base}/pano`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Parçalar', aciklama: '6 ana mimari blok (Uzantı, Sunucu, Model, vb.)', href: `${base}/parcalar`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Ajan Atlası', aciklama: '6 uzmanlaşmış manipülasyon tespit ajanı', href: `${base}/ajanlar`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Kod Okuma', aciklama: 'Gerçek kaynak kod kesitleri ve satır satır analiz', href: `${base}/kod`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Depo Haritası', aciklama: 'Depodaki dosyaların görevi ve kritiklik analizi', href: `${base}/dosyalar`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Güncellemeler', aciklama: 'Geliştirme günlükleri, sürümler ve yenilikler', href: `${base}/guncellemeler`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Kurulum Kılavuzu', aciklama: 'Yerel ve sunucu kurulum adımları', href: `${base}/kurulum`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Mimari Kararlar', aciklama: 'Tasarım tercihleri ve ADR kayıtları', href: `${base}/kararlar`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Gizlilik ve Güvenlik', aciklama: 'Veri saklama, yerel işleme ve izinler', href: `${base}/gizlilik`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Sıkça Sorulan Sorular', aciklama: 'SSS, yaygın sorular ve yanıtları', href: `${base}/sss`, kategori: 'Sayfa', simge: 'sayfa' },
+  { baslik: 'Yol Haritası', aciklama: 'Gelecek planları ve özellik takvimi', href: `${base}/yol-haritasi`, kategori: 'Sayfa', simge: 'sayfa' },
 ];
 
 // 2. Ajanlar
@@ -28,7 +36,7 @@ const ajanlar = ajanlarRaw.map((a) => ({
   aciklama: a.data.kisaca,
   href: `${base}/ajanlar/${a.id}`,
   kategori: 'Ajan',
-  simge: '⚡',
+  simge: 'ajan',
 }));
 
 // 3. Parçalar
@@ -38,7 +46,7 @@ const parcalar = parcalarRaw.map((p) => ({
   aciklama: p.data.kisaca,
   href: `${base}/parcalar/${p.id}`,
   kategori: 'Parça',
-  simge: '🧩',
+  simge: 'parca',
 }));
 
 // 4. Kod Kesitleri
@@ -48,7 +56,7 @@ const kodlar = kodlarRaw.map((k) => ({
   aciklama: k.data.ne_yapiyor,
   href: `${base}/kod#${k.id}`,
   kategori: 'Kod',
-  simge: '💻',
+  simge: 'kod',
 }));
 
 // 5. Sözlük Terimleri
@@ -58,10 +66,15 @@ const sozluk = sozlukRaw.map((s) => ({
   aciklama: s.data.kisaca || '',
   href: `${base}/sozluk#${s.id}`,
   kategori: 'Sözlük',
-  simge: '🏷️',
+  simge: 'sozluk',
 }));
 
 const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
+
+// Sonuc satirlari tarayicida uretiliyor; ikon govdeleri hazir SVG olarak gecer.
+const ikonlar = Object.fromEntries(
+  ['sayfa', 'ajan', 'parca', 'kod', 'sozluk'].map((k) => [k, iconSvg(k, 17)]),
+);
 ---
 
 <!-- Spotlight Arama Tetikleyici Butonu -->
@@ -72,7 +85,7 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
   aria-label="Rehberde ara (Ctrl+K)"
   title="Rehberde ara (Ctrl+K)"
 >
-  <span class="ml-search-trigger__icon" aria-hidden="true">🔍</span>
+  <span class="ml-search-trigger__icon" aria-hidden="true"><Icon ad="ara" boyut={15} /></span>
   <span class="ml-search-trigger__label">Ara...</span>
   <kbd class="ml-search-trigger__kbd">Ctrl K</kbd>
 </button>
@@ -83,7 +96,7 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
 
   <div class="ml-search-modal__panel" role="dialog" aria-modal="true" aria-label="Rehberde hızlı arama">
     <div class="ml-search-modal__header">
-      <span class="ml-search-modal__icon" aria-hidden="true">🔍</span>
+      <span class="ml-search-modal__icon" aria-hidden="true"><Icon ad="ara" boyut={19} /></span>
       <input
         type="search"
         class="ml-search-modal__input"
@@ -116,7 +129,7 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
   </div>
 </div>
 
-<script is:inline define:vars={{ tumVeriler }}>
+<script is:inline define:vars={{ tumVeriler, ikonlar }}>
   function mlAramaKur() {
     var modal = document.querySelector('[data-search-modal]');
     var input = document.querySelector('[data-search-input]');
@@ -212,7 +225,7 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
 
           var simge = document.createElement('span');
           simge.className = 'ml-search-item__icon';
-          simge.textContent = g.item.simge || '📄';
+          simge.innerHTML = ikonlar[g.item.simge] || ikonlar.sayfa;
 
           var icerik = document.createElement('div');
           icerik.className = 'ml-search-item__content';
@@ -354,7 +367,7 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
     background: var(--ml-scan-dim);
     color: var(--ml-ink);
   }
-  .ml-search-trigger__icon { font-size: 0.85rem; }
+  .ml-search-trigger__icon { display: inline-flex; align-items: center; opacity: 0.75; }
   .ml-search-trigger__label { font-weight: 550; }
   .ml-search-trigger__kbd {
     font-family: var(--ml-font-mono);
@@ -421,7 +434,7 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
     border-bottom: 1px solid var(--ml-line-soft);
     background: var(--ml-paper-warm);
   }
-  .ml-search-modal__icon { font-size: 1.1rem; opacity: 0.7; }
+  .ml-search-modal__icon { display: inline-flex; align-items: center; opacity: 0.7; }
   .ml-search-modal__input {
     flex: 1;
     border: none;
@@ -482,9 +495,13 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
     color: var(--ml-ink);
   }
   .ml-search-item__icon {
-    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
     flex: none;
+    color: var(--ml-ink-muted);
+    margin-top: 0.1rem;
   }
+  .ml-search-item--active .ml-search-item__icon { color: inherit; }
   .ml-search-item__content {
     flex: 1;
     min-width: 0;
