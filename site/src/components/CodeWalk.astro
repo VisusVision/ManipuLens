@@ -114,16 +114,25 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
     </p>
   ) : (
     <div class="ml-kw__govde">
-      <pre class="ml-kw__kod"><code>{kod.satirlar.map((s: string, i: number) => (
-        <span
-          class="ml-kw__satir"
-          data-satir={kod.baslangic_satiri + i}
-          data-yerel={i + 1}
-        ><span class="ml-kw__no">{kod.baslangic_satiri + i}</span><span
-            class="ml-kw__metin"
-            set:html={vurgula(s, dil) || '&nbsp;'}
-          /></span>
-      ))}</code></pre>
+      <div class="ml-kw__kod-wrap">
+        <div class="ml-kw__kod-bar">
+          <span class="ml-kw__kod-lang">{dil} · {dosya}</span>
+          <button type="button" class="ml-kw__copy-btn" data-copy-code aria-label="Kodu kopyala">
+            <span class="ml-kw__copy-icon">📋</span>
+            <span class="ml-kw__copy-text">Kopyala</span>
+          </button>
+        </div>
+        <pre class="ml-kw__kod"><code>{kod.satirlar.map((s: string, i: number) => (
+          <span
+            class="ml-kw__satir"
+            data-satir={kod.baslangic_satiri + i}
+            data-yerel={i + 1}
+          ><span class="ml-kw__no">{kod.baslangic_satiri + i}</span><span
+              class="ml-kw__metin"
+              set:html={vurgula(s, dil) || '&nbsp;'}
+            /></span>
+        ))}</code></pre>
+      </div>
 
       <ol class="ml-kw__notlar">
         {notlar.map((n, i) => (
@@ -149,14 +158,35 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
 <script is:inline>
   (function () {
     document.querySelectorAll('[data-kod-walk]').forEach(function (kok) {
-      // Bilesen bir sayfada birden cok kez basiliyor ve her ornek bu betigi de
-      // basiyor. Isaret olmadan ayni dugmeye N dinleyici baglanir; N cift ise
-      // tiklama kendi kendini iptal eder. Bu bayrak onu engelliyor.
       if (kok.dataset.bagli === '1') return;
       kok.dataset.bagli = '1';
 
       var satirlar = Array.prototype.slice.call(kok.querySelectorAll('.ml-kw__satir'));
       var dugmeler = Array.prototype.slice.call(kok.querySelectorAll('.ml-kw__notlar button'));
+      var copyBtn = kok.querySelector('[data-copy-code]');
+
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+          var kodMetni = satirlar.map(function (s) {
+            var m = s.querySelector('.ml-kw__metin');
+            return m ? m.textContent : '';
+          }).join('\n');
+
+          navigator.clipboard.writeText(kodMetni).then(function () {
+            var icon = copyBtn.querySelector('.ml-kw__copy-icon');
+            var text = copyBtn.querySelector('.ml-kw__copy-text');
+            if (icon) icon.textContent = '✓';
+            if (text) text.textContent = 'Kopyalandı';
+            copyBtn.classList.add('is-copied');
+            setTimeout(function () {
+              if (icon) icon.textContent = '📋';
+              if (text) text.textContent = 'Kopyala';
+              copyBtn.classList.remove('is-copied');
+            }, 2000);
+          });
+        });
+      }
+
       if (!satirlar.length || !dugmeler.length) return;
 
       function temizle() {
@@ -182,7 +212,6 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
         });
       });
 
-      // Satira tiklayinca o satiri kapsayan ilk notu ac.
       satirlar.forEach(function (s) {
         s.addEventListener('click', function () {
           var y = Number(s.dataset.yerel);
@@ -268,11 +297,60 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
     .ml-kw__govde { grid-template-columns: 1fr; }
   }
 
-  .ml-kw__kod {
-    padding: 0.8rem 0;
+  .ml-kw__kod-wrap {
+    position: relative;
     background: var(--ml-navy);
     border: 2px solid var(--ml-line);
     border-radius: var(--ml-radius);
+    overflow: hidden;
+  }
+  .ml-kw__kod-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.85rem;
+    background: rgba(0, 0, 0, 0.28);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .ml-kw__kod-lang {
+    font-family: var(--ml-font-mono);
+    font-size: 0.64rem;
+    text-transform: uppercase;
+    color: #8fa0ba;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .ml-kw__copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.22rem 0.6rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #dfe6f2;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--ml-radius-sm);
+    font-family: var(--ml-font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .ml-kw__copy-btn:hover {
+    background: rgba(35, 201, 214, 0.2);
+    color: #23c9d6;
+    border-color: #23c9d6;
+  }
+  .ml-kw__copy-btn.is-copied {
+    background: rgba(0, 196, 140, 0.22);
+    color: #34d399;
+    border-color: #34d399;
+  }
+  .ml-kw__kod {
+    margin: 0;
+    padding: 0.8rem 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
     overflow-x: auto;
     font-size: 0.8rem;
     line-height: 1.6;
@@ -294,16 +372,6 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
     width: 2.2rem;
     text-align: right;
     color: #7f8ca3;
-    user-select: none;
-  }
-  .ml-kw__metin { white-space: pre; color: #e8edf6; }
-  .ml-kw__kod :global(.y) { color: #7f8ea6; font-style: italic; }
-  .ml-kw__kod :global(.d) { color: #7fd8c4; }
-
-  .ml-kw__notlar {
-    list-style: none;
-    margin: 0;
-    padding: 0;
     display: grid;
     gap: 0.5rem;
     counter-reset: not;

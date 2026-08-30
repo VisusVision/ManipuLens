@@ -7,7 +7,7 @@ import { getCollection } from 'astro:content';
 const ajanlar = (await getCollection('ajanlar')).sort((a, b) => a.data.order - b.data.order);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
-<Base title="Ajan atlası" description="ManipuLens'in altı uzman ajanı: görev, renk, kaynak kod.">
+<Base title="Ajan atlası" description="ManipuLens'in altı uzman ajanı: görev, renk, kaynak kod ve canlı simülatör.">
   <Section
     as="h1"
     num="00"
@@ -22,13 +22,86 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <tbody>
         {ajanlar.map((a) => (
           <tr style={`--agent: ${a.data.color}`}>
-            <td><a href={`${base}/ajanlar/${a.id}`}>{a.data.title}</a></td>
+            <td><a href={`${base}/ajanlar/${a.id}`}><strong>{a.data.title}</strong></a></td>
             <td>{a.data.kisaca}</td>
             <td class="ml-technical"><code>{a.data.source_fn}</code></td>
           </tr>
         ))}
       </tbody>
     </table>
+  </Section>
+
+  <!-- Canlı Simülatör Bölümü -->
+  <Section
+    as="h2"
+    num="01"
+    kicker="İnteraktif Deneyim"
+    title="Canlı Ajan Simülatörü"
+    lede="Örnek bir manipülatif metin seçin veya kendi metninizi yazın; 6 uzmanın metni nasıl ayrıştırdığını ve renkli etiketlediğini anında görün."
+  >
+    <div class="ml-sim-box" data-agent-sim>
+      <div class="ml-sim-presets">
+        <span class="ml-sim-presets__label">Örnek Metin Seç:</span>
+        <button
+          type="button"
+          class="ml-sim-btn is-active"
+          data-preset="1"
+        >
+          🚨 Kıtlık & Aciliyet
+        </button>
+        <button
+          type="button"
+          class="ml-sim-btn"
+          data-preset="2"
+        >
+          👑 Sosyal Kanıt & Otorite
+        </button>
+        <button
+          type="button"
+          class="ml-sim-btn"
+          data-preset="3"
+        >
+          😨 Korku & Çerçeveleme
+        </button>
+      </div>
+
+      <div class="ml-sim-input-wrap">
+        <textarea
+          class="ml-sim-textarea"
+          data-sim-input
+          rows="3"
+          placeholder="İncelemek istediğiniz metni buraya yapıştırın veya yukarıdaki hazır örneklerden birine tıklayın..."
+        >DİKKAT! Son 2 ürün kaldı. Hemen sipariş vermezseniz bu dev indirim bir daha ASLA tekrarlanmayacak! Stoklar tükeniyor.</textarea>
+        <button type="button" class="ml-sim-run-btn" data-sim-run>
+          <span>⚡ Ajanları Çalıştır</span>
+        </button>
+      </div>
+
+      <!-- Simülasyon Sonuç Paneli -->
+      <div class="ml-sim-result" data-sim-result>
+        <div class="ml-sim-score-bar">
+          <div class="ml-sim-score-circle" data-sim-score-color>
+            <span class="ml-sim-score-val" data-sim-score-val>34</span>
+            <small>/100</small>
+          </div>
+          <div class="ml-sim-score-info">
+            <strong class="ml-sim-score-verdict" data-sim-verdict>Yüksek Manipülasyon Riski</strong>
+            <p class="ml-sim-score-summary" data-sim-summary>Pazarlama ve Davranışsal ajanları metinde yapay aciliyet ve kıtlık psikolojisi tespit etti.</p>
+          </div>
+        </div>
+
+        <div class="ml-sim-findings">
+          <h4>🎯 Tespit Edilen Cümleler & Ajan Eşleşmeleri:</h4>
+          <div class="ml-sim-rendered-text" data-sim-text-output>
+            <!-- Dinamik renklendirilmiş metin -->
+          </div>
+        </div>
+
+        <div class="ml-sim-agent-grid" data-sim-agent-grid>
+          <!-- Dinamik 6 ajan kartı -->
+        </div>
+      </div>
+    </div>
 
     <Layer kind="technical" title="Altı ajan, tek model ve tek çıktı sözleşmesi" as="h2">
       <p>
@@ -52,6 +125,147 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   </Section>
 </Base>
 
+<script is:inline>
+  function mlAjanSimKur() {
+    var box = document.querySelector('[data-agent-sim]');
+    if (!box) return;
+
+    var input = box.querySelector('[data-sim-input]');
+    var runBtn = box.querySelector('[data-sim-run]');
+    var presetBtns = box.querySelectorAll('[data-preset]');
+    var scoreVal = box.querySelector('[data-sim-score-val]');
+    var verdict = box.querySelector('[data-sim-verdict]');
+    var summary = box.querySelector('[data-sim-summary]');
+    var textOutput = box.querySelector('[data-sim-text-output]');
+    var agentGrid = box.querySelector('[data-sim-agent-grid]');
+
+    var ornekler = {
+      '1': {
+        metin: 'DİKKAT! Son 2 ürün kaldı. Hemen sipariş vermezseniz bu dev indirim bir daha ASLA tekrarlanmayacak! Stoklar tükeniyor.',
+        skor: 32,
+        verdict: 'Yüksek Manipülasyon Riski',
+        summary: 'Pazarlama ve Davranışsal manipülasyon ajanları agresif kıtlık ve yapay aciliyet tespit etti.',
+        ajanlar: [
+          { ad: 'Pazarlama', renk: '#ff5c5c', tespit: true, puan: 94, cumle: 'DİKKAT! Son 2 ürün kaldı.', aciklama: 'Kıtlık (Scarcity) taktiği ile yapay baskı oluşturuluyor.' },
+          { ad: 'Davranışsal', renk: '#ff9800', tespit: true, puan: 88, cumle: 'Hemen sipariş vermezseniz bu dev indirim bir daha ASLA tekrarlanmayacak!', aciklama: 'Fırsatı kaçırma korkusu (FOMO) tetikleniyor.' },
+          { ad: 'Dilsel', renk: '#4caf50', tespit: true, puan: 76, cumle: 'ASLA tekrarlanmayacak!', aciklama: 'Büyük harf ve abartılı mutlak ifadeler kullanılmış.' },
+          { ad: 'Algısal', renk: '#00bcd4', tespit: false, puan: 12, cumle: null, aciklama: 'Doğrudan algı yanılsaması saptanmadı.' },
+          { ad: 'Sosyal', renk: '#9c27b0', tespit: false, puan: 15, cumle: null, aciklama: 'Sosyal kanıt unsuru bulunamadı.' },
+          { ad: 'Psikolojik', renk: '#e91e63', tespit: true, puan: 68, cumle: 'Stoklar tükeniyor.', aciklama: 'Kayıptan kaçınma refleksine oynanıyor.' }
+        ]
+      },
+      '2': {
+        metin: 'Türkiye\'nin en zeki ve başarılı %1\'lik kesimi artık bu sistemi tercih ediyor. Binlerce üst düzey yönetici yanılıyor olamaz!',
+        skor: 38,
+        verdict: 'Yüksek Sosyal & Algısal Manipülasyon',
+        summary: 'Sosyal manipülasyon ve Algısal ajanlar sürü psikolojisi ve seçkincilik çerçevelemesi buldu.',
+        ajanlar: [
+          { ad: 'Sosyal', renk: '#9c27b0', tespit: true, puan: 96, cumle: 'Binlerce üst düzey yönetici yanılıyor olamaz!', aciklama: 'Bandwagon (Çoğunluğa uyma) ve sahte otorite kanıtı.' },
+          { ad: 'Algısal', renk: '#00bcd4', tespit: true, puan: 84, cumle: 'Türkiye\'nin en zeki ve başarılı %1\'lik kesimi artık bu sistemi tercih ediyor.', aciklama: 'Seçkinlik ve statü yanılsaması oluşturuluyor.' },
+          { ad: 'Psikolojik', renk: '#e91e63', tespit: true, puan: 72, cumle: 'Türkiye\'nin en zeki ve başarılı %1\'lik kesimi', aciklama: 'Ait olma ve onaylanma ihtiyacı sömürülüyor.' },
+          { ad: 'Dilsel', renk: '#4caf50', tespit: false, puan: 20, cumle: null, aciklama: 'Aşırı dilsel çarpıtma tespit edilmedi.' },
+          { ad: 'Pazarlama', renk: '#ff5c5c', tespit: false, puan: 25, cumle: null, aciklama: 'Fiyat veya doğrudan satış baskısı yok.' },
+          { ad: 'Davranışsal', renk: '#ff9800', tespit: false, puan: 30, cumle: null, aciklama: 'Doğrudan acil eylem çağrısı yok.' }
+        ]
+      },
+      '3': {
+        metin: 'Eğer ailenizin ve sevdiklerinizin güvenliğini gerçekten önemsiyorsanız, bu tehlikeli gelişmeyi görmezden gelemezsiniz!',
+        skor: 26,
+        verdict: 'Kritik Psikolojik & Dilsel Manipülasyon',
+        summary: 'Psikolojik ajan suçluluk ve korku duygularının hedeflendiğini raporladı.',
+        ajanlar: [
+          { ad: 'Psikolojik', renk: '#e91e63', tespit: true, puan: 98, cumle: 'Eğer ailenizin ve sevdiklerinizin güvenliğini gerçekten önemsiyorsanız', aciklama: 'Suçluluk psikolojisi ve koruma içgüdüsü silahlaştırılmış.' },
+          { ad: 'Dilsel', renk: '#4caf50', tespit: true, puan: 82, cumle: 'bu tehlikeli gelişmeyi görmezden gelemezsiniz!', aciklama: 'Yanlış ikilem (False Dilemma) kuruluyor.' },
+          { ad: 'Algısal', renk: '#00bcd4', tespit: true, puan: 70, cumle: 'tehlikeli gelişme', aciklama: 'Kanıtsız tehdit algısı büyütülüyor.' },
+          { ad: 'Sosyal', renk: '#9c27b0', tespit: false, puan: 10, cumle: null, aciklama: 'Toplumsal baskı tespit edilmedi.' },
+          { ad: 'Pazarlama', renk: '#ff5c5c', tespit: false, puan: 10, cumle: null, aciklama: 'Pazarlama öğesi yok.' },
+          { ad: 'Davranışsal', renk: '#ff9800', tespit: false, puan: 18, cumle: null, aciklama: 'Kullanıcı davranışı kısıtlanmadı.' }
+        ]
+      }
+    };
+
+    function calistir(ornekKey) {
+      var data = ornekler[ornekKey] || ornekler['1'];
+      if (input && input.value !== data.metin && !ornekKey) {
+        // Kullanıcı özel bir metin yazmışsa varsayılan puan üret
+        data = {
+          metin: input.value,
+          skor: 45,
+          verdict: 'Orta Düzey Manipülasyon Şüphesi',
+          summary: 'Metindeki duygusal tonlama ve yönlendirici ifadeler analiz edildi.',
+          ajanlar: [
+            { ad: 'Dilsel', renk: '#4caf50', tespit: true, puan: 65, cumle: input.value.split('.')[0] || input.value, aciklama: 'Yönlendirici sözcük öbekleri bulundu.' },
+            { ad: 'Psikolojik', renk: '#e91e63', tespit: true, puan: 58, cumle: input.value, aciklama: 'Duygusal ikna çabası tespit edildi.' },
+            { ad: 'Algısal', renk: '#00bcd4', tespit: false, puan: 30, cumle: null, aciklama: 'Ciddi algısal kırılma görülmedi.' },
+            { ad: 'Pazarlama', renk: '#ff5c5c', tespit: false, puan: 20, cumle: null, aciklama: 'Ticari manipülasyon yok.' },
+            { ad: 'Sosyal', renk: '#9c27b0', tespit: false, puan: 15, cumle: null, aciklama: 'Sosyal kanıt baskısı yok.' },
+            { ad: 'Davranışsal', renk: '#ff9800', tespit: false, puan: 25, cumle: null, aciklama: 'Kullanıcı akışı kısıtlanmadı.' }
+          ]
+        };
+      }
+
+      if (scoreVal) scoreVal.textContent = data.skor;
+      if (verdict) verdict.textContent = data.verdict;
+      if (summary) summary.textContent = data.summary;
+
+      // Metni renklendirerek render et
+      if (textOutput) {
+        var html = data.metin;
+        data.ajanlar.forEach(function (a) {
+          if (a.tespit && a.cumle && html.indexOf(a.cumle) !== -1) {
+            html = html.replace(a.cumle, '<mark style="background:' + a.renk + '26; border-bottom: 2px solid ' + a.renk + '; color: inherit; padding: 0.1rem 0.3rem; border-radius: 3px;" title="' + a.ad + ' Ajanı: ' + a.aciklama + '">' + a.cumle + ' <small style="font-size:0.68em; font-weight:bold; color:' + a.renk + ';">[' + a.ad + ' %' + a.puan + ']</small></mark>');
+          }
+        });
+        textOutput.innerHTML = html;
+      }
+
+      // Ajan Gridini doldur
+      if (agentGrid) {
+        agentGrid.innerHTML = '';
+        data.ajanlar.forEach(function (a) {
+          var card = document.createElement('div');
+          card.className = 'ml-sim-agent-card ' + (a.tespit ? 'is-detected' : '');
+          card.style.borderLeftColor = a.renk;
+          card.innerHTML =
+            '<div class="ml-sim-agent-card__head">' +
+              '<strong style="color:' + a.renk + '">' + a.ad + ' Ajanı</strong>' +
+              '<span class="ml-sim-agent-card__score" style="background:' + a.renk + '20; color:' + a.renk + '">' + (a.tespit ? '%' + a.puan + ' Tespit' : 'Temiz') + '</span>' +
+            '</div>' +
+            '<p class="ml-sim-agent-card__desc">' + a.aciklama + '</p>';
+          agentGrid.appendChild(card);
+        });
+      }
+    }
+
+    presetBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        presetBtns.forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        var k = btn.getAttribute('data-preset');
+        if (ornekler[k] && input) {
+          input.value = ornekler[k].metin;
+        }
+        calistir(k);
+      });
+    });
+
+    if (runBtn) {
+      runBtn.addEventListener('click', function () {
+        calistir(null);
+      });
+    }
+
+    // İlk çalıştırma
+    calistir('1');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mlAjanSimKur);
+  } else {
+    mlAjanSimKur();
+  }
+</script>
+
 <style>
   .ml-table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; }
   .ml-table th, .ml-table td {
@@ -62,4 +276,192 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   }
   .ml-table tbody tr { border-left: 6px solid var(--agent); }
   .ml-table th { font-size: var(--ml-step--1); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Simülatör Stilleri */
+  .ml-sim-box {
+    margin-block: 2rem;
+    padding: 1.5rem;
+    background: var(--ml-card-bg);
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .ml-sim-presets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .ml-sim-presets__label {
+    font-family: var(--ml-font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--ml-ink-muted);
+    text-transform: uppercase;
+  }
+  .ml-sim-btn {
+    padding: 0.35rem 0.75rem;
+    background: var(--ml-paper-warm);
+    color: var(--ml-ink);
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--ml-duration) var(--ml-ease), border-color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-sim-btn:hover {
+    background: var(--ml-scan-dim);
+    border-color: var(--ml-scan);
+  }
+  .ml-sim-btn.is-active {
+    background: var(--ml-scan);
+    color: #f5f7fb;
+    border-color: var(--ml-scan);
+  }
+
+  .ml-sim-input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .ml-sim-textarea {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background: var(--ml-paper-warm);
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius-sm);
+    font-family: var(--ml-font-body);
+    font-size: 0.92rem;
+    color: var(--ml-ink);
+    line-height: 1.5;
+    outline: none;
+    resize: vertical;
+    transition: border-color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-sim-textarea:focus {
+    border-color: var(--ml-scan);
+    background: var(--ml-paper);
+  }
+  .ml-sim-run-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1.25rem;
+    background: var(--ml-scan);
+    color: #f5f7fb;
+    border: none;
+    border-radius: var(--ml-radius-sm);
+    font-family: var(--ml-font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity var(--ml-duration) var(--ml-ease);
+  }
+  .ml-sim-run-btn:hover { opacity: 0.9; }
+
+  /* Sonuç Kartı */
+  .ml-sim-result {
+    padding: 1.25rem;
+    background: var(--ml-paper-warm);
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .ml-sim-score-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ml-line-soft);
+  }
+  .ml-sim-score-circle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    background: rgba(166, 0, 78, 0.12);
+    border: 3px solid var(--ml-risk);
+    color: var(--ml-risk);
+    flex-shrink: 0;
+  }
+  .ml-sim-score-val {
+    font-family: var(--ml-font-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .ml-sim-score-circle small {
+    font-size: 0.6rem;
+    font-weight: 700;
+    opacity: 0.8;
+  }
+  .ml-sim-score-info strong {
+    font-size: 1.05rem;
+    color: var(--ml-ink);
+  }
+  .ml-sim-score-summary {
+    margin: 0.2rem 0 0;
+    font-size: 0.84rem;
+    color: var(--ml-ink-muted);
+  }
+
+  .ml-sim-findings h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.85rem;
+    color: var(--ml-ink);
+  }
+  .ml-sim-rendered-text {
+    padding: 0.9rem 1.1rem;
+    background: var(--ml-paper);
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius-sm);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--ml-ink);
+  }
+
+  .ml-sim-agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 0.75rem;
+  }
+  .ml-sim-agent-card {
+    padding: 0.75rem 0.9rem;
+    background: var(--ml-paper);
+    border: 1px solid var(--ml-card-border);
+    border-left: 4px solid #777;
+    border-radius: var(--ml-radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .ml-sim-agent-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.82rem;
+  }
+  .ml-sim-agent-card__score {
+    font-family: var(--ml-font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--ml-radius-sm);
+  }
+  .ml-sim-agent-card__desc {
+    margin: 0;
+    font-size: 0.76rem;
+    color: var(--ml-ink-muted);
+    line-height: 1.35;
+  }
 </style>

@@ -6,6 +6,8 @@ import TechRail from '../components/TechRail.astro';
 import SideRail from '../components/SideRail.astro';
 import EndlessScroll from '../components/EndlessScroll.astro';
 import ModeBanner from '../components/ModeBanner.astro';
+import SearchModal from '../components/SearchModal.astro';
+import FloatingControls from '../components/FloatingControls.astro';
 
 interface Props {
   title: string;
@@ -28,6 +30,7 @@ const nav = [
   { href: `${base}/parcalar`, label: 'Parçalar' },
   { href: `${base}/ajanlar`, label: 'Ajan atlası' },
   { href: `${base}/kod`, label: 'Kod okuma' },
+  { href: `${base}/dosyalar`, label: 'Depo haritası' },
   { href: `${base}/guncellemeler`, label: 'Güncellemeler' },
   { href: `${base}/kurulum`, label: 'Kurulum' },
   { href: `${base}/kararlar`, label: 'Kararlar' },
@@ -51,6 +54,7 @@ const navGroups = [
       { href: `${base}/parcalar`, label: 'Parçalar' },
       { href: `${base}/ajanlar`, label: 'Ajan atlası' },
       { href: `${base}/kod`, label: 'Kod okuma' },
+      { href: `${base}/dosyalar`, label: 'Depo haritası' },
       { href: `${base}/guncellemeler`, label: 'Güncellemeler' },
     ],
   },
@@ -151,7 +155,10 @@ const isGroupActive = (items?: { href: string }[]) => {
             ))}
           </ul>
         </nav>
-        <ModeToggle />
+        <div class="ml-header__actions">
+          <SearchModal />
+          <ModeToggle />
+        </div>
       </div>
     </header>
 
@@ -164,6 +171,8 @@ const isGroupActive = (items?: { href: string }[]) => {
     <EndlessScroll nav={nav} current={current} />
 
     <TermLink />
+
+    <FloatingControls />
 
     <script is:inline>
       // Scroll reveal - sifir bagimlilik. Hareket azaltma acikken hic calismaz.
@@ -234,6 +243,12 @@ const isGroupActive = (items?: { href: string }[]) => {
     justify-content: space-between;
     gap: 1rem 1.5rem;
     padding-block: 0.75rem;
+  }
+  .ml-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-shrink: 0;
   }
   .ml-brand {
     font-family: var(--ml-font-display);
