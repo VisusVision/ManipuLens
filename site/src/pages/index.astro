@@ -88,6 +88,36 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       <li><a href={`${base}/nasil-calisir`}>Nasıl çalışır?</a> — metin seçiminden rapora uzanan zincir.</li>
       <li><a href={`${base}/parcalar`}>Parçalar</a> — uzantı, API, ajanlar, veritabanı, Ollama.</li>
       <li><a href={`${base}/kurulum`}>Kurulum</a> — yerelde ayağa kaldırma ve doğrulama.</li>
+
+  <Section
+    num="01"
+    kicker="Kim bakıyor"
+    title="Altı uzman ajan"
+    lede="Metni tek bir model değil, altı farklı bakış açısı aynı anda okur. Her ajanın kendi sorusu, kendi rengi var; o renk sitede nerede görünürse o ajanı işaret eder."
+  >
+    <ul class="ml-agent-grid">
+      {ajanlar.map((a) => (
+        <li style={`--agent: ${a.data.color}`}>
+          <a href={`${base}/ajanlar/${a.id}`}>
+            <span class="ml-agent__dot" aria-hidden="true"></span>
+            <strong>{a.data.title}</strong>
+            <span class="ml-agent__desc">{a.data.kisaca}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </Section>
+
+  <Section
+    num="02"
+    kicker="Rota"
+    title="Nereden başlamalı?"
+    lede="Rehberin ana rotası sırayla okunur. Her sayfa önce sade katmanı, sonra teknik katmanı verir."
+  >
+    <ul>
+      <li><a href={`${base}/nasil-calisir`}>Nasıl çalışır?</a> — metin seçiminden rapora uzanan zincir.</li>
+      <li><a href={`${base}/parcalar`}>Parçalar</a> — uzantı, API, ajanlar, veritabanı, Ollama.</li>
+      <li><a href={`${base}/kurulum`}>Kurulum</a> — yerelde ayağa kaldırma ve doğrulama.</li>
       <li><a href={`${base}/guncellemeler`}>Güncellemeler</a> — ne değişti, sade ve teknik anlatımla.</li>
     </ul>
   </Section>
@@ -99,51 +129,73 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     font-size: var(--ml-step--1);
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--ml-ink-muted);
+    color: var(--ml-scan);
+    font-weight: 700;
     margin: 0 0 0.5rem;
   }
-  .ml-hero h1 { max-width: 20ch; margin: 0 0 1rem; }
-  .ml-lede { font-size: var(--ml-step-1); line-height: 1.5; }
+  .ml-hero h1 { max-width: 22ch; margin: 0 0 1.25rem; }
+  .ml-lede { font-size: var(--ml-step-1); line-height: 1.55; color: var(--ml-ink); }
   .ml-agent-grid {
     list-style: none;
     margin: 1.5rem 0 0;
     padding: 0;
     display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
   }
   .ml-agent-grid a {
     display: grid;
-    gap: 0.35rem;
+    gap: 0.45rem;
     height: 100%;
-    padding: 1rem;
+    padding: 1.25rem;
     text-decoration: none;
-    background: var(--ml-paper-warm);
-    border: var(--ml-border);
+    background: var(--ml-card-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--ml-card-border);
     border-radius: var(--ml-radius);
-    border-left: 6px solid var(--agent);
+    border-left: 5px solid var(--agent);
+    box-shadow: var(--ml-shadow-sm);
+    transition: transform var(--ml-duration) var(--ml-ease),
+                box-shadow var(--ml-duration) var(--ml-ease),
+                border-color var(--ml-duration) var(--ml-ease);
   }
-  .ml-agent-grid a:hover { box-shadow: var(--ml-shadow); }
+  .ml-agent-grid a:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ml-shadow-md);
+    border-color: var(--agent);
+  }
   .ml-agent__dot {
-    width: 0.7rem; height: 0.7rem; border-radius: 50%;
+    width: 0.75rem; height: 0.75rem; border-radius: 50%;
     background: var(--agent);
+    box-shadow: 0 0 8px var(--agent);
   }
-  .ml-agent__desc { font-size: var(--ml-step--1); color: var(--ml-ink-muted); }
+  .ml-agent__desc { font-size: var(--ml-step--1); color: var(--ml-ink-muted); line-height: 1.45; }
   .ml-next ul { max-width: var(--ml-measure); }
-  .ml-hero { padding-bottom: clamp(2rem, 6vw, 4rem); }
+  .ml-hero { padding-bottom: clamp(2.5rem, 6vw, 4.5rem); }
   .ml-triptik {
     list-style: none;
-    margin: 2rem 0 0;
+    margin: 2.5rem 0 0;
     padding: 0;
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 1rem 1.25rem;
+    align-items: stretch;
+    gap: 1.25rem;
   }
   .ml-triptik li {
     display: grid;
-    gap: 0.2rem;
-    max-width: 13rem;
+    gap: 0.35rem;
+    max-width: 14rem;
+    padding: 1.25rem;
+    background: var(--ml-card-bg);
+    border: 1px solid var(--ml-card-border);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow-sm);
+    transition: transform var(--ml-duration) var(--ml-ease), box-shadow var(--ml-duration) var(--ml-ease);
+  }
+  .ml-triptik li:not(.ml-triptik__ok):hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ml-shadow);
   }
   .ml-triptik strong { font-family: var(--ml-font-display); font-size: var(--ml-step-0); }
   .ml-triptik span { font-size: var(--ml-step--1); color: var(--ml-ink-muted); line-height: 1.45; }
@@ -152,6 +204,10 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     font-family: var(--ml-font-mono);
     color: var(--ml-scan);
     font-size: var(--ml-step-1);
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
   @media (max-width: 40rem) {
     .ml-triptik__ok { display: none; }

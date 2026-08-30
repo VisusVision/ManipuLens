@@ -43,34 +43,61 @@ mark {
   padding: 0 0.1em;
 }
 
-a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-a:hover { text-decoration-color: var(--ml-scan); }
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  transition: color var(--ml-duration) var(--ml-ease), text-decoration-color var(--ml-duration) var(--ml-ease);
+}
+a:hover { text-decoration-color: var(--ml-scan); color: var(--ml-scan); }
 
 code, pre, kbd { font-family: var(--ml-font-mono); font-size: 0.9em; }
 :not(pre) > code {
   background: var(--ml-scan-dim);
-  padding: 0.1em 0.35em;
-  border-radius: var(--ml-radius);
+  padding: 0.15em 0.4em;
+  border-radius: var(--ml-radius-sm);
   overflow-wrap: anywhere;
+  border: 1px solid var(--ml-line-soft);
 }
 pre {
   background: var(--ml-navy);
   color: #f5f7fb;
-  padding: 1rem 1.2rem;
+  padding: 1.2rem 1.4rem;
   border: var(--ml-border);
   border-radius: var(--ml-radius);
+  box-shadow: var(--ml-shadow-sm);
   overflow-x: auto;
+}
+
+/* ---------- Premium Kart & Panel Stilleri ---------- */
+.ml-card {
+  background: var(--ml-card-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--ml-card-border);
+  border-radius: var(--ml-radius);
+  box-shadow: var(--ml-shadow-sm);
+  padding: clamp(1.2rem, 3vw, 2rem);
+  transition: transform var(--ml-duration) var(--ml-ease),
+              box-shadow var(--ml-duration) var(--ml-ease),
+              border-color var(--ml-duration) var(--ml-ease);
+}
+.ml-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ml-shadow-md);
+  border-color: var(--ml-scan);
 }
 
 .ml-shell { width: min(100% - var(--ml-gutter) * 2, 78rem); margin-inline: auto; }
 .ml-prose { max-width: var(--ml-measure); }
 
 /* Klavye gezinmesi gorunur kalsin. */
-:focus-visible { outline: 3px solid var(--ml-scan); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ml-scan); outline-offset: 3px; }
 
 .ml-skip {
   position: absolute; left: -9999px;
   background: var(--ml-navy); color: #fff; padding: 0.6rem 1rem; z-index: 100;
+  border-radius: var(--ml-radius);
 }
 .ml-skip:focus { left: 1rem; top: 1rem; }
 
@@ -98,9 +125,12 @@ pre {
   }
 }
 
-
 /* ---------- Bolum iskeleti (Section.astro) ---------- */
-.ml-section { padding-block: clamp(2.5rem, 7vw, 5rem); border-top: 1px solid var(--ml-line-soft); }
+.ml-section {
+  padding-block: clamp(2.5rem, 6vw, 4.5rem);
+  border-top: 1px solid var(--ml-line-soft);
+  position: relative;
+}
 .ml-section:first-of-type { border-top: 0; padding-top: 0; }
 .ml-section__head {
   display: flex;
@@ -113,7 +143,7 @@ pre {
   text-transform: uppercase;
   color: var(--ml-ink-muted);
 }
-.ml-section__num { color: var(--ml-scan); font-variant-numeric: tabular-nums; }
+.ml-section__num { color: var(--ml-scan); font-variant-numeric: tabular-nums; font-weight: 700; }
 .ml-section__num::after {
   content: '';
   display: inline-block;
@@ -121,31 +151,46 @@ pre {
   height: 1px;
   margin-left: 0.7rem;
   vertical-align: middle;
-  background: var(--ml-line-soft);
+  background: linear-gradient(90deg, var(--ml-scan-dim), transparent);
 }
-.ml-section__title { margin: 0 0 0.75rem; max-width: 22ch; }
+.ml-section__title { margin: 0 0 0.75rem; max-width: 24ch; }
 .ml-section__lede {
   font-size: var(--ml-step-1);
   line-height: 1.5;
-  max-width: 58ch;
+  max-width: 60ch;
   margin: 0 0 1.75rem;
+  color: var(--ml-ink-muted);
 }
 .ml-section__body > :first-child { margin-top: 0; }
 
-/* ---------- Scroll reveal ----------
+/* ---------- Scroll reveal & Animasyonlar ----------
    JS yuklenmezse icerik gorunur kalir; hareket yalniz .ml-js isaretiyle devreye girer. */
-.ml-js .rv { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.ml-js .rv {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s var(--ml-ease), transform 0.5s var(--ml-ease);
+}
 .ml-js .rv.rv--in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .ml-js .rv { opacity: 1; transform: none; transition: none; }
 }
 
+@keyframes ml-lens-breath {
+  0%, 100% { box-shadow: inset 0 0 0 3px var(--ml-scan-dim), 0 0 0 0 rgba(0, 109, 119, 0); }
+  50% { box-shadow: inset 0 0 0 4px var(--ml-scan), 0 0 10px rgba(0, 109, 119, 0.25); }
+}
+
+.ml-brand__lens {
+  animation: ml-lens-breath 4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ml-brand__lens { animation: none !important; }
+}
+
 /* ---------- Mod gecisi: kaybolan blok gorunur olsun ---------- */
-/* Blok sessizce silinmesin: sade'ye donerken once soluyor, sonra display kalkiyor.
-   JS yoksa (ml-js sinifi yok) hicbir gecis yok, davranis eskisi gibi ani. */
 .ml-js .ml-technical,
 .ml-js .ml-simple-only {
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 .ml-js .ml-mode-out { opacity: 0; transform: translateY(-5px); }
 
@@ -155,24 +200,24 @@ pre {
 }
 .ml-js .ml-mode-in { animation: ml-mode-gel 0.3s ease both; }
 
-/* Ne olup bittigini soyleyen gecici serit. Iki yonde de cikar. */
+/* Ne olup bittigini soyleyen gecici serit. */
 .ml-mode-toast {
   position: fixed;
   left: 50%;
-  bottom: 1.25rem;
+  bottom: 1.5rem;
   z-index: 60;
   transform: translateX(-50%) translateY(0.5rem);
   background: var(--ml-navy);
   color: #f5f7fb;
   font-family: var(--ml-font-mono);
   font-size: var(--ml-step--1);
-  padding: 0.55rem 0.95rem;
+  padding: 0.6rem 1.1rem;
   border: 1px solid color-mix(in srgb, var(--ml-scan) 55%, transparent);
   border-radius: var(--ml-radius);
-  box-shadow: var(--ml-shadow);
+  box-shadow: var(--ml-shadow-lg);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.22s var(--ml-ease), transform 0.22s var(--ml-ease);
 }
 .ml-mode-toast[data-acik] { opacity: 1; transform: translateX(-50%) translateY(0); }
-.ml-mode-toast__sayi { color: #23c9d6; }
+.ml-mode-toast__sayi { color: #23c9d6; font-weight: 700; }

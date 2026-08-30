@@ -25,6 +25,14 @@ const isCurrent = (href: string) => {
     ? current === base
     : current === target || current.startsWith(`${target}/`);
 };
+
+const getCategory = (index: number) => {
+  if (index === 0) return 'Temel Rehber';
+  if (index === 2) return 'Mimari & Kod';
+  if (index === 5) return 'Sözlük & Pano';
+  if (index === 8) return 'Kılavuz & Referans';
+  return null;
+};
 ---
 
 <aside class="ml-side-rail" aria-label="ManipuLens gezinme rayı">
@@ -38,19 +46,29 @@ const isCurrent = (href: string) => {
 
   <nav aria-label="Ana bölümler">
     <ol class="ml-side-rail__main">
-      {nav.map((n, i) => (
-        <li>
-          <a
-            class="ml-side-rail__route"
-            href={n.href}
-            aria-current={isCurrent(n.href) ? 'page' : undefined}
-            data-rail-route={isCurrent(n.href) ? '' : undefined}
-          >
-            <span class="ml-side-rail__no" aria-hidden="true">{no(i + 1)}</span>
-            <span class="ml-side-rail__label">{n.label}</span>
-          </a>
-        </li>
-      ))}
+      {nav.map((n, i) => {
+        const cat = getCategory(i);
+        return (
+          <>
+            {cat && (
+              <li class="ml-side-rail__cat" aria-hidden="true">
+                <span>{cat}</span>
+              </li>
+            )}
+            <li>
+              <a
+                class="ml-side-rail__route"
+                href={n.href}
+                aria-current={isCurrent(n.href) ? 'page' : undefined}
+                data-rail-route={isCurrent(n.href) ? '' : undefined}
+              >
+                <span class="ml-side-rail__no" aria-hidden="true">{no(i + 1)}</span>
+                <span class="ml-side-rail__label">{n.label}</span>
+              </a>
+            </li>
+          </>
+        );
+      })}
     </ol>
   </nav>
 
@@ -298,8 +316,25 @@ const isCurrent = (href: string) => {
   }
   .ml-side-rail nav { padding-block: 0.55rem; }
   .ml-side-rail ol { list-style: none; margin: 0; padding: 0; }
+  .ml-side-rail__cat {
+    padding: 0.8rem 1rem 0.35rem 1rem;
+    font-family: var(--ml-font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ml-scan);
+    display: flex;
+    align-items: center;
+  }
+  .ml-side-rail__cat span {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    background: var(--ml-scan-dim);
+    border-radius: var(--ml-radius-sm);
+  }
   .ml-side-rail__route {
-    min-height: 2.4rem;
+    min-height: 2.35rem;
     display: grid;
     grid-template-columns: 3.25rem 1fr;
     align-items: center;
@@ -313,6 +348,7 @@ const isCurrent = (href: string) => {
     color: #f5f7fb;
     background: var(--ml-navy);
     border-left-color: var(--ml-scan);
+    font-weight: 700;
   }
   .ml-side-rail__no {
     justify-self: center;

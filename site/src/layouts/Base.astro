@@ -35,12 +35,43 @@ const nav = [
   { href: `${base}/sss`, label: 'SSS' },
   { href: `${base}/yol-haritasi`, label: 'Yol haritası' },
 ];
+const navGroups = [
+  { href: `${base}/`, label: 'Başlangıç' },
+  { href: `${base}/nasil-calisir`, label: 'Nasıl çalışır?' },
+  {
+    label: 'Mimari',
+    items: [
+      { href: `${base}/parcalar`, label: 'Parçalar' },
+      { href: `${base}/ajanlar`, label: 'Ajan atlası' },
+      { href: `${base}/kod`, label: 'Kod okuma' },
+    ],
+  },
+  { href: `${base}/guncellemeler`, label: 'Güncellemeler' },
+  {
+    label: 'Referans',
+    items: [
+      { href: `${base}/sozluk`, label: 'Sözlük' },
+      { href: `${base}/pano`, label: 'Pano' },
+      { href: `${base}/kurulum`, label: 'Kurulum' },
+      { href: `${base}/kararlar`, label: 'Kararlar' },
+      { href: `${base}/gizlilik`, label: 'Gizlilik' },
+      { href: `${base}/sss`, label: 'SSS' },
+      { href: `${base}/yol-haritasi`, label: 'Yol haritası' },
+    ],
+  },
+];
+
 const current = Astro.url.pathname.replace(/\/$/, '') || base;
 const isCurrent = (href: string) => {
   const target = href.replace(/\/$/, '');
   return target === base
     ? current === base
     : current === target || current.startsWith(`${target}/`);
+};
+
+const isGroupActive = (items?: { href: string }[]) => {
+  if (!items) return false;
+  return items.some((item) => isCurrent(item.href));
 };
 ---
 <html lang="tr">
@@ -74,14 +105,44 @@ const isCurrent = (href: string) => {
           <span class="ml-brand__lens" aria-hidden="true"></span>
           ManipuLens<span class="ml-brand__sub">rehber</span>
         </a>
-        <nav aria-label="Ana bölümler">
-          <ul>
-            {nav.map((n) => (
-              <li>
-                <a href={n.href} aria-current={isCurrent(n.href) ? 'page' : undefined}>
-                  {n.label}
-                </a>
-              </li>
+        <nav class="ml-nav" aria-label="Ana bölümler">
+          <ul class="ml-nav__list">
+            {navGroups.map((g) => (
+              g.href ? (
+                <li class="ml-nav__item">
+                  <a
+                    class="ml-nav__link"
+                    href={g.href}
+                    aria-current={isCurrent(g.href) ? 'page' : undefined}
+                  >
+                    {g.label}
+                  </a>
+                </li>
+              ) : (
+                <li class="ml-nav__item ml-nav__item--dropdown">
+                  <details class="ml-dropdown">
+                    <summary class:list={['ml-dropdown__summary', isGroupActive(g.items) && 'is-active']}>
+                      <span>{g.label}</span>
+                      <svg class="ml-dropdown__icon" width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
+                        <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </summary>
+                    <ul class="ml-dropdown__menu">
+                      {g.items?.map((item) => (
+                        <li>
+                          <a
+                            class="ml-dropdown__link"
+                            href={item.href}
+                            aria-current={isCurrent(item.href) ? 'page' : undefined}
+                          >
+                            {item.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </li>
+              )
             ))}
           </ul>
         </nav>
@@ -153,95 +214,181 @@ const isCurrent = (href: string) => {
     .ml-app-page { margin-left: 15.5rem; }
   }
   .ml-header {
-    border-bottom: var(--ml-border);
+    border-bottom: 1px solid var(--ml-line-soft);
     background: var(--ml-paper);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 20;
+    transition: border-color var(--ml-duration) ease;
   }
   .ml-header__inner {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
     align-items: center;
-    gap: 0.35rem 1.5rem;
-    padding-block: 0.8rem;
+    justify-content: space-between;
+    gap: 1rem 1.5rem;
+    padding-block: 0.75rem;
   }
   .ml-brand {
     font-family: var(--ml-font-display);
     font-size: var(--ml-step-1);
+    font-weight: 700;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
+    flex-shrink: 0;
   }
   .ml-brand__lens {
-    width: 1.1em;
-    height: 1.1em;
+    width: 1.25rem;
+    height: 1.25rem;
     border: 2px solid var(--ml-ink);
     border-radius: 50%;
     box-shadow: inset 0 0 0 3px var(--ml-scan-dim);
+    transition: transform var(--ml-duration) var(--ml-ease);
+  }
+  .ml-brand:hover .ml-brand__lens {
+    transform: scale(1.1);
   }
   .ml-brand__sub {
     font-family: var(--ml-font-mono);
-    font-size: 0.55em;
-    letter-spacing: 0.12em;
+    font-size: 0.52em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--ml-ink-muted);
-    margin-left: 0.4rem;
+    color: var(--ml-scan);
+    font-weight: 700;
+    padding: 0.15em 0.45em;
+    background: var(--ml-scan-dim);
+    border-radius: var(--ml-radius-sm);
+    margin-left: 0.25rem;
   }
-  nav ul {
+
+  .ml-nav { display: flex; align-items: center; }
+  .ml-nav__list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem 1.1rem;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
     list-style: none;
     margin: 0;
     padding: 0;
     font-size: var(--ml-step--1);
   }
-  .ml-header nav { grid-column: 1 / -1; grid-row: 2; }
-  .ml-header__inner :global(.ml-toggle) {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
+  .ml-nav__item { position: relative; }
+  .ml-nav__link {
+    text-decoration: none;
+    padding: 0.4rem 0.65rem;
+    border-radius: var(--ml-radius-sm);
+    color: var(--ml-ink-muted);
+    font-weight: 600;
+    transition: color var(--ml-duration) var(--ml-ease), background var(--ml-duration) var(--ml-ease);
+    display: inline-block;
   }
-  nav a { text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; }
-  nav a:hover { border-bottom-color: var(--ml-line-soft); }
-  nav a[aria-current='page'] { border-bottom-color: var(--ml-scan); }
+  .ml-nav__link:hover {
+    color: var(--ml-ink);
+    background: var(--ml-paper-warm);
+  }
+  .ml-nav__link[aria-current='page'] {
+    color: var(--ml-scan);
+    background: var(--ml-scan-dim);
+    font-weight: 700;
+  }
+
+  /* Dropdown Menus */
+  .ml-dropdown { position: relative; }
+  .ml-dropdown__summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.4rem 0.65rem;
+    border-radius: var(--ml-radius-sm);
+    color: var(--ml-ink-muted);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: color var(--ml-duration) var(--ml-ease), background var(--ml-duration) var(--ml-ease);
+    user-select: none;
+  }
+  .ml-dropdown__summary::-webkit-details-marker { display: none; }
+  .ml-dropdown__summary:hover,
+  .ml-dropdown[open] .ml-dropdown__summary {
+    color: var(--ml-ink);
+    background: var(--ml-paper-warm);
+  }
+  .ml-dropdown__summary.is-active {
+    color: var(--ml-scan);
+    font-weight: 700;
+  }
+  .ml-dropdown__icon {
+    transition: transform var(--ml-duration) var(--ml-ease);
+  }
+  .ml-dropdown[open] .ml-dropdown__icon {
+    transform: rotate(180deg);
+  }
+  .ml-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    min-width: 11.5rem;
+    background: var(--ml-paper);
+    border: 1px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow-md);
+    padding: 0.4rem;
+    list-style: none;
+    margin: 0;
+    z-index: 50;
+  }
+  .ml-dropdown__link {
+    display: block;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--ml-radius-sm);
+    color: var(--ml-ink-muted);
+    text-decoration: none;
+    font-size: var(--ml-step--1);
+    font-weight: 550;
+    transition: background var(--ml-duration) var(--ml-ease), color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-dropdown__link:hover {
+    background: var(--ml-paper-warm);
+    color: var(--ml-ink);
+  }
+  .ml-dropdown__link[aria-current='page'] {
+    background: var(--ml-scan-dim);
+    color: var(--ml-scan);
+    font-weight: 700;
+  }
+
   @media (min-width: 60.0625rem) {
     .ml-header nav { display: none; }
-    .ml-header__inner { grid-template-columns: minmax(0, 1fr) auto; }
   }
   @media (max-width: 48rem) {
     .ml-header__inner {
-      gap: 0.35rem 0.75rem;
-      padding-block: 0.55rem 0.25rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding-block: 0.6rem;
     }
-    .ml-brand { min-width: 0; }
-    .ml-brand__sub { display: none; }
-    .ml-header nav {
-      grid-column: 1 / -1;
+    .ml-nav {
       width: 100%;
+      order: 3;
       overflow-x: auto;
       overscroll-behavior-inline: contain;
       scrollbar-width: thin;
+      padding-bottom: 0.2rem;
     }
-    .ml-header nav ul {
+    .ml-nav__list {
       width: max-content;
       flex-wrap: nowrap;
-      gap: 0 0.9rem;
-    }
-    .ml-header nav a {
-      display: block;
-      padding-block: 0.8rem;
-      white-space: nowrap;
+      gap: 0.25rem;
     }
   }
+
   main { padding-block: clamp(2rem, 6vw, 4.5rem); }
   .ml-footer {
     background: var(--ml-navy);
     color: var(--ml-ink);
     border-top: 3px solid var(--ml-scan);
-    padding-block: 2rem;
+    padding-block: 2.5rem;
     font-size: var(--ml-step--1);
   }
   .ml-footer__note { color: var(--ml-ink-muted); max-width: var(--ml-measure); }

@@ -6,6 +6,13 @@
   "bitis_satiri": 70,
   "satirlar": [
     "async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<AgentAnalysis, String> {",
+    "    let raw = call_ollama_json(system_prompt, user_text).await?;",
+    "    serde_json::from_str(&raw).map_err(|e| e.to_string())",
+    "}",
+    "",
+    "/// Ollama'dan ham JSON metni ister. `call_ollama_agent` ve demografi ajanı",
+    "/// aynı çağrı ayarlarını (model, sıcaklık, keep_alive) paylaşsın diye ayrıldı.",
+    "async fn call_ollama_json(system_prompt: &str, user_text: &str) -> Result<String, String> {",
     "    let payload = json!({",
     "        \"model\": \"llama3\",",
     "        \"system\": system_prompt,",
@@ -31,16 +38,9 @@
     "        let res_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;",
     "",
     "        if let Some(response_str) = res_body.get(\"response\").and_then(|r| r.as_str()) {",
-    "            let analysis: AgentAnalysis =",
-    "                serde_json::from_str(response_str).map_err(|e| e.to_string())?;",
-    "            return Ok(analysis);",
-    "        }",
-    "    }",
-    "",
-    "    Err(\"Ollama'dan geçerli bir yanıt alınamadı.\".to_string())",
-    "}"
+    "            return Ok(response_str.to_string());"
   ],
-  "dosya_hash": "9fde77629541",
-  "kesit_hash": "eefdc1f7069f",
-  "cekildi": "2026-08-29T12:27:39.216Z"
+  "dosya_hash": "a6ce5daad049",
+  "kesit_hash": "44846fabf5aa",
+  "cekildi": "2026-08-30T14:05:02.857Z"
 }

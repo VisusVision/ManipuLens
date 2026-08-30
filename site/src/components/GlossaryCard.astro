@@ -68,28 +68,33 @@ const kumeAdi = {
   .ml-gloss {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 1.1rem 1.25rem 1.25rem;
-    background: var(--ml-paper-warm);
-    background-image: var(--ml-grain);
-    border: var(--ml-border);
+    gap: 0.55rem;
+    padding: 1.25rem 1.35rem 1.4rem;
+    background: var(--ml-card-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--ml-card-border);
     border-radius: var(--ml-radius);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: var(--ml-shadow-sm);
+    transition: transform var(--ml-duration) var(--ml-ease),
+                box-shadow var(--ml-duration) var(--ml-ease),
+                border-color var(--ml-duration) var(--ml-ease);
     scroll-margin-top: 6rem;
   }
   .ml-gloss[hidden] { display: none; }
   .ml-gloss:hover,
   .ml-gloss:focus-within {
-    transform: translateY(-4px);
-    box-shadow: var(--ml-shadow);
+    transform: translateY(-3px);
+    box-shadow: var(--ml-shadow-md);
+    border-color: var(--ml-scan);
   }
-  .ml-gloss:target { border-color: var(--ml-scan); box-shadow: var(--ml-shadow); }
+  .ml-gloss:target { border-color: var(--ml-scan); box-shadow: var(--ml-shadow-md); }
 
   .ml-gloss__motif {
     display: flex;
     justify-content: flex-start;
-    padding-bottom: 0.35rem;
-    margin-bottom: 0.15rem;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.2rem;
     border-bottom: 1px solid var(--ml-line-soft);
   }
   .ml-gloss--motifli:hover .ml-motif { color: var(--ml-ink); }
@@ -99,10 +104,11 @@ const kumeAdi = {
     font-size: 0.68rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--ml-ink-muted);
+    color: var(--ml-scan);
+    font-weight: 700;
   }
-  .ml-gloss__terim { margin: 0; font-size: var(--ml-step-1); }
-  .ml-gloss__kisaca { margin: 0; max-width: none; }
+  .ml-gloss__terim { margin: 0; font-size: var(--ml-step-1); font-family: var(--ml-font-display); }
+  .ml-gloss__kisaca { margin: 0; max-width: none; line-height: 1.55; }
   .ml-gloss__ornek,
   .ml-gloss__kod,
   .ml-gloss__ilgili {
@@ -111,7 +117,12 @@ const kumeAdi = {
     font-size: var(--ml-step--1);
     color: var(--ml-ink-muted);
   }
-  .ml-gloss__ornek { border-left: 3px solid var(--ml-scan); padding-left: 0.7rem; }
+  .ml-gloss__ornek {
+    border-left: 3px solid var(--ml-scan);
+    padding: 0.4rem 0.7rem;
+    background: var(--ml-scan-dim);
+    border-radius: 0 var(--ml-radius-sm) var(--ml-radius-sm) 0;
+  }
   .ml-gloss__etiket {
     display: block;
     font-family: var(--ml-font-mono);
@@ -119,7 +130,10 @@ const kumeAdi = {
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--ml-ink-muted);
+    font-weight: 700;
+    margin-bottom: 0.15rem;
   }
-  .ml-gloss__ilgili { margin-top: auto; padding-top: 0.35rem; }
-  .ml-gloss__ilgili a { color: var(--ml-ink); }
+  .ml-gloss__ilgili { margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--ml-line-soft); }
+  .ml-gloss__ilgili a { color: var(--ml-ink); font-weight: 600; }
+  .ml-gloss__ilgili a:hover { color: var(--ml-scan); }
 </style>

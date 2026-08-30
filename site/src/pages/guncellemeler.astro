@@ -79,55 +79,121 @@ const durumEtiket: Record<string, string> = {
 </Base>
 
 <style>
-  .ml-lede { font-size: var(--ml-step-1); max-width: var(--ml-measure); }
-  .ml-updates { list-style: none; margin: 2rem 0 0; padding: 0; display: grid; gap: 1.2rem; }
+  .ml-lede { font-size: var(--ml-step-1); max-width: var(--ml-measure); color: var(--ml-ink); margin-bottom: 2rem; }
+  .ml-updates { list-style: none; margin: 2rem 0 0; padding: 0; display: grid; gap: 1.75rem; }
   .ml-updates li {
-    border: var(--ml-border);
+    border: 1px solid var(--ml-card-border);
     border-radius: var(--ml-radius);
-    background: var(--ml-paper-warm);
-    padding: 1.1rem 1.3rem;
+    background: var(--ml-card-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--ml-shadow-sm);
+    padding: clamp(1.25rem, 3vw, 2rem);
+    transition: transform var(--ml-duration) var(--ml-ease),
+                box-shadow var(--ml-duration) var(--ml-ease),
+                border-color var(--ml-duration) var(--ml-ease);
   }
-  .ml-updates h2 { font-size: var(--ml-step-1); margin: 0.4rem 0 0.6rem; }
+  .ml-updates li:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ml-shadow-md);
+    border-color: var(--ml-scan);
+  }
+  .ml-updates h2 { font-size: var(--ml-step-1); margin: 0.6rem 0 0.8rem; font-family: var(--ml-font-display); }
   .ml-updates header, .ml-updates footer {
-    display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center;
+    display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center;
     font-size: var(--ml-step--1); color: var(--ml-ink-muted);
   }
-  .ml-updates footer { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed var(--ml-line-soft); }
-  .ml-simple { max-width: var(--ml-measure); margin: 0; }
-  .ml-use { max-width: var(--ml-measure); margin: 0.6rem 0 0; }
+  .ml-updates footer {
+    margin-top: 1.25rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--ml-line-soft);
+  }
+  .ml-simple { max-width: var(--ml-measure); margin: 0; line-height: 1.6; }
+  .ml-use {
+    max-width: var(--ml-measure);
+    margin: 0.75rem 0 0;
+    padding: 0.6rem 0.9rem;
+    background: var(--ml-scan-dim);
+    border-radius: var(--ml-radius-sm);
+    font-size: var(--ml-step--1);
+  }
 
-  /* Once/sonra: iki durum yan yana durur, "iyilestirildi" demeden fark gorunur.
-     Dar ekranda tablo kendi icinde kayar - sayfa govdesi yatay kaymaz. */
-  .ml-ba { margin-top: 1rem; overflow-x: auto; }
+  /* Once/sonra: iki durum yan yana durur, "iyilestirildi" demeden fark gorunur. */
+  .ml-ba {
+    margin-top: 1.25rem;
+    overflow-x: auto;
+    border: 1px solid var(--ml-line-soft);
+    border-radius: var(--ml-radius-sm);
+    background: var(--ml-paper);
+  }
   .ml-ba h3 {
     font-size: var(--ml-step--1);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ml-ink-muted);
-    margin: 0 0 0.5rem;
+    letter-spacing: 0.12em;
+    color: var(--ml-scan);
+    font-family: var(--ml-font-mono);
+    font-weight: 700;
+    margin: 0.8rem 1rem 0.4rem;
   }
   .ml-ba table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: var(--ml-step--1); }
-  .ml-ba th, .ml-ba td { text-align: left; vertical-align: top; padding: 0.5rem 0.7rem; border-top: 1px solid var(--ml-line-soft); }
-  .ml-ba thead th { border-top: 0; border-bottom: 2px solid var(--ml-line-soft); font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ml-ink-muted); }
+  .ml-ba th, .ml-ba td { text-align: left; vertical-align: top; padding: 0.65rem 0.9rem; border-top: 1px solid var(--ml-line-soft); }
+  .ml-ba thead th {
+    border-top: 0;
+    border-bottom: 2px solid var(--ml-line-soft);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ml-ink-muted);
+    font-family: var(--ml-font-mono);
+  }
   .ml-ba tbody th { width: 22%; font-weight: 700; }
-  .ml-ba-once { color: var(--ml-ink-muted); }
-  /* Yeni durum sol kenarindaki tarama rengiyle isaretlenir; renk tek basina
-     anlam tasimasin diye baslik sutunu da ayrimi yaziyla veriyor. */
-  .ml-ba-sonra { border-left: 3px solid var(--ml-scan); }
+  .ml-ba-once { color: var(--ml-ink-muted); background: rgba(0, 0, 0, 0.02); }
+  .ml-ba-sonra {
+    border-left: 3px solid var(--ml-scan);
+    background: var(--ml-scan-dim);
+    font-weight: 550;
+  }
   .ml-tech-block {
-    margin-top: 0.9rem; padding: 0.8rem 1rem;
-    background: var(--ml-navy); color: #dfe6f2;
-    border-left: 3px solid var(--ml-scan); border-radius: var(--ml-radius);
+    margin-top: 1.25rem;
+    padding: 1.1rem 1.3rem;
+    background: var(--ml-navy);
+    color: #dfe6f2;
+    border-left: 4px solid var(--ml-scan);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow-sm);
     font-size: var(--ml-step--1);
   }
-  .ml-tech-block p { margin: 0.35rem 0; max-width: var(--ml-measure); }
+  .ml-tech-block p { margin: 0.45rem 0; max-width: var(--ml-measure); line-height: 1.55; }
   .ml-chip {
     font-family: var(--ml-font-mono);
+    font-size: 0.8em;
     border: 1px solid var(--ml-line-soft);
-    border-radius: 999px; padding: 0.1rem 0.6rem;
+    background: var(--ml-paper);
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
   }
-  .ml-status { font-weight: 700; color: var(--ml-ink); }
-  .ml-status--draft { color: var(--ml-warn); }
-  .ml-status--released { color: var(--ml-ok); }
-  .ml-status--reverted { color: var(--ml-risk); }
+  .ml-status {
+    font-weight: 700;
+    font-size: 0.8em;
+    font-family: var(--ml-font-mono);
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .ml-status--draft {
+    color: var(--ml-warn);
+    background: rgba(168, 78, 0, 0.12);
+    border: 1px solid rgba(168, 78, 0, 0.3);
+  }
+  .ml-status--released {
+    color: var(--ml-ok);
+    background: rgba(0, 110, 99, 0.12);
+    border: 1px solid rgba(0, 110, 99, 0.3);
+  }
+  .ml-status--reverted {
+    color: var(--ml-risk);
+    background: rgba(166, 0, 78, 0.12);
+    border: 1px solid rgba(166, 0, 78, 0.3);
+  }
 </style>
