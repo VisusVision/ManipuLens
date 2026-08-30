@@ -34,13 +34,6 @@
   --ml-font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
 
   /* Olcek */
-
-  /* Tipografi - yerel woff2, bkz. fonts.css */
-  --ml-font-display: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-  --ml-font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --ml-font-mono: 'JetBrains Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
-
-  /* Olcek */
   --ml-step--1: clamp(0.82rem, 0.79rem + 0.15vw, 0.9rem);
   --ml-step-0: clamp(1rem, 0.96rem + 0.2vw, 1.1rem);
   --ml-step-1: clamp(1.3rem, 1.2rem + 0.5vw, 1.6rem);
@@ -71,8 +64,9 @@
     radial-gradient(circle at 1px 1px, var(--ml-grain-b) 1px, transparent 0) 3px 4px / 11px 11px;
 }
 
-/* Koyu yuzey (teknik paneller, footer, kod blogu) */
-.ml-dark {
+/* Koyu yuzey (teknik paneller, footer, kod blogu ve teknik mod) */
+.ml-dark,
+[data-ml-mode='teknik'] {
   --ml-paper: var(--ml-navy);
   --ml-paper-warm: var(--ml-navy-soft);
   --ml-ink: #f5f7fb;
