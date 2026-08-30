@@ -12,6 +12,7 @@ const sayfalar = [
   { baslik: 'Parçalar', aciklama: '6 ana mimari blok (Uzantı, Sunucu, Model, vb.)', href: `${base}/parcalar`, kategori: 'Sayfa', simge: '🧩' },
   { baslik: 'Ajan Atlası', aciklama: '6 uzmanlaşmış manipülasyon tespit ajanı', href: `${base}/ajanlar`, kategori: 'Sayfa', simge: '⚡' },
   { baslik: 'Kod Okuma', aciklama: 'Gerçek kaynak kod kesitleri ve satır satır analiz', href: `${base}/kod`, kategori: 'Sayfa', simge: '💻' },
+  { baslik: 'Depo Haritası', aciklama: 'Depodaki dosyaların görevi ve kritiklik analizi', href: `${base}/dosyalar`, kategori: 'Sayfa', simge: '🗂️' },
   { baslik: 'Güncellemeler', aciklama: 'Geliştirme günlükleri, sürümler ve yenilikler', href: `${base}/guncellemeler`, kategori: 'Sayfa', simge: '🚀' },
   { baslik: 'Kurulum Kılavuzu', aciklama: 'Yerel ve sunucu kurulum adımları', href: `${base}/kurulum`, kategori: 'Sayfa', simge: '🛠️' },
   { baslik: 'Mimari Kararlar', aciklama: 'Tasarım tercihleri ve ADR kayıtları', href: `${base}/kararlar`, kategori: 'Sayfa', simge: '⚖️' },
@@ -23,8 +24,8 @@ const sayfalar = [
 // 2. Ajanlar
 const ajanlarRaw = await getCollection('ajanlar');
 const ajanlar = ajanlarRaw.map((a) => ({
-  baslik: `${a.data.ad} (${a.data.unvan})`,
-  aciklama: a.data.ozet || a.data.rol || '',
+  baslik: `${a.data.title} (${a.data.manipulation_type})`,
+  aciklama: a.data.kisaca,
   href: `${base}/ajanlar/${a.id}`,
   kategori: 'Ajan',
   simge: '⚡',
@@ -33,8 +34,8 @@ const ajanlar = ajanlarRaw.map((a) => ({
 // 3. Parçalar
 const parcalarRaw = await getCollection('parcalar');
 const parcalar = parcalarRaw.map((p) => ({
-  baslik: p.data.baslik,
-  aciklama: p.data.ozet || '',
+  baslik: p.data.title,
+  aciklama: p.data.kisaca,
   href: `${base}/parcalar/${p.id}`,
   kategori: 'Parça',
   simge: '🧩',
@@ -43,8 +44,8 @@ const parcalar = parcalarRaw.map((p) => ({
 // 4. Kod Kesitleri
 const kodlarRaw = await getCollection('kod');
 const kodlar = kodlarRaw.map((k) => ({
-  baslik: `${k.data.baslik} (${k.data.dosya})`,
-  aciklama: k.data.neYapiyor || '',
+  baslik: `${k.data.title} (${k.data.dosya})`,
+  aciklama: k.data.ne_yapiyor,
   href: `${base}/kod#${k.id}`,
   kategori: 'Kod',
   simge: '💻',
@@ -128,8 +129,12 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
 
     var seciliIndex = 0;
     var mevcutSonuclar = [];
+    var oncekiOdak = null;
+    var oncekiOverflow = '';
 
     function ac() {
+      oncekiOdak = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      oncekiOverflow = document.body.style.overflow;
       modal.hidden = false;
       modal.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
@@ -143,7 +148,8 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
     function kapat() {
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
+      document.body.style.overflow = oncekiOverflow;
+      if (oncekiOdak && document.contains(oncekiOdak)) oncekiOdak.focus();
     }
 
     function turkceKucult(s) {
@@ -301,6 +307,22 @@ const tumVeriler = [...sayfalar, ...ajanlar, ...parcalar, ...kodlar, ...sozluk];
         else kapat();
       } else if (e.key === 'Escape' && !modal.hidden) {
         kapat();
+      } else if (e.key === 'Tab' && !modal.hidden) {
+        var odaklanabilir = Array.from(modal.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(function (el) {
+          return el instanceof HTMLElement && !el.hidden && el.getClientRects().length > 0;
+        });
+        if (!odaklanabilir.length) return;
+        var ilk = odaklanabilir[0];
+        var son = odaklanabilir[odaklanabilir.length - 1];
+        if (e.shiftKey && document.activeElement === ilk) {
+          e.preventDefault();
+          son.focus();
+        } else if (!e.shiftKey && document.activeElement === son) {
+          e.preventDefault();
+          ilk.focus();
+        }
       }
     });
   }

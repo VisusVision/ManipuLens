@@ -13,8 +13,6 @@ html {
 
 body {
   margin: 0;
-  /* Terim balonu gibi mutlak konumlu ogeler sayfayi yatay kaydirmasin. */
-  overflow-x: clip;
   background: var(--ml-paper);
   color: var(--ml-ink);
   font-family: var(--ml-font-body);
@@ -25,9 +23,6 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-
-/* Kagit yuzeyi kullanan her kutu ayni dokuyu alir. */
-.ml-grain { background-image: var(--ml-grain); }
 
 h1, h2, h3, h4 { font-family: var(--ml-font-display); font-weight: 700; }
 h1 { font-size: var(--ml-step-3); line-height: 1.02; letter-spacing: -0.015em; }

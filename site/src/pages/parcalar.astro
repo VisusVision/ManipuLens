@@ -49,7 +49,7 @@ const no = (n: number) => String(n).padStart(2, '0');
     title="Parçalar"
     lede="ManipuLens tek bir program değil, altı ayrı sorumluluğu olan altı parça. Aşağıya doğru okudukça sırayla hepsinden geçeceksin; yandaki ray nerede olduğunu gösterir."
   >
-    <EvidenceBadge owner="TODO" needsReverify={true} />
+    <EvidenceBadge commit="d992153" verifiedAt={new Date('2026-08-30T00:00:00+03:00')} owner="ManipuLens ekibi" />
 
     <dl class="ml-sorumluluk">
       {parcalar.map((p) => (
@@ -126,11 +126,12 @@ const no = (n: number) => String(n).padStart(2, '0');
   >
     <Layer kind="technical" title="Satır sayıları">
       <p>
-        Rust tarafı yaklaşık 2.600 satır (<code>main.rs</code> 1.227,
-        <code>orchestrator.rs</code> 441, <code>db.rs</code> 391, <code>agents.rs</code> 179,
-        <code>auth.rs</code> 162, <code>types.rs</code> 122, <code>audit.rs</code> 65).
-        Uzantı tarafı yaklaşık 1.900 satır (<code>popup.js</code> 1.454,
-        <code>background.js</code> 442).
+        Rust tarafı yaklaşık 3.640 satır (<code>main.rs</code> 1.438,
+        <code>db.rs</code> 504, <code>profile.rs</code> 474,
+        <code>orchestrator.rs</code> 441, <code>agents.rs</code> 330,
+        <code>types.rs</code> 229, <code>auth.rs</code> 162,
+        <code>audit.rs</code> 65). Uzantı tarafı yaklaşık 1.950 satır
+        (<code>popup.js</code> 1.511, <code>background.js</code> 443).
       </p>
     </Layer>
   </Section>

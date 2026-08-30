@@ -264,7 +264,6 @@ const getCategory = (index: number) => {
     // requestAnimationFrame'e baglamiyoruz: arka plan sekmesinde ve enerji
     // tasarrufu modunda kare dongusu duruyor, ray da onunla birlikte donuyor.
     window.addEventListener('scroll', olc, { passive: true });
-    document.addEventListener('scroll', olc, { passive: true, capture: true });
     window.addEventListener('resize', olc, { passive: true });
     window.addEventListener('hashchange', olc);
     // Sade/teknik modu bolum yuksekliklerini degistirir; olcumu yenile.

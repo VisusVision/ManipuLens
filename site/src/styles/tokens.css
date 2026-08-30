@@ -64,9 +64,8 @@
     radial-gradient(circle at 1px 1px, var(--ml-grain-b) 1px, transparent 0) 3px 4px / 11px 11px;
 }
 
-/* Koyu yuzey (teknik paneller, footer, kod blogu ve teknik mod) */
-.ml-dark,
-[data-ml-mode='teknik'] {
+/* Koyu yuzey (teknik paneller, footer, kod blogu) */
+.ml-dark {
   --ml-paper: var(--ml-navy);
   --ml-paper-warm: var(--ml-navy-soft);
   --ml-ink: #f5f7fb;

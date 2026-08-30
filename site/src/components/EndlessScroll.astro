@@ -299,7 +299,6 @@ const { nav, current } = Astro.props;
     }
 
     window.addEventListener('scroll', olc, { passive: true });
-    document.addEventListener('scroll', olc, { passive: true, capture: true });
     window.addEventListener('resize', olc, { passive: true });
     document.addEventListener('manipulens:mode-change', olc);
     olc();

@@ -23,15 +23,15 @@ const maddeler: { ad: string; durum: Durum; not: string }[] = [
   { ad: 'Dil onarımı', durum: 'calisiyor', not: 'Model yanlış dilde cevap verirse alanlar yeniden çevriliyor. Birim testli.' },
   { ad: 'Rapor çevirisi (TR↔EN)', durum: 'calisiyor', not: '/v1/translate-report ucu üzerinden.' },
   { ad: 'Docker imajı', durum: 'calisiyor', not: 'Çok aşamalı derleme, statik musl çıktısı.' },
+  { ad: 'Yaşayan rehber sitesi', durum: 'calisiyor', not: '26 statik sayfa yerel derlemede üretiliyor; kaynak ve dokümantasyon aynı repoda.' },
+  { ad: 'Kod okuma ve depo haritası', durum: 'calisiyor', not: 'Gerçek kod kesitleri, satır açıklamaları ve dosya kritiklik haritası hazır.' },
+  { ad: 'Sayfaların commit doğrulaması', durum: 'calisiyor', not: 'Kaynak iddiaları d992153 commit’i ve 39 geçen Rust testiyle yeniden doğrulandı.' },
 
   // Yapım aşamasında
-  { ad: 'Bu rehber sitesi', durum: 'yapimda', not: 'Başlangıç, zincir, parçalar, ajan atlası, sözlük, kurulum, kararlar, gizlilik, SSS hazır. Kalan: kod okuma katmanı ve yayın.' },
   { ad: 'Trello panosunun sitede görünmesi', durum: 'yapimda', not: 'Çekim betiği, sayfa ve iş akışı yazıldı. API anahtarı tanımlanınca dolacak.' },
-  { ad: 'Sayfaların commit doğrulaması', durum: 'yapimda', not: 'Şema hazır (verified_at_commit) ama depo birleştirilmeden doldurulamıyor.' },
+  { ad: 'Canlı sürümün güncellenmesi', durum: 'yapimda', not: 'Netlify yayını açık; canlı sürüm güncel yerel site commitlerinin gerisinde.' },
 
   // Planlanan
-  { ad: 'Kod okuma katmanı', durum: 'planlanan', not: 'Gerçek kodu gösterip “ne yapıyor / neden böyle / kaldırırsak ne olur” üçlüsüyle açıklayan bölüm. Planı yazıldı, kodu yazılmadı.' },
-  { ad: 'Sitenin yayına alınması', durum: 'planlanan', not: 'GitHub Pages iş akışı. Depo birleştirme kararına bağlı.' },
   { ad: 'Uzaktan erişim', durum: 'planlanan', not: 'Uzantıdaki sunucu adresi şu an sabit. Açılmadan önce HTTPS ve gerçek CORS kısıtı gerekiyor.' },
   { ad: 'Yedek yolun arayüzde görünmesi', durum: 'planlanan', not: 'Rapor yedek yoldan geldiyse kullanıcı bunu göremiyor. Zayıf raporun zayıf olduğu söylenmeli.' },
   { ad: 'Denetim kaydı saklama süresi', durum: 'planlanan', not: 'Log dosyaları şu an sonsuza kadar birikiyor.' },
@@ -63,7 +63,7 @@ const sayi = (d: Durum) => maddeler.filter((m) => m.durum === d).length;
     title="Yol haritası"
     lede="Üç durum var ve aralarındaki sınır serttir. Bir özellik ancak kodda varsa ve envanterde doğrulandıysa “çalışıyor” sütununa girer. Bu sayfanın varlık sebebi özellik listesi değil, listenin dürüstlüğü."
   >
-    <EvidenceBadge owner="TODO" needsReverify={true} />
+    <EvidenceBadge commit="d992153" verifiedAt={new Date('2026-08-30T00:00:00+03:00')} owner="ManipuLens ekibi" />
     <p class="ml-ozet">
       <span><strong>{sayi('calisiyor')}</strong> çalışıyor</span>
       <span><strong>{sayi('yapimda')}</strong> yapım aşamasında</span>
@@ -107,8 +107,9 @@ const sayi = (d: Durum) => maddeler.filter((m) => m.durum === d).length;
 
     <Layer kind="technical" title="Doğrulamanın dayanağı" wide>
       <p>
-        Rust tarafında 25 test var: <code>main.rs</code> 10, <code>auth.rs</code> 5,
-        <code>db.rs</code> 4, <code>orchestrator.rs</code> 4, <code>audit.rs</code> 2.
+        Rust tarafında 39 test var: <code>main.rs</code> 10, <code>profile.rs</code> 10,
+        <code>auth.rs</code> 5, <code>agents.rs</code> 4, <code>db.rs</code> 4,
+        <code>orchestrator.rs</code> 4, <code>audit.rs</code> 2.
         “Çalışıyor” listesindeki dil onarımı ve yedek özet maddelerinin arkasında bu
         testlerin bir kısmı duruyor; ekran görüntüsü değil, çalışan bir kontrol.
       </p>
@@ -140,14 +141,15 @@ const sayi = (d: Durum) => maddeler.filter((m) => m.durum === d).length;
 
   <Section
     num="05"
-    kicker="Tek engel"
-    title="Neden bazı işler beklemede"
-    lede="Yapım aşamasındaki üç maddenin ikisi aynı karara bağlı."
+    kicker="Yayın durumu"
+    title="Yerel sürüm neden canlıdan ileride"
+    lede="Kod ve rehber artık aynı repoda; kalan fark yayın dalının güncel commitleri henüz almamış olması."
   >
     <p class="ml-prose">
-      Güncel kod ile git deposu şu an iki ayrı yerde duruyor. Bu ikisi tek ağaçta
-      birleşmeden site yayına alınamıyor ve sayfalar hangi commit'te doğrulandıklarını
-      yazamıyor. İçerik yazımı bu karardan bağımsız ilerliyor; yalnız yayın adımı bağlı.
+      Güncel kod, rehber ve dokümantasyon artık <code>GuncelArayuz_Local</code> dalında tek
+      ağaçta duruyor. Yerel derleme 26 sayfayı üretiyor; Netlify’daki canlı kopya ise eski
+      navigasyonu gösteriyor ve depo haritası rotasını henüz içermiyor. Güncel commitler
+      yayımlandığında bu fark kapanacak.
     </p>
   </Section>
 </Base>

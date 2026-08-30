@@ -11,6 +11,7 @@ interface Props {
 }
 const { commit, verifiedAt, owner, needsReverify = false } = Astro.props;
 const tarih = verifiedAt?.toISOString().slice(0, 10);
+const gorunenSahip = owner?.trim().toLocaleLowerCase('tr-TR') === 'todo' ? undefined : owner;
 ---
 <p class:list={['ml-badge', needsReverify && 'ml-badge--stale']}>
   {needsReverify
@@ -18,7 +19,7 @@ const tarih = verifiedAt?.toISOString().slice(0, 10);
     : <strong>Doğrulandı</strong>}
   {commit && <span> · commit <code>{commit.slice(0, 7)}</code></span>}
   {tarih && <span> · {tarih}</span>}
-  {owner && <span> · sahip: {owner}</span>}
+  {gorunenSahip && <span> · sahip: {gorunenSahip}</span>}
 </p>
 
 <style>

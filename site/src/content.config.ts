@@ -1,5 +1,6 @@
-import { defineCollection, z } from 'astro:content';
+import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { z } from 'astro/zod';
 
 /** Her rehber sayfasinin tasidigi kanit alanlari. */
 const kanit = {
@@ -31,6 +32,7 @@ const ajanlar = defineCollection({
 const guncellemeler = defineCollection({
   loader: glob({ base: './src/content/guncellemeler', pattern: '**/*.md' }),
   schema: z.object({
+    ...kanit,
     title: z.string(),
     date: z.coerce.date(),
     version: z.string().optional(),
@@ -60,9 +62,8 @@ const guncellemeler = defineCollection({
       .default([]),
     tests: z.string().optional(),
     known_issues: z.array(z.string()).default([]),
-    trello_card: z.string().url().optional(),
-    commit_or_pr: z.string().url().optional(),
-    ...kanit,
+    trello_card: z.url().optional(),
+    commit_or_pr: z.url().optional(),
   }),
 });
 

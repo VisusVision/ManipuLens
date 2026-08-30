@@ -86,10 +86,11 @@ const sayi = (k: string) =>
   </div>
 </div>
 
-<script is:inline define:vars={{ kokId: id }}>
+<script is:inline>
   (function () {
-    var kok = document.getElementById(kokId);
-    if (!kok) return;
+    var betik = document.currentScript;
+    var kok = betik && betik.previousElementSibling;
+    if (!(kok instanceof HTMLElement) || !kok.classList.contains('ml-gloss-root')) return;
     var cards = Array.prototype.slice.call(kok.querySelectorAll('.ml-gloss'));
     var buttons = Array.prototype.slice.call(kok.querySelectorAll('.ml-gloss-filter button'));
     var input = kok.querySelector('.ml-gloss-q');

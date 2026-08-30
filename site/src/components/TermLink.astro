@@ -27,8 +27,8 @@ const veri = terimler
 // script kapanis etiketi blogu erken kapatabilir.
 const scriptJson = (deger: unknown) => JSON.stringify(deger).replace(/</g, '\\u003c');
 ---
-<script type="application/json" id="ml-terim-verisi" set:html={scriptJson(veri)} />
-<script type="application/json" id="ml-terim-base" set:html={scriptJson(base)} />
+<script is:inline type="application/json" id="ml-terim-verisi" set:html={scriptJson(veri)} />
+<script is:inline type="application/json" id="ml-terim-base" set:html={scriptJson(base)} />
 
 <script is:inline>
   // Sonsuz kaydirmada sonraki rota alta ekleniyor; tarama tek seferlik olamaz.

@@ -15,7 +15,7 @@ interface Props {
   /** Sayfaya girerken yumusak gorunme hareketi. */
   reveal?: boolean;
 }
-const { kind = 'both', title, as = 'h3', wide = false, reveal = true } = Astro.props;
+const { kind = 'both', title, as = 'h3', wide = false, reveal = true } = Astro.props as Props;
 const cls = kind === 'technical' ? 'ml-technical' : kind === 'simple' ? 'ml-simple-only' : '';
 const Heading = as;
 ---
@@ -39,22 +39,22 @@ const Heading = as;
     font-size: var(--ml-step-1);
   }
   .ml-layer.ml-dark {
-    background: var(--ml-navy);
-    color: #dfe6f2;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--ml-paper);
+    color: var(--ml-ink);
+    border: 1px solid var(--ml-line-soft);
     border-left: 4px solid var(--ml-scan);
     box-shadow: var(--ml-shadow-md);
   }
   .ml-layer.ml-dark .ml-layer__title {
-    color: #ffffff;
+    color: var(--ml-ink);
   }
   .ml-layer.ml-dark p {
-    color: #dfe6f2;
+    color: var(--ml-ink);
   }
   .ml-layer.ml-dark code {
-    background: rgba(35, 201, 214, 0.15);
-    color: #23c9d6;
-    border: 1px solid rgba(35, 201, 214, 0.3);
+    background: var(--ml-scan-dim);
+    color: var(--ml-scan);
+    border: 1px solid var(--ml-line-soft);
   }
   .ml-layer__wide { max-width: none; }
 </style>

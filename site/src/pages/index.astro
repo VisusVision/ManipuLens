@@ -22,7 +22,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     <p class="ml-lede ml-prose">
       Metin hiçbir bulut servisine gitmez; model yerel Ollama üzerinde çalışır.
     </p>
-    <EvidenceBadge owner="TODO" needsReverify={true} />
+    <EvidenceBadge commit="d992153" verifiedAt={new Date('2026-08-30T00:00:00+03:00')} owner="ManipuLens ekibi" />
 
     <!-- Uc motif, urunun tamamini tek bakista anlatir: sec - okut - yerelde kalir. -->
     <ol class="ml-triptik">
@@ -58,36 +58,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     </p>
     <SystemStack />
   </Layer>
-
-  <Section
-    num="01"
-    kicker="Kim bakıyor"
-    title="Altı uzman ajan"
-    lede="Metni tek bir model değil, altı farklı bakış açısı aynı anda okur. Her ajanın kendi sorusu, kendi rengi var; o renk sitede nerede görünürse o ajanı işaret eder."
-  >
-    <ul class="ml-agent-grid">
-      {ajanlar.map((a) => (
-        <li style={`--agent: ${a.data.color}`}>
-          <a href={`${base}/ajanlar/${a.id}`}>
-            <span class="ml-agent__dot" aria-hidden="true"></span>
-            <strong>{a.data.title}</strong>
-            <span class="ml-agent__desc">{a.data.kisaca}</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  </Section>
-
-  <Section
-    num="02"
-    kicker="Rota"
-    title="Nereden başlamalı?"
-    lede="Rehberin ana rotası sırayla okunur. Her sayfa önce sade katmanı, sonra teknik katmanı verir."
-  >
-    <ul>
-      <li><a href={`${base}/nasil-calisir`}>Nasıl çalışır?</a> — metin seçiminden rapora uzanan zincir.</li>
-      <li><a href={`${base}/parcalar`}>Parçalar</a> — uzantı, API, ajanlar, veritabanı, Ollama.</li>
-      <li><a href={`${base}/kurulum`}>Kurulum</a> — yerelde ayağa kaldırma ve doğrulama.</li>
 
   <Section
     num="01"

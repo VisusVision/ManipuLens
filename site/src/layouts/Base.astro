@@ -155,6 +155,20 @@ const isGroupActive = (items?: { href: string }[]) => {
             ))}
           </ul>
         </nav>
+        <details class="ml-mobile-nav">
+          <summary>Bölümler</summary>
+          <nav aria-label="Mobil ana bölümler">
+            <ul>
+              {nav.map((item) => (
+                <li>
+                  <a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </details>
         <div class="ml-header__actions">
           <SearchModal />
           <ModeToggle />
@@ -285,6 +299,7 @@ const isGroupActive = (items?: { href: string }[]) => {
   }
 
   .ml-nav { display: flex; align-items: center; }
+  .ml-mobile-nav { display: none; }
   .ml-nav__list {
     display: flex;
     align-items: center;
@@ -389,17 +404,52 @@ const isGroupActive = (items?: { href: string }[]) => {
       padding-block: 0.6rem;
     }
     .ml-nav {
+      display: none;
+    }
+    .ml-mobile-nav {
+      display: block;
       width: 100%;
       order: 3;
-      overflow-x: auto;
-      overscroll-behavior-inline: contain;
-      scrollbar-width: thin;
-      padding-bottom: 0.2rem;
     }
-    .ml-nav__list {
-      width: max-content;
-      flex-wrap: nowrap;
+    .ml-mobile-nav summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 0.4rem 0.65rem;
+      border: 1px solid var(--ml-line-soft);
+      border-radius: var(--ml-radius-sm);
+      color: var(--ml-ink-muted);
+      font-size: var(--ml-step--1);
+      font-weight: 700;
+    }
+    .ml-mobile-nav summary::-webkit-details-marker { display: none; }
+    .ml-mobile-nav summary::after { content: '＋'; float: right; color: var(--ml-scan); }
+    .ml-mobile-nav[open] summary::after { content: '−'; }
+    .ml-mobile-nav ul {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.25rem;
+      margin: 0.4rem 0 0;
+      padding: 0.4rem;
+      list-style: none;
+      border: 1px solid var(--ml-line-soft);
+      border-radius: var(--ml-radius);
+      background: var(--ml-paper);
+      box-shadow: var(--ml-shadow);
+    }
+    .ml-mobile-nav a {
+      display: block;
+      min-width: 0;
+      padding: 0.42rem 0.5rem;
+      border-radius: var(--ml-radius-sm);
+      color: var(--ml-ink-muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      line-height: 1.25;
+      text-decoration: none;
+    }
+    .ml-mobile-nav a[aria-current='page'] {
+      background: var(--ml-scan-dim);
+      color: var(--ml-scan);
     }
   }
 

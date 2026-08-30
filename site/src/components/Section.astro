@@ -16,7 +16,7 @@ interface Props {
   as?: 'h1' | 'h2';
   reveal?: boolean;
 }
-const { num, kicker, title, lede, id, dark = false, as = 'h2', reveal = true } = Astro.props;
+const { num, kicker, title, lede, id, dark = false, as = 'h2', reveal = true } = Astro.props as Props;
 const Heading = as;
 ---
 <section
