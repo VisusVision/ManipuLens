@@ -102,14 +102,11 @@ pre {
 .ml-skip:focus { left: 1rem; top: 1rem; }
 
 /* Sade / teknik anahtari: gorunurlugu <html data-ml-mode> kontrol eder. */
-[data-ml-mode='sade'] .ml-technical { display: none; }
-[data-ml-mode='teknik'] .ml-simple-only { display: none; }
+[data-ml-mode='sade'] .ml-technical { display: none !important; }
+[data-ml-mode='teknik'] .ml-simple-only { display: none !important; }
 
-/* Teknik modda acilan blok gozle secilebilmeli. Kendi zemini olan yuzeyler
-   (koyu katman, calisma hatti, durum seridi) zaten ayrisiyor; geri kalan satir
-   ici teknik parcalar tarama rengiyle isaretleniyor. */
-[data-ml-mode='teknik']
-  .ml-technical:not(.ml-layer):not(.ml-tech-rail):not(.ml-mode-banner):not(.ml-dark) {
+/* Teknik modda acilan ozel yalin paragraflar icin ince sol cizgi */
+[data-ml-mode='teknik'] p.ml-technical:not(.ml-tech-block):not(.ml-dark):not(.ml-gloss__kod) {
   border-left: 3px solid var(--ml-scan);
   padding-left: 0.8rem;
   background: var(--ml-scan-dim);

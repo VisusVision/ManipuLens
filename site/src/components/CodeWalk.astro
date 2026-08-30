@@ -38,7 +38,6 @@ const {
   sina = [],
   zorluk,
 } = Astro.props;
-
 // Uretilmis kod parcalari. Dosya yoksa bilesen sessizce bos donmez, uyarir.
 const veriler = import.meta.glob<{
   default: {
@@ -203,11 +202,13 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
 <style>
   .ml-kw {
     margin-block: 2rem;
-    padding: 1.2rem 1.3rem 1.4rem;
-    border: var(--ml-border);
+    padding: 1.35rem 1.5rem 1.6rem;
+    border: 1px solid var(--ml-card-border);
     border-radius: var(--ml-radius);
-    background: var(--ml-paper-warm);
-    background-image: var(--ml-grain);
+    background: var(--ml-card-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--ml-shadow-sm);
     scroll-margin-top: 6rem;
   }
   .ml-kw__bas { margin-bottom: 1rem; }
@@ -223,17 +224,18 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
   }
   .ml-kw__zorluk {
     font-family: var(--ml-font-mono);
-    font-size: 0.64rem;
+    font-size: 0.65rem;
+    font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 0.12rem 0.45rem;
+    padding: 0.15rem 0.5rem;
     border: 1px solid var(--ml-line-soft);
-    border-radius: 2px;
+    border-radius: var(--ml-radius-sm);
   }
-  .ml-kw__zorluk[data-z='baslangic'] { border-color: var(--ml-ok); color: var(--ml-ok); }
-  .ml-kw__zorluk[data-z='orta'] { border-color: var(--ml-warn); color: var(--ml-warn); }
-  .ml-kw__zorluk[data-z='ileri'] { border-color: var(--ml-risk); color: var(--ml-risk); }
-  .ml-kw__ad { margin: 0; font-size: var(--ml-step-2); }
+  .ml-kw__zorluk[data-z='baslangic'] { border-color: var(--ml-ok); color: var(--ml-ok); background: rgba(0, 110, 99, 0.08); }
+  .ml-kw__zorluk[data-z='orta'] { border-color: var(--ml-warn); color: var(--ml-warn); background: rgba(168, 78, 0, 0.08); }
+  .ml-kw__zorluk[data-z='ileri'] { border-color: var(--ml-risk); color: var(--ml-risk); background: rgba(166, 0, 78, 0.08); }
+  .ml-kw__ad { margin: 0; font-size: var(--ml-step-2); font-family: var(--ml-font-display); }
   .ml-kw__ust code { color: var(--ml-ink); }
 
   .ml-kw__uclu { margin: 0 0 1.2rem; display: grid; gap: 0.65rem; }
@@ -267,7 +269,6 @@ const ZORLUK_ADI = { baslangic: 'Başlangıç', orta: 'Orta', ileri: 'İleri' };
   }
 
   .ml-kw__kod {
-    margin: 0;
     padding: 0.8rem 0;
     background: var(--ml-navy);
     border: 2px solid var(--ml-line);

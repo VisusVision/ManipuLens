@@ -58,8 +58,9 @@ const durumEtiket: Record<string, string> = {
           </div>
         )}
 
-        <div class="ml-technical ml-tech-block">
-          <p>{k.data.technical_summary}</p>
+        <div class="ml-technical ml-tech-block ml-dark">
+          <div class="ml-tech-block__badge">Teknik Ayrıntı</div>
+          <p class="ml-tech-block__lead">{k.data.technical_summary}</p>
           {k.data.why_changed && <p><strong>Neden:</strong> {k.data.why_changed}</p>}
           {k.data.impact && <p><strong>Etki:</strong> {k.data.impact}</p>}
           {k.data.tests && <p><strong>Test:</strong> {k.data.tests}</p>}
@@ -155,15 +156,49 @@ const durumEtiket: Record<string, string> = {
   }
   .ml-tech-block {
     margin-top: 1.25rem;
-    padding: 1.1rem 1.3rem;
+    padding: 1.25rem 1.4rem;
     background: var(--ml-navy);
-    color: #dfe6f2;
+    color: #f0f4fc;
     border-left: 4px solid var(--ml-scan);
     border-radius: var(--ml-radius);
-    box-shadow: var(--ml-shadow-sm);
+    box-shadow: var(--ml-shadow-md);
     font-size: var(--ml-step--1);
   }
-  .ml-tech-block p { margin: 0.45rem 0; max-width: var(--ml-measure); line-height: 1.55; }
+  .ml-tech-block__badge {
+    display: inline-block;
+    font-family: var(--ml-font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #23c9d6;
+    background: rgba(35, 201, 214, 0.15);
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--ml-radius-sm);
+    margin-bottom: 0.6rem;
+  }
+  .ml-tech-block__lead {
+    color: #ffffff !important;
+    font-size: var(--ml-step-0);
+    line-height: 1.6;
+    margin-bottom: 0.75rem !important;
+  }
+  .ml-tech-block p { margin: 0.4rem 0; max-width: var(--ml-measure); line-height: 1.6; color: #dfe6f2; }
+  .ml-tech-block strong {
+    color: #23c9d6;
+    font-family: var(--ml-font-mono);
+    font-size: 0.85em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-right: 0.35rem;
+  }
+  .ml-tech-block code {
+    background: rgba(35, 201, 214, 0.15);
+    color: #23c9d6;
+    border: 1px solid rgba(35, 201, 214, 0.3);
+    padding: 0.1em 0.35em;
+    border-radius: var(--ml-radius-sm);
+  }
   .ml-chip {
     font-family: var(--ml-font-mono);
     font-size: 0.8em;

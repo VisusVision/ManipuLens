@@ -23,11 +23,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const nav = [
   { href: `${base}/`, label: 'Başlangıç' },
   { href: `${base}/nasil-calisir`, label: 'Nasıl çalışır?' },
+  { href: `${base}/sozluk`, label: 'Sözlük' },
+  { href: `${base}/pano`, label: 'Pano' },
   { href: `${base}/parcalar`, label: 'Parçalar' },
   { href: `${base}/ajanlar`, label: 'Ajan atlası' },
   { href: `${base}/kod`, label: 'Kod okuma' },
-  { href: `${base}/sozluk`, label: 'Sözlük' },
-  { href: `${base}/pano`, label: 'Pano' },
   { href: `${base}/guncellemeler`, label: 'Güncellemeler' },
   { href: `${base}/kurulum`, label: 'Kurulum' },
   { href: `${base}/kararlar`, label: 'Kararlar' },
@@ -39,7 +39,14 @@ const navGroups = [
   { href: `${base}/`, label: 'Başlangıç' },
   { href: `${base}/nasil-calisir`, label: 'Nasıl çalışır?' },
   {
-    label: 'Mimari',
+    label: 'Sözlük & Pano',
+    items: [
+      { href: `${base}/sozluk`, label: 'Sözlük' },
+      { href: `${base}/pano`, label: 'Canlı Pano' },
+    ],
+  },
+  {
+    label: 'Mimari & Kod',
     items: [
       { href: `${base}/parcalar`, label: 'Parçalar' },
       { href: `${base}/ajanlar`, label: 'Ajan atlası' },
@@ -48,10 +55,8 @@ const navGroups = [
   },
   { href: `${base}/guncellemeler`, label: 'Güncellemeler' },
   {
-    label: 'Referans',
+    label: 'Kılavuz & Belgeler',
     items: [
-      { href: `${base}/sozluk`, label: 'Sözlük' },
-      { href: `${base}/pano`, label: 'Pano' },
       { href: `${base}/kurulum`, label: 'Kurulum' },
       { href: `${base}/kararlar`, label: 'Kararlar' },
       { href: `${base}/gizlilik`, label: 'Gizlilik' },
