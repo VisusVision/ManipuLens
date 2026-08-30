@@ -66,6 +66,11 @@
 
 /* Koyu yuzey (teknik paneller, footer, kod blogu) */
 .ml-dark {
+  /* Degiskeni yeniden tanimlamak mirasla gelen rengi degistirmez: `color`
+     govdede bir kez hesaplaniyor ve cocuklara hesaplanmis deger olarak iniyor.
+     Bu yuzden koyu panelin icinde koyu metin kaliyor, yazi okunmuyordu.
+     Yuzeyin kendisi rengini burada yeniden kurar. */
+  color: var(--ml-ink);
   --ml-paper: var(--ml-navy);
   --ml-paper-warm: var(--ml-navy-soft);
   --ml-ink: #f5f7fb;

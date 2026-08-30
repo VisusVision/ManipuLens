@@ -7,8 +7,12 @@ import { getCollection } from 'astro:content';
 
 const ajanlar = (await getCollection('ajanlar')).sort((a, b) => a.data.order - b.data.order);
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+// Canlı Ajan Simülatörü kapalı: 2026-08-31'de Enes devre dışı bıraktı.
+// Açmak için tek satır yeter, işaretleme ve betik yerinde duruyor.
+const SIMULATOR_ACIK = false;
 ---
-<Base title="Ajan atlası" description="ManipuLens'in altı uzman ajanı: görev, renk, kaynak kod ve canlı simülatör.">
+<Base title="Ajan atlası" description="ManipuLens'in altı uzman ajanı: görev, renk ve kaynak kod karşılıkları.">
   <Section
     as="h1"
     num="00"
@@ -30,80 +34,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         ))}
       </tbody>
     </table>
-  </Section>
-
-  <!-- Canlı Simülatör Bölümü -->
-  <Section
-    as="h2"
-    num="01"
-    kicker="İnteraktif Deneyim"
-    title="Canlı Ajan Simülatörü"
-    lede="Örnek bir manipülatif metin seçin veya kendi metninizi yazın; 6 uzmanın metni nasıl ayrıştırdığını ve renkli etiketlediğini anında görün."
-  >
-    <div class="ml-sim-box" data-agent-sim>
-      <div class="ml-sim-presets">
-        <span class="ml-sim-presets__label">Örnek Metin Seç:</span>
-        <button
-          type="button"
-          class="ml-sim-btn is-active"
-          data-preset="1"
-        >
-          Kıtlık & Aciliyet
-        </button>
-        <button
-          type="button"
-          class="ml-sim-btn"
-          data-preset="2"
-        >
-          Sosyal Kanıt & Otorite
-        </button>
-        <button
-          type="button"
-          class="ml-sim-btn"
-          data-preset="3"
-        >
-          Korku & Çerçeveleme
-        </button>
-      </div>
-
-      <div class="ml-sim-input-wrap">
-        <textarea
-          class="ml-sim-textarea"
-          data-sim-input
-          rows="3"
-          placeholder="İncelemek istediğiniz metni buraya yapıştırın veya yukarıdaki hazır örneklerden birine tıklayın..."
-        >DİKKAT! Son 2 ürün kaldı. Hemen sipariş vermezseniz bu dev indirim bir daha ASLA tekrarlanmayacak! Stoklar tükeniyor.</textarea>
-        <button type="button" class="ml-sim-run-btn" data-sim-run>
-          <Icon ad="ajan" boyut={16} />
-          <span>Ajanları Çalıştır</span>
-        </button>
-      </div>
-
-      <!-- Simülasyon Sonuç Paneli -->
-      <div class="ml-sim-result" data-sim-result>
-        <div class="ml-sim-score-bar">
-          <div class="ml-sim-score-circle" data-sim-score-color>
-            <span class="ml-sim-score-val" data-sim-score-val>34</span>
-            <small>/100</small>
-          </div>
-          <div class="ml-sim-score-info">
-            <strong class="ml-sim-score-verdict" data-sim-verdict>Yüksek Manipülasyon Riski</strong>
-            <p class="ml-sim-score-summary" data-sim-summary>Pazarlama ve Davranışsal ajanları metinde yapay aciliyet ve kıtlık psikolojisi tespit etti.</p>
-          </div>
-        </div>
-
-        <div class="ml-sim-findings">
-          <h4>Tespit Edilen Cümleler & Ajan Eşleşmeleri:</h4>
-          <div class="ml-sim-rendered-text" data-sim-text-output>
-            <!-- Dinamik renklendirilmiş metin -->
-          </div>
-        </div>
-
-        <div class="ml-sim-agent-grid" data-sim-agent-grid>
-          <!-- Dinamik 6 ajan kartı -->
-        </div>
-      </div>
-    </div>
 
     <Layer kind="technical" title="Altı ajan, tek model ve tek çıktı sözleşmesi" as="h2">
       <p>
@@ -125,6 +55,85 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       </p>
     </Layer>
   </Section>
+
+  {/* Canlı simülatör: sahte veriyle çalışıyor, gerçek ajan çıktısı değil.
+      Bayrak `false` iken bölüm hiç basilmiyor; betik `[data-agent-sim]`
+      bulamayinca kendini kapatiyor, bicimler de kullanilmadan duruyor. */}
+  {SIMULATOR_ACIK && (
+    <Section
+      as="h2"
+      num="01"
+      kicker="İnteraktif Deneyim"
+      title="Canlı Ajan Simülatörü"
+      lede="Örnek bir manipülatif metin seçin veya kendi metninizi yazın; 6 uzmanın metni nasıl ayrıştırdığını ve renkli etiketlediğini anında görün."
+    >
+      <div class="ml-sim-box" data-agent-sim>
+        <div class="ml-sim-presets">
+          <span class="ml-sim-presets__label">Örnek Metin Seç:</span>
+          <button
+            type="button"
+            class="ml-sim-btn is-active"
+            data-preset="1"
+          >
+            Kıtlık & Aciliyet
+          </button>
+          <button
+            type="button"
+            class="ml-sim-btn"
+            data-preset="2"
+          >
+            Sosyal Kanıt & Otorite
+          </button>
+          <button
+            type="button"
+            class="ml-sim-btn"
+            data-preset="3"
+          >
+            Korku & Çerçeveleme
+          </button>
+        </div>
+
+        <div class="ml-sim-input-wrap">
+          <textarea
+            class="ml-sim-textarea"
+            data-sim-input
+            rows="3"
+            placeholder="İncelemek istediğiniz metni buraya yapıştırın veya yukarıdaki hazır örneklerden birine tıklayın..."
+          >DİKKAT! Son 2 ürün kaldı. Hemen sipariş vermezseniz bu dev indirim bir daha ASLA tekrarlanmayacak! Stoklar tükeniyor.</textarea>
+          <button type="button" class="ml-sim-run-btn" data-sim-run>
+            <Icon ad="ajan" boyut={16} />
+            <span>Ajanları Çalıştır</span>
+          </button>
+        </div>
+
+        <!-- Simülasyon Sonuç Paneli -->
+        <div class="ml-sim-result" data-sim-result>
+          <div class="ml-sim-score-bar">
+            <div class="ml-sim-score-circle" data-sim-score-color>
+              <span class="ml-sim-score-val" data-sim-score-val>34</span>
+              <small>/100</small>
+            </div>
+            <div class="ml-sim-score-info">
+              <strong class="ml-sim-score-verdict" data-sim-verdict>Yüksek Manipülasyon Riski</strong>
+              <p class="ml-sim-score-summary" data-sim-summary>Pazarlama ve Davranışsal ajanları metinde yapay aciliyet ve kıtlık psikolojisi tespit etti.</p>
+            </div>
+          </div>
+
+          <div class="ml-sim-findings">
+            <h4>Tespit Edilen Cümleler & Ajan Eşleşmeleri:</h4>
+            <div class="ml-sim-rendered-text" data-sim-text-output>
+              <!-- Dinamik renklendirilmiş metin -->
+            </div>
+          </div>
+
+          <div class="ml-sim-agent-grid" data-sim-agent-grid>
+            <!-- Dinamik 6 ajan kartı -->
+          </div>
+        </div>
+      </div>
+
+    </Section>
+  )}
 </Base>
 
 <script is:inline>
