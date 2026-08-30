@@ -79,6 +79,20 @@ const RESEND_COOLDOWN_SECS: i64 = 30; // Aynı e-postaya yeni kod için bekleme 
 const MAX_CODE_ATTEMPTS: u32 = 5; // Kod başına yanlış deneme hakkı
 const HISTORY_LIMIT: i64 = 200; // /v1/history en fazla bu kadar kayıt döner
 
+/// Geliştirme kolaylığı bayrağı: `AUTH_MAIL_DISABLED=1` iken 6 haneli e-posta
+/// kodu akışı tamamen atlanır — kayıt anında doğrulanmış sayılır ve şifre
+/// sıfırlama kod istemez. SMTP kodu (`lettre`, `send_code_email`) yerinde
+/// kalır; bayrak kaldırıldığında eski davranış birebir geri döner.
+///
+/// GÜVENLİK: bu mod açıkken `/v1/reset`, e-postayı bilen HERKESİN şifreyi
+/// değiştirmesine izin verir. Yalnızca yerel geliştirmede açılmalıdır;
+/// varsayılan kapalıdır ve açıkken sunucu başlangıçta uyarı basar.
+fn mail_disabled() -> bool {
+    std::env::var("AUTH_MAIL_DISABLED")
+        .map(|v| matches!(v.trim(), "1" | "true" | "TRUE"))
+        .unwrap_or(false)
+}
+
 /// Proje kökündeki .env dosyasını okur ve ortam değişkeni olarak yükler.
 /// (Harici dotenv bağımlılığına gerek kalmadan SMTP ayarlarını dosyadan almayı sağlar.)
 fn load_dotenv() {
@@ -443,12 +457,15 @@ async fn handle_register(
         );
     };
 
+    // Mail devre dışıyken kullanıcı doğrudan doğrulanmış başlar (kod beklenmez).
+    let mail_off = mail_disabled();
+
     let new_user = User {
         id: Uuid::new_v4().to_string(),
         email: email.clone(),
         password_hash,
         created_at: Local::now().to_rfc3339(),
-        verified: false,
+        verified: mail_off,
     };
 
     // UNIQUE(email) kısıtı yarış durumunda bile çifte kaydı engeller
@@ -459,6 +476,25 @@ async fn handle_register(
     }
 
     audit("register", json!({ "email": email }));
+
+    // Mail devre dışı: kod üretme, doğrudan oturum aç.
+    if mail_off {
+        let token = open_session(&state, &new_user.id, &new_user.email);
+        audit("register_auto_verified", json!({ "email": email }));
+        return Json(AuthResponse {
+            success: true,
+            message: pick(
+                lang,
+                "Hesabınız oluşturuldu ve giriş yapıldı (e-posta doğrulaması devre dışı).",
+                "Your account has been created and you are logged in (email verification is disabled).",
+            )
+            .to_string(),
+            client_id: Some(new_user.id.clone()),
+            email: Some(email),
+            needs_verification: None,
+            token: Some(token),
+        });
+    }
 
     // Doğrulama kodu üret ve gönder — sonucu kullanıcıya net bildir
     let mail_result = store_and_send_code(&state, "verify", &email, lang).await;
@@ -521,7 +557,13 @@ async fn handle_login(
     };
 
     match (user, password_ok) {
-        (Some(u), true) if u.verified => {
+        // Mail devre dışıyken eski (doğrulanmamış) kayıtlar da giriş yapabilir:
+        // kaydı bir kez doğrulanmış işaretleyip normal akışa devam ederiz.
+        (Some(u), true) if u.verified || mail_disabled() => {
+            if !u.verified {
+                state.db.set_verified(&email);
+                audit("login_auto_verified", json!({ "email": email }));
+            }
             {
                 let mut guards = state.login_guards.lock().await;
                 if let Some(g) = guards.get_mut(&email) {
@@ -585,6 +627,17 @@ async fn handle_verify(
     let email = payload.email.trim().to_lowercase();
     let code = payload.code.trim().to_string();
 
+    if mail_disabled() {
+        return auth_fail(
+            pick(
+                lang,
+                "E-posta doğrulaması devre dışı; doğrudan giriş yapabilirsiniz.",
+                "Email verification is disabled; you can log in directly.",
+            )
+            .to_string(),
+        );
+    }
+
     match consume_code(&state, "verify", &email, &code).await {
         CodeCheck::Ok => {}
         CodeCheck::TooManyAttempts => {
@@ -633,6 +686,17 @@ async fn handle_resend(
     let lang = norm_lang(&payload.lang);
     let email = payload.email.trim().to_lowercase();
 
+    if mail_disabled() {
+        return auth_fail(
+            pick(
+                lang,
+                "E-posta doğrulaması devre dışı; kod gönderilmiyor.",
+                "Email verification is disabled; no code is sent.",
+            )
+            .to_string(),
+        );
+    }
+
     let needs_code = matches!(state.db.user_by_email(&email), Some(u) if !u.verified);
 
     if needs_code {
@@ -665,6 +729,23 @@ async fn handle_forgot(
 ) -> Json<AuthResponse> {
     let lang = norm_lang(&payload.lang);
     let email = payload.email.trim().to_lowercase();
+
+    if mail_disabled() {
+        // Kod üretilmez; istemci doğrudan yeni şifre ekranına geçer.
+        return Json(AuthResponse {
+            success: true,
+            message: pick(
+                lang,
+                "Doğrulama kodu devre dışı; yeni şifrenizi doğrudan belirleyebilirsiniz.",
+                "Verification codes are disabled; you can set a new password directly.",
+            )
+            .to_string(),
+            client_id: None,
+            email: Some(email),
+            needs_verification: None,
+            token: None,
+        });
+    }
 
     if state.db.user_by_email(&email).is_some() {
         let mail_result = store_and_send_code(&state, "reset", &email, lang).await;
@@ -722,7 +803,19 @@ async fn handle_reset(
         );
     }
 
-    match consume_code(&state, "reset", &email, &code).await {
+    // Mail devre dışıyken kod kontrolü atlanır (yalnızca yerel geliştirme modu).
+    let skip_code = mail_disabled();
+    if skip_code {
+        audit("password_reset_no_code", json!({ "email": email }));
+    }
+
+    let code_check = if skip_code {
+        CodeCheck::Ok
+    } else {
+        consume_code(&state, "reset", &email, &code).await
+    };
+
+    match code_check {
         CodeCheck::Ok => {}
         CodeCheck::TooManyAttempts => {
             return auth_fail(
@@ -960,7 +1053,9 @@ fn summary_needs_translation(entry_lang: Option<&str>, text: &str, target: &str)
 
 // ========== HEALTH ==========
 async fn handle_health() -> Json<serde_json::Value> {
-    Json(json!({ "status": "ok" }))
+    // `mail_disabled`: istemci (uzantı) doğrulama/şifre-sıfırlama ekranlarını
+    // buna göre gizler; sunucuyla arayüz aynı modda kalır.
+    Json(json!({ "status": "ok", "mail_disabled": mail_disabled() }))
 }
 
 #[tokio::main]
@@ -975,6 +1070,14 @@ async fn main() {
 
     // .env dosyasındaki SMTP vb. ayarları yükle (varsa)
     load_dotenv();
+
+    if mail_disabled() {
+        tracing::warn!(
+            "AUTH_MAIL_DISABLED etkin: e-posta dogrulamasi ve sifre sifirlama kodu ATLANIYOR. \
+             Bu modda /v1/reset, e-postayi bilen herkesin sifreyi degistirmesine izin verir - \
+             yalnizca yerel gelistirmede kullanin."
+        );
+    }
 
     // SQLite aç + eski JSON verilerini (varsa) bir kez içe aktar
     let db = Db::open("manipulens.db").expect("SQLite veritabanı açılamadı");

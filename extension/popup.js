@@ -124,6 +124,7 @@ const i18n = {
     sendCodeBtn: "Kod Gönder",
     resetTitle: "Yeni Şifre Belirle",
     resetDesc: "E-postanıza gelen 6 haneli kodu ve yeni şifrenizi girin.",
+    resetDescNoCode: "Yeni şifrenizi belirleyin (e-posta doğrulaması devre dışı).",
     resetBtn: "Şifreyi Sıfırla",
     newPasswordPlaceholder: "Yeni Şifre",
     errCodeIncomplete: "Lütfen 6 haneli kodu eksiksiz girin.",
@@ -228,6 +229,7 @@ const i18n = {
     sendCodeBtn: "Send Code",
     resetTitle: "Set New Password",
     resetDesc: "Enter the 6-digit code from your email and your new password.",
+    resetDescNoCode: "Set your new password (email verification is disabled).",
     resetBtn: "Reset Password",
     newPasswordPlaceholder: "New Password",
     errCodeIncomplete: "Please enter the full 6-digit code.",
@@ -299,7 +301,8 @@ function applyLanguage() {
   document.getElementById("forgot-btn").innerText = t("sendCodeBtn");
   document.getElementById("forgot-back-link").innerText = t("backToLogin");
   document.getElementById("reset-title").innerText = t("resetTitle");
-  document.getElementById("reset-desc").innerText = t("resetDesc");
+  document.getElementById("reset-desc").innerText =
+    mailDisabled ? t("resetDescNoCode") : t("resetDesc");
   document.getElementById("reset-password").placeholder = t("newPasswordPlaceholder");
   document.getElementById("reset-password2").placeholder = t("passwordAgainPlaceholder");
   document.getElementById("reset-btn").innerText = t("resetBtn");
@@ -376,6 +379,42 @@ const BASE_URL_TTL = 5 * 60 * 1000;
 
 async function getBaseUrl(forceRefresh = false) {
   return "http://127.0.0.1:3000";
+}
+
+// ============== MAIL MODU (AUTH_MAIL_DISABLED) ==============
+// Sunucu e-posta doğrulamasını kapattıysa doğrulama ve kod ekranlarını
+// göstermenin anlamı yok. Durum /healthz'den okunur; sunucuya ulaşılamazsa
+// güvenli varsayılan olarak "mail açık" kabul edilir (eski davranış).
+let mailDisabled = false;
+
+async function refreshMailMode() {
+  try {
+    const baseUrl = await getBaseUrl();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(`${baseUrl}/healthz`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+        signal: controller.signal
+      });
+      const data = await response.json();
+      mailDisabled = data.mail_disabled === true;
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (e) {
+    mailDisabled = false;
+  }
+  applyMailModeUi();
+}
+
+// Mail kapalıyken: "şifremi unuttum" bağlantısı görünür kalır (şifre yine
+// değiştirilebilir) ama sıfırlama ekranındaki 6 haneli kod kutuları gizlenir.
+function applyMailModeUi() {
+  const resetCodes = document.getElementById("reset-codes");
+  if (resetCodes) resetCodes.style.display = mailDisabled ? "none" : "";
+  const resetDesc = document.getElementById("reset-desc");
+  if (resetDesc && mailDisabled) resetDesc.innerText = t("resetDescNoCode");
 }
 
 // Auth API çağrılarına arayüz dili otomatik eklenir (mesajlar seçili dilde gelir).
@@ -633,7 +672,11 @@ async function doRegister(email, password) {
     return {
       success: true,
       needsVerification: !!data.needs_verification,
-      message: data.message
+      message: data.message,
+      // Mail devre dışıyken sunucu kayıt anında oturum açar ve token döner.
+      token: data.token || null,
+      email: data.email,
+      clientId: data.client_id
     };
   } catch (error) {
     console.error("Register hatası:", error);
@@ -812,6 +855,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
+  // Sunucunun mail modunu öğren (doğrulama ekranları buna göre şekillenir)
+  await refreshMailMode();
+
   // Ekran kontrolü
   const kvkkOk = await checkKvkkAccepted();
   const loggedIn = await checkIsLoggedIn();
@@ -916,7 +962,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const result = await doRegister(username, password);
-    if (result.success) {
+    if (result.success && result.token) {
+      // Mail devre dışı: doğrulama ekranı yok, doğrudan oturum açıldı
+      await chrome.storage.local.set({
+        isLoggedIn: true,
+        currentUser: result.email || username,
+        client_id: result.clientId,
+        authToken: result.token
+      });
+      hideAuthScreen();
+    } else if (result.success) {
       // Kayıt sonrası e-posta doğrulama ekranına geç
       pendingEmail = username;
       showAuthView("verify");
@@ -1025,7 +1080,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const password = document.getElementById("reset-password").value;
     const password2 = document.getElementById("reset-password2").value;
 
-    if (code.length !== 6) {
+    // Mail devre dışıyken sunucu kodu zaten kontrol etmiyor.
+    if (!mailDisabled && code.length !== 6) {
       errEl.innerText = t("errCodeIncomplete");
       return;
     }

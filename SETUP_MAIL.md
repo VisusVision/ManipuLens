@@ -2,6 +2,33 @@
 
 Doğrulama ve şifre sıfırlama kodlarının maile gidebilmesi için **gönderici bir e-posta hesabı** gerekir. Sistem bu hesabı SMTP üzerinden kullanır. Hesap tanımlanmazsa mail gönderilemez; kodlar backend konsoluna yazılır (geliştirici modu).
 
+## Geliştirme sırasında maili tamamen kapatmak
+
+Ekip geliştirme yaparken her kayıt/giriş denemesinde 6 haneli kod girmek zaman
+kaybı. `.env` dosyasına şunu ekleyip backend'i yeniden başlatmak yeterli:
+
+```
+AUTH_MAIL_DISABLED=1
+```
+
+Bu modda:
+
+- `/v1/register` kullanıcıyı **doğrulanmış** oluşturur ve oturum token'ını
+  doğrudan döner — uzantı kayıt sonrası hemen içeri alır.
+- Daha önce doğrulanmamış kalmış hesaplar `/v1/login` ile giriş yapabilir;
+  kayıt bir kez doğrulanmış işaretlenir.
+- `/v1/verify` ve `/v1/resend` "devre dışı" mesajı döner.
+- `/v1/forgot` kod göndermez; `/v1/reset` kod istemeden şifreyi değiştirir.
+- `/healthz` yanıtına `"mail_disabled": true` eklenir; uzantı sıfırlama
+  ekranındaki kod kutularını buna bakarak gizler.
+- Sunucu açılışta uyarı satırı basar.
+
+**Güvenlik uyarısı:** bu mod açıkken `/v1/reset`, e-postayı bilen herkesin o
+hesabın şifresini değiştirmesine izin verir. Yalnızca yerel geliştirmede
+kullanın; üretimde `AUTH_MAIL_DISABLED` tanımsız veya `0` olmalıdır
+(varsayılan davranış zaten kapalıdır). SMTP kodu silinmedi — bayrak
+kaldırıldığında eski akış birebir geri döner.
+
 ## Gmail ile kurulum (önerilen, ~5 dakika)
 
 1. **2 Adımlı Doğrulamayı aç:** https://myaccount.google.com/security → "2 Adımlı Doğrulama" → etkinleştir. (Uygulama şifresi için zorunlu.)
