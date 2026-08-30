@@ -1,11 +1,9 @@
 ---
 /**
  * Yüzen Akıllı Eylem Çubuğu:
- * - Sayfa içi okuma ilerleme dairesi (%)
- * - Bir sonraki ana başlığa kaydıran tek tık butonu (↓)
+ * - Simetrik Çift Yönlü Başlık Gezgini: [ ↑ Önceki ] [ %42 ] [ ↓ Sonraki ]
  * - Hızlı Sade / Teknik mod anahtarı
  * - Klavye kısayolları yardımcısı (?)
- * - En yukarı çık (Back to Top) butonu
  * - Mobilde alt çekmece içindekiler (TOC) butonu
  */
 ---
@@ -47,42 +45,40 @@
     <span class="ml-floating-btn__mode-text" data-floating-mode-text>Sade</span>
   </button>
 
-  <!-- Bir Aşağı Ana Başlığa Kaydır Butonu -->
-  <button
-    type="button"
-    class="ml-floating-btn ml-floating-btn--next"
-    data-floating-next-btn
-    aria-label="Bir sonraki ana başlığa kaydır (J)"
-    title="Sonraki ana başlık (J)"
-  >
-    <span class="ml-floating-btn__icon">↓</span>
-    <span class="ml-floating-btn__label">Sonraki Başlık</span>
-  </button>
+  <!-- Simetrik Başlık Gezinme Grubu: [ ↑ Önceki ] [ %42 ] [ ↓ Sonraki ] -->
+  <div class="ml-floating-nav-pill">
+    <button
+      type="button"
+      class="ml-floating-nav-btn ml-floating-nav-btn--prev"
+      data-floating-prev-btn
+      aria-label="Önceki ana başlığa kaydır (K veya ↑)"
+      title="Önceki ana başlık (K)"
+    >
+      <span class="ml-floating-nav-icon">↑</span>
+      <span class="ml-floating-nav-label">Önceki</span>
+    </button>
 
-  <!-- En Yukarı Çık & İlerleme Dairesi -->
-  <button
-    type="button"
-    class="ml-floating-btn ml-floating-btn--top"
-    data-floating-top-btn
-    aria-label="En yukarı çık (G)"
-    title="En yukarı çık (G)"
-    hidden
-  >
-    <svg class="ml-floating-ring" viewBox="0 0 36 36" aria-hidden="true">
-      <path
-        class="ml-floating-ring__bg"
-        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-      ></path>
-      <path
-        class="ml-floating-ring__bar"
-        data-floating-ring-bar
-        stroke-dasharray="0, 100"
-        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-      ></path>
-    </svg>
-    <span class="ml-floating-btn__top-arrow" aria-hidden="true">↑</span>
-    <span class="ml-floating-btn__pct" data-floating-pct>0%</span>
-  </button>
+    <button
+      type="button"
+      class="ml-floating-nav-pct"
+      data-floating-pct-btn
+      aria-label="Okuma ilerlemesi - En yukarı çık (G)"
+      title="Okuma İlerlemesi (Tıkla: En Başa Dön)"
+    >
+      <span data-floating-pct>0%</span>
+    </button>
+
+    <button
+      type="button"
+      class="ml-floating-nav-btn ml-floating-nav-btn--next"
+      data-floating-next-btn
+      aria-label="Sonraki ana başlığa kaydır (J veya ↓)"
+      title="Sonraki ana başlık (J)"
+    >
+      <span class="ml-floating-nav-icon">↓</span>
+      <span class="ml-floating-nav-label">Sonraki</span>
+    </button>
+  </div>
 </div>
 
 <!-- Mobil İçindekiler Çekmecesi -->
@@ -143,9 +139,9 @@
 <script is:inline>
   function mlYuzenKontrollerKur() {
     var bar = document.querySelector('[data-floating-controls]');
-    var topBtn = document.querySelector('[data-floating-top-btn]');
+    var prevBtn = document.querySelector('[data-floating-prev-btn]');
     var nextBtn = document.querySelector('[data-floating-next-btn]');
-    var ringBar = document.querySelector('[data-floating-ring-bar]');
+    var pctBtn = document.querySelector('[data-floating-pct-btn]');
     var pctText = document.querySelector('[data-floating-pct]');
     var modeBtn = document.querySelector('[data-floating-mode-btn]');
     var modeText = document.querySelector('[data-floating-mode-text]');
@@ -159,33 +155,24 @@
 
     if (!bar) return;
 
-    // 1. İlerleme & Yukarı Çık
+    // 1. İlerleme Güncelleme
     function scrollGuncelle() {
       var max = document.documentElement.scrollHeight - window.innerHeight;
       var y = window.scrollY;
       var oran = max > 0 ? Math.min(1, Math.max(0, y / max)) : 0;
       var yuzde = Math.round(oran * 100);
 
-      if (ringBar) ringBar.setAttribute('stroke-dasharray', yuzde + ', 100');
       if (pctText) pctText.textContent = yuzde + '%';
-
-      if (topBtn) {
-        if (y > 280) {
-          topBtn.hidden = false;
-        } else {
-          topBtn.hidden = true;
-        }
-      }
     }
 
-    if (topBtn) {
-      topBtn.addEventListener('click', function (e) {
+    if (pctBtn) {
+      pctBtn.addEventListener('click', function (e) {
         e.preventDefault();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
 
-    // 2. Bir Aşağı Ana Başlığa Kaydır
+    // 2. Bir Aşağı Ana Başlığa Kaydır (J / ↓)
     function sonrakiBasligaGit() {
       var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca], .ml-endless-ayrac'));
       var curY = window.scrollY + 100;
@@ -206,6 +193,27 @@
       }
     }
 
+    // 3. Bir Yukarı Ana Başlığa Kaydır (K / ↑)
+    function oncekiBasligaGit() {
+      var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca], .ml-endless-ayrac'));
+      var curY = window.scrollY + 40;
+      var hedef = null;
+
+      for (var i = sections.length - 1; i >= 0; i--) {
+        var top = sections[i].getBoundingClientRect().top + window.scrollY;
+        if (top < curY - 20) {
+          hedef = top;
+          break;
+        }
+      }
+
+      if (hedef !== null) {
+        window.scrollTo({ top: Math.max(0, hedef - 60), behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
     if (nextBtn) {
       nextBtn.addEventListener('click', function (e) {
         e.preventDefault();
@@ -213,7 +221,14 @@
       });
     }
 
-    // 3. Mod Senkronizasyonu
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        oncekiBasligaGit();
+      });
+    }
+
+    // 4. Mod Senkronizasyonu
     function modDegistir() {
       var current = document.documentElement.getAttribute('data-ml-mode') || 'sade';
       var next = current === 'teknik' ? 'sade' : 'teknik';
@@ -239,7 +254,7 @@
       });
     }
 
-    // 4. Mobil İçindekiler Çekmecesi
+    // 5. Mobil İçindekiler Çekmecesi
     function tocDoldur() {
       if (!tocList) return;
       tocList.innerHTML = '';
@@ -309,7 +324,7 @@
       });
     });
 
-    // 5. Kısayol Modalı
+    // 6. Kısayol Modalı
     function kbdAc() {
       if (kbdModal) {
         kbdModal.hidden = false;
@@ -340,7 +355,7 @@
       });
     });
 
-    // 6. Global Klavye Gezinme Dinleyicisi (J / K / T / G / ?)
+    // 7. Global Klavye Gezinme Dinleyicisi (J / K / T / G / ?)
     window.addEventListener('keydown', function (e) {
       var tag = (document.activeElement && document.activeElement.tagName) || '';
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -367,15 +382,7 @@
       } else if (e.key === 'k' || e.key === 'K') {
         if (!e.ctrlKey && !e.metaKey) {
           e.preventDefault();
-          var sections = Array.prototype.slice.call(document.querySelectorAll('main .ml-section, main [data-parca], .ml-endless-ayrac'));
-          var curY = window.scrollY + 40;
-          for (var i = sections.length - 1; i >= 0; i--) {
-            var top = sections[i].getBoundingClientRect().top + window.scrollY;
-            if (top < curY - 20) {
-              window.scrollTo({ top: Math.max(0, top - 60), behavior: 'smooth' });
-              break;
-            }
-          }
+          oncekiBasligaGit();
         }
       } else if (e.key === 'Escape') {
         if (kbdModal && !kbdModal.hidden) kbdKapat();
@@ -442,21 +449,6 @@
     transform: scale(0.96);
   }
 
-  .ml-floating-btn--next {
-    background: var(--ml-scan-dim);
-    color: var(--ml-scan);
-    border-color: rgba(35, 201, 214, 0.35);
-  }
-  .ml-floating-btn--next:hover {
-    background: var(--ml-scan);
-    color: #f5f7fb;
-    border-color: var(--ml-scan);
-  }
-  .ml-floating-btn--next .ml-floating-btn__icon {
-    font-size: 0.95rem;
-    font-weight: 700;
-  }
-
   .ml-floating-btn--kbd {
     width: 2.35rem;
     padding: 0;
@@ -470,63 +462,79 @@
   }
   @media (max-width: 60rem) {
     .ml-floating-btn--toc { display: inline-flex; }
-    .ml-floating-btn--next .ml-floating-btn__label { display: none; }
-    .ml-floating-btn--next { width: 2.35rem; padding: 0; }
   }
 
   .ml-floating-btn--mode .ml-floating-btn__icon--teknik { display: none; }
   :global([data-ml-mode='teknik']) .ml-floating-btn--mode .ml-floating-btn__icon--sade { display: none; }
   :global([data-ml-mode='teknik']) .ml-floating-btn--mode .ml-floating-btn__icon--teknik { display: inline; }
 
-  .ml-floating-btn--top {
-    width: 2.35rem;
-    padding: 0;
-    overflow: hidden;
-  }
-  .ml-floating-btn--top:hover .ml-floating-btn__pct {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  .ml-floating-btn--top:hover .ml-floating-btn__top-arrow {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .ml-floating-btn__pct {
-    font-family: var(--ml-font-mono);
-    font-size: 0.64rem;
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    transition: opacity 0.15s ease, transform 0.15s ease;
-  }
-  .ml-floating-btn__top-arrow {
-    position: absolute;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--ml-scan);
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.15s ease, transform 0.15s ease;
+  /* Simetrik Gezinme Grubu */
+  .ml-floating-nav-pill {
+    display: inline-flex;
+    align-items: center;
+    background: var(--ml-paper-warm);
+    border: 1px solid var(--ml-line-soft);
+    border-radius: 999px;
+    padding: 2px;
+    gap: 2px;
   }
 
-  .ml-floating-ring {
-    position: absolute;
-    inset: 2px;
-    width: calc(100% - 4px);
-    height: calc(100% - 4px);
-    pointer-events: none;
-    transform: rotate(-90deg);
+  .ml-floating-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    height: 2.15rem;
+    padding: 0 0.65rem;
+    background: transparent;
+    color: var(--ml-ink);
+    border: none;
+    border-radius: 999px;
+    font-family: var(--ml-font-body);
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--ml-duration) var(--ml-ease), color var(--ml-duration) var(--ml-ease), transform var(--ml-duration) var(--ml-ease);
   }
-  .ml-floating-ring__bg {
-    fill: none;
-    stroke: var(--ml-line-soft);
-    stroke-width: 2.5;
+  .ml-floating-nav-btn:hover {
+    background: var(--ml-scan-dim);
+    color: var(--ml-scan);
   }
-  .ml-floating-ring__bar {
-    fill: none;
-    stroke: var(--ml-scan);
-    stroke-width: 2.8;
-    stroke-linecap: round;
-    transition: stroke-dasharray 0.1s linear;
+  .ml-floating-nav-btn:active {
+    transform: scale(0.95);
+  }
+  .ml-floating-nav-icon {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .ml-floating-nav-pct {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.15rem;
+    min-width: 2.5rem;
+    padding: 0 0.4rem;
+    background: var(--ml-card-bg);
+    color: var(--ml-scan);
+    border: 1px solid var(--ml-card-border);
+    border-radius: 999px;
+    font-family: var(--ml-font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background var(--ml-duration) var(--ml-ease), color var(--ml-duration) var(--ml-ease);
+  }
+  .ml-floating-nav-pct:hover {
+    background: var(--ml-scan);
+    color: #f5f7fb;
+  }
+
+  @media (max-width: 60rem) {
+    .ml-floating-nav-label { display: none; }
+    .ml-floating-nav-btn { padding: 0 0.5rem; width: 2.15rem; }
   }
 
   /* Mobil İçindekiler Çekmecesi */
