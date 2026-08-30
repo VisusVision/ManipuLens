@@ -27,7 +27,6 @@ const nav = [
   { href: `${base}/`, label: 'Başlangıç' },
   { href: `${base}/nasil-calisir`, label: 'Nasıl çalışır?' },
   { href: `${base}/sozluk`, label: 'Sözlük' },
-  { href: `${base}/pano`, label: 'Pano' },
   { href: `${base}/parcalar`, label: 'Parçalar' },
   { href: `${base}/ajanlar`, label: 'Ajan atlası' },
   { href: `${base}/kod`, label: 'Kod okuma' },
@@ -38,17 +37,12 @@ const nav = [
   { href: `${base}/gizlilik`, label: 'Gizlilik' },
   { href: `${base}/sss`, label: 'SSS' },
   { href: `${base}/yol-haritasi`, label: 'Yol haritası' },
+  { href: `${base}/pano`, label: 'Pano' },
 ];
 const navGroups = [
   { href: `${base}/`, label: 'Başlangıç' },
   { href: `${base}/nasil-calisir`, label: 'Nasıl çalışır?' },
-  {
-    label: 'Sözlük & Pano',
-    items: [
-      { href: `${base}/sozluk`, label: 'Sözlük' },
-      { href: `${base}/pano`, label: 'Canlı Pano' },
-    ],
-  },
+  { href: `${base}/sozluk`, label: 'Sözlük' },
   {
     label: 'Mimari & Kod',
     items: [
@@ -69,6 +63,7 @@ const navGroups = [
       { href: `${base}/yol-haritasi`, label: 'Yol haritası' },
     ],
   },
+  { href: `${base}/pano`, label: 'Pano' },
 ];
 
 const current = Astro.url.pathname.replace(/\/$/, '') || base;
