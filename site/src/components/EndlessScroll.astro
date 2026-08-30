@@ -81,11 +81,13 @@ const { nav, current } = Astro.props;
     ];
 
     var sonYuklenen = index;
-    var yukleniyor = false;
-    var bitti = index >= sira.length - 1;
+    var ilkYuklenen = index;
+    var yukleniyorAsagi = false;
+    var yukleniyorYukari = false;
+    var asagiBitti = index >= sira.length - 1;
+    var yukariBitti = index <= 0;
     var sonEl = document.querySelector('[data-endless-son]');
-    // Zincirin son rotasinda acilmissa eklenecek bir sey yok; notu hemen goster.
-    if (bitti && sonEl) sonEl.hidden = false;
+    if (asagiBitti && sonEl) sonEl.hidden = false;
 
     function betikleriCalistir(kok) {
       Array.prototype.forEach.call(kok.querySelectorAll('script'), function (eski) {
@@ -98,14 +100,14 @@ const { nav, current } = Astro.props;
       });
     }
 
-    function yukle() {
-      if (yukleniyor || bitti) return;
+    function yukleAsagi() {
+      if (yukleniyorAsagi || asagiBitti) return;
       var hedef = sira[sonYuklenen + 1];
       if (!hedef) {
-        bitti = true;
+        asagiBitti = true;
         return;
       }
-      yukleniyor = true;
+      yukleniyorAsagi = true;
 
       fetch(hedef.href + '/')
         .then(function (y) {
@@ -151,18 +153,96 @@ const { nav, current } = Astro.props;
           });
 
           sonYuklenen += 1;
-          yukleniyor = false;
+          yukleniyorAsagi = false;
           if (sonYuklenen >= sira.length - 1) {
-            bitti = true;
+            asagiBitti = true;
             if (sonEl) sonEl.hidden = false;
           }
           olc();
         })
         .catch(function () {
-          // Ag hatasinda zinciri sessizce durdur: okuyucu ust menuden gezmeye
-          // devam edebilir, kirik bir blok eklemektense hic eklememek iyi.
-          yukleniyor = false;
-          bitti = true;
+          yukleniyorAsagi = false;
+          asagiBitti = true;
+        });
+    }
+
+    function yukleYukari() {
+      if (yukleniyorYukari || yukariBitti) return;
+      var hedef = sira[ilkYuklenen - 1];
+      if (!hedef) {
+        yukariBitti = true;
+        return;
+      }
+      yukleniyorYukari = true;
+
+      fetch(hedef.href + '/')
+        .then(function (y) {
+          if (!y.ok) throw new Error('HTTP ' + y.status);
+          return y.text();
+        })
+        .then(function (html) {
+          var belge = new DOMParser().parseFromString(html, 'text/html');
+          var kaynak = belge.getElementById('icerik');
+          if (!kaynak) throw new Error('icerik yok');
+
+          var eskiScrollYukseklik = document.documentElement.scrollHeight;
+          var eskiScrollY = window.scrollY;
+
+          var frag = document.createDocumentFragment();
+
+          var eklenen = [];
+          while (kaynak.firstChild) {
+            var dugum = document.adoptNode(kaynak.firstChild);
+            frag.appendChild(dugum);
+            if (dugum.nodeType === 1) eklenen.push(dugum);
+          }
+
+          var isaret = document.createElement('div');
+          isaret.className = 'ml-endless-ayrac ml-endless-ayrac--yukari';
+          isaret.setAttribute('data-endless-rota', sira[ilkYuklenen].href);
+          var etiket = document.createElement('span');
+          etiket.textContent = 'Bölüm';
+          var ad = document.createElement('strong');
+          ad.textContent = sira[ilkYuklenen].label;
+          isaret.appendChild(etiket);
+          isaret.appendChild(ad);
+          frag.appendChild(isaret);
+
+          main.insertBefore(frag, main.firstChild);
+
+          var yeniScrollYukseklik = document.documentElement.scrollHeight;
+          var fark = yeniScrollYukseklik - eskiScrollYukseklik;
+          window.scrollTo({ top: eskiScrollY + fark, behavior: 'instant' });
+
+          eklenen.forEach(function (el) {
+            betikleriCalistir(el);
+            if (window.mlTerimTara) window.mlTerimTara(el);
+          });
+          if (window.mlRevealTara) window.mlRevealTara();
+
+          bloklar.unshift({
+            href: hedef.href,
+            label: hedef.label,
+            baslik: (belge.title || hedef.label).trim(),
+            isaret: null,
+            bolumler: bolumleriTopla(eklenen),
+            teknik: teknikSay(eklenen),
+          });
+
+          if (bloklar[1]) {
+            bloklar[1].isaret = isaret;
+          }
+
+          ilkYuklenen -= 1;
+          yukleniyorYukari = false;
+          if (ilkYuklenen <= 0) {
+            yukariBitti = true;
+          }
+          olc();
+        })
+        .catch(function () {
+          yukleniyorYukari = false;
+          yukariBitti = true;
         });
     }
 
@@ -172,7 +252,9 @@ const { nav, current } = Astro.props;
       var esik = window.innerHeight * 0.3;
       var secili = bloklar[0];
       for (var i = 1; i < bloklar.length; i++) {
-        if (bloklar[i].isaret.getBoundingClientRect().top <= esik) secili = bloklar[i];
+        if (bloklar[i].isaret && bloklar[i].isaret.getBoundingClientRect().top <= esik) {
+          secili = bloklar[i];
+        }
       }
 
       if (secili.href !== aktifHref) {
@@ -186,14 +268,14 @@ const { nav, current } = Astro.props;
         document.title = secili.baslik;
         try {
           history.replaceState(null, '', secili.href + '/');
-        } catch (e) {
-          /* dosya protokolunde replaceState yasak; gezinme yine calisir */
-        }
+        } catch (e) {}
       }
 
       var kalan =
         document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
-      if (kalan < window.innerHeight * 1.5) yukle();
+      if (kalan < window.innerHeight * 1.5) yukleAsagi();
+
+      if (window.scrollY < window.innerHeight * 0.8 && !yukariBitti) yukleYukari();
     }
 
     window.addEventListener('scroll', olc, { passive: true });
