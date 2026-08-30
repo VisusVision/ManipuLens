@@ -36,6 +36,19 @@ pub struct TranslateReportRequest {
     pub lang: String,
 }
 
+/// Bir analizde tek uzman ajanın kompakt kararı. Geçmiş satırında JSON dizi
+/// olarak saklanır; alan adları kısa tutuldu çünkü kullanıcı başına yüzlerce
+/// satırda tekrarlanıyor.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AgentVerdict {
+    /// Manipülasyon tipi: "Dilsel" | "Psikolojik" | "Davranışsal" | "Algısal" | "Sosyal" | "Pazarlama"
+    pub t: String,
+    /// Ajan tespit etti mi
+    pub d: bool,
+    /// Güven skoru (0.0-1.0)
+    pub c: f32,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HistoryEntry {
     pub timestamp: String,
@@ -48,6 +61,61 @@ pub struct HistoryEntry {
     /// yoktur (None) — o durumda dil sezgisel olarak tespit edilir.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
+    /// Kullanıcının UUID'si. Veri seti dışa aktarımı e-posta yerine bunu
+    /// kullanır. Eski kayıtlarda yoktur (None) — dışa aktarımda `users`
+    /// tablosundan e-postayla çözülür.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    /// 6 uzman ajanın o analizdeki kararları. Eskiden hiç saklanmıyordu;
+    /// kullanıcı profili bu alan olmadan yalnızca baskın tipi görebiliyordu.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agents: Option<Vec<AgentVerdict>>,
+    /// Pazarlama ajanının çıkardığı ürün/sektör cümlesi (varsa).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub predicted_product: Option<String>,
+    /// Analiz edilen metnin karakter uzunluğu (tam metin saklanmaz).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text_len: Option<i64>,
+}
+
+/// Kullanıcı profili: sayaç katmanı (her analizde, LLM'siz) + çıkarım katmanı
+/// (N analizde bir, LLM ile). Kart 2'de demografi ajanı `inference` alanını
+/// doldurur; `stats` bu turda da üretilir.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserProfile {
+    pub user_id: String,
+    /// Deterministik sayaçlar — tahmin değil, ölçüm.
+    pub stats: ProfileStats,
+    /// LLM çıkarımı (demografi ajanı). Henüz üretilmediyse None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference: Option<serde_json::Value>,
+    /// Çıkarımı üreten sürüm etiketi ("stats-v1", "demographic-v1", ...).
+    pub model_version: String,
+    pub updated_at: String,
+}
+
+/// Kullanıcının analiz geçmişinden doğrudan sayılan büyüklükler.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct ProfileStats {
+    /// Toplam analiz sayısı
+    pub total: i64,
+    /// Manipülatif bulunan analiz sayısı
+    pub manipulated: i64,
+    /// Manipülasyon tipi -> kaç kez baskın çıktı
+    pub dominant_counts: std::collections::BTreeMap<String, i64>,
+    /// Manipülasyon tipi -> ajanın kaç kez tespit ettiği (baskın olmasa da)
+    pub agent_detect_counts: std::collections::BTreeMap<String, i64>,
+    /// Dil -> analiz sayısı
+    pub lang_counts: std::collections::BTreeMap<String, i64>,
+    /// Pazarlama ajanının en sık çıkardığı ürün/sektör cümleleri (en fazla 10)
+    pub top_products: Vec<String>,
+    /// Ortalama metin uzunluğu (karakter)
+    pub avg_text_len: i64,
+    /// En eski ve en yeni analiz zaman damgası
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_seen: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_seen: Option<String>,
 }
 
 // ===== Auth =====

@@ -58,6 +58,36 @@ ManipuLens, içeriklerin anlamsal bütünlüğünü ayrıştırmak, incelemek ve
 
 ---
 
+## 📊 Kullanıcı Profili ve Veri Seti
+
+Her analiz, 6 uzman ajanın kararıyla birlikte SQLite `history` tablosuna yazılır
+(tam metin değil, 120 karakterlik önizleme). Bunun üstünde iki katmanlı bir
+kullanıcı profili durur:
+
+- **Sayaç katmanı** — her analizden sonra, isteğin dışında (`tokio::spawn`) ve
+  LLM çağrısı olmadan güncellenir. Toplam analiz, manipülatif oran, baskın
+  tip dağılımı, ajan bazlı tespit sayıları, dil dağılımı, ürün/sektör
+  tahminleri, ortalama metin uzunluğu.
+- **Çıkarım katmanı** — demografi ajanı; her analizde değil, birkaç analizde
+  bir tazelenir (bir analiz zaten 7 Ollama çağrısı yapıyor).
+
+En az 5 analiz olmadan profil üretilmez. Kullanıcı kendi profilini görür ve
+silebilir; başkasının profiline erişim yoktur (kimlik yalnızca oturum
+token'ından türetilir).
+
+```
+GET  /v1/profile          → kendi profilin (yoksa exists:false)
+POST /v1/profile/delete   → kendi profilini sil (geçmişe dokunmaz)
+```
+
+**Veri seti dışa aktarımı** — sunucu açmadan çalışır, satır başına bir analiz:
+
+```
+cargo run -- --export-dataset dataset.jsonl
+```
+
+Gizlilik: dışa aktarımda e-posta yer almaz; kullanıcı ayrımı UUID ile yapılır.
+
 ## 🗺️ Sistem Mimarisi
 
 ManipuLens, ana olay döngülerini engellemeden karmaşık çoklu ajan analizlerini yönetmek için optimize edilmiş asenkron bir işlem hattı kullanır:

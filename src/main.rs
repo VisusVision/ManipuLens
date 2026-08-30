@@ -3,6 +3,7 @@ mod audit;
 mod auth;
 mod db;
 mod orchestrator;
+mod profile;
 mod types;
 
 use audit::audit;
@@ -929,8 +930,35 @@ async fn handle_analyze(
                 // Özet hangi dilde üretildiyse kaydet: /v1/history dil
                 // tutarlılığı artık tahmine değil bu alana dayanır.
                 lang: Some(lang.to_string()),
+                // Veri seti katmanı: kimlik e-postayla değil UUID ile taşınır,
+                // ve 6 uzman ajanın kararı da saklanır (eskiden atılıyordu).
+                user_id: Some(session.user_id.clone()),
+                agents: Some(
+                    report
+                        .detailed_analyses
+                        .iter()
+                        .map(|a| AgentVerdict {
+                            t: a.manipulation_type.clone(),
+                            d: a.detected,
+                            c: a.confidence_score,
+                        })
+                        .collect(),
+                ),
+                predicted_product: report.predicted_product.clone(),
+                text_len: Some(text.chars().count() as i64),
             };
             state.db.insert_history(&entry);
+
+            // Profil sayaçlarını isteğin DIŞINDA tazele: kullanıcı raporunu
+            // beklemeden alır, profil birkaç milisaniye sonra güncellenir.
+            {
+                let state = Arc::clone(&state);
+                let user_id = session.user_id.clone();
+                let client_id = session.email.clone();
+                tokio::spawn(async move {
+                    profile::refresh_stats(&state.db, &user_id, &client_id);
+                });
+            }
 
             // Yapılandırılmış denetim logu (tam metin loglanmaz; önizleme +
             // uzunluk yeterli — tam sonuç kullanıcının geçmişinde saklı).
@@ -1051,6 +1079,42 @@ fn summary_needs_translation(entry_lang: Option<&str>, text: &str, target: &str)
     }
 }
 
+// ========== PROFILE ==========
+/// Kullanıcının kendi profilini döner. Başkasının profiline erişim yoktur:
+/// kimlik yalnızca oturum token'ından türetilir.
+async fn handle_profile(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(session) = authenticate(&state, &headers) else {
+        return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
+    };
+
+    match state.db.profile_for_user(&session.user_id) {
+        Some(p) => Ok(Json(json!({ "exists": true, "profile": p }))),
+        // Henüz yeterli analiz yok: hata değil, "profil oluşmadı" durumu.
+        None => Ok(Json(json!({
+            "exists": false,
+            "min_analyses": profile::PROFILE_MIN_ANALYSES
+        }))),
+    }
+}
+
+/// Kullanıcı kendi profilini siler (KVKK: veriyi kaldırma hakkı).
+/// Geçmiş kayıtlarına dokunulmaz; yalnızca türetilmiş profil silinir.
+async fn handle_profile_delete(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(session) = authenticate(&state, &headers) else {
+        return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
+    };
+
+    let deleted = state.db.delete_profile(&session.user_id);
+    audit("profile_deleted", json!({ "user_id": session.user_id, "existed": deleted }));
+    Ok(Json(json!({ "deleted": deleted })))
+}
+
 // ========== HEALTH ==========
 async fn handle_health() -> Json<serde_json::Value> {
     // `mail_disabled`: istemci (uzantı) doğrulama/şifre-sıfırlama ekranlarını
@@ -1082,6 +1146,26 @@ async fn main() {
     // SQLite aç + eski JSON verilerini (varsa) bir kez içe aktar
     let db = Db::open("manipulens.db").expect("SQLite veritabanı açılamadı");
     db.migrate_from_json_files();
+
+    // Veri seti dışa aktarımı: sunucu açmadan çalışır ve çıkar.
+    //   manipulation-detector --export-dataset dataset.jsonl
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|a| a == "--export-dataset") {
+        let Some(path) = args.get(pos + 1) else {
+            eprintln!("Kullanım: --export-dataset <cikti.jsonl>");
+            std::process::exit(2);
+        };
+        match profile::export_dataset(&db, path) {
+            Ok(n) => {
+                println!("{} kayıt dışa aktarıldı → {}", n, path);
+                std::process::exit(0);
+            }
+            Err(e) => {
+                eprintln!("Dışa aktarım başarısız: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 
     // Chrome Extension + ngrok için düzeltilmiş CORS ayarı
     let cors = CorsLayer::new()
@@ -1117,6 +1201,8 @@ async fn main() {
         .route("/v1/analyze", post(handle_analyze))
         .route("/v1/translate-report", post(handle_translate_report))
         .route("/v1/history", get(handle_history))
+        .route("/v1/profile", get(handle_profile))
+        .route("/v1/profile/delete", post(handle_profile_delete))
         .route("/healthz", get(handle_health))
         .layer(cors)
         .with_state(state);

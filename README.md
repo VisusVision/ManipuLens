@@ -58,6 +58,35 @@ ManipuLens relies on a structured hierarchy of local generative agents to parse,
 
 ---
 
+## 📊 User Profile and Dataset
+
+Every analysis is written to the SQLite `history` table together with the six
+expert agents' verdicts (not the full text — a 120-character preview). A
+two-layer user profile is built on top of it:
+
+- **Counter layer** — refreshed after every analysis, outside the request
+  (`tokio::spawn`) and without any LLM call. Totals, manipulated ratio,
+  dominant-type distribution, per-agent detection counts, language mix,
+  product/sector predictions, average text length.
+- **Inference layer** — the demographic agent; refreshed every few analyses
+  rather than on every one (a single analysis already makes 7 Ollama calls).
+
+No profile is produced below 5 analyses. A user can read and delete their own
+profile only; identity is derived solely from the session token.
+
+```
+GET  /v1/profile          → your own profile (exists:false if not built yet)
+POST /v1/profile/delete   → delete your own profile (history untouched)
+```
+
+**Dataset export** — runs without starting the server, one analysis per line:
+
+```
+cargo run -- --export-dataset dataset.jsonl
+```
+
+Privacy: the export contains no email addresses; users are separated by UUID.
+
 ## 🗺️ System Architecture
 
 ManipuLens employs a highly optimized asynchronous processing pipeline designed to handle complex multi-agent analysis without blocking the main event loops:

@@ -6,7 +6,7 @@
 //! dosyasında tutulur. İlk açılışta eski JSON dosyaları varsa İÇE AKTARILIR
 //! (dosyalar silinmez/değiştirilmez — geri dönüş her zaman mümkün).
 
-use crate::types::{HistoryEntry, User};
+use crate::types::{AgentVerdict, HistoryEntry, User, UserProfile};
 use rusqlite::{params, Connection};
 use std::sync::Mutex;
 
@@ -63,9 +63,15 @@ impl Db {
         )
         .map_err(|e| e.to_string())?;
 
-        // Şema göçü: eski kurulumlarda history tablosunda lang sütunu yok.
+        // Şema göçü: eski kurulumlarda history tablosunda bu sütunlar yok.
         // ALTER TABLE idempotent değil; sütun zaten varsa hata döner, yok sayılır.
         let _ = conn.execute("ALTER TABLE history ADD COLUMN lang TEXT", []);
+        // Veri seti katmanı: kimlik e-posta yerine UUID ile taşınsın ve 6
+        // uzman ajanın kararı da saklansın (eskiden yalnızca baskın tip vardı).
+        let _ = conn.execute("ALTER TABLE history ADD COLUMN user_id TEXT", []);
+        let _ = conn.execute("ALTER TABLE history ADD COLUMN agents_json TEXT", []);
+        let _ = conn.execute("ALTER TABLE history ADD COLUMN predicted_product TEXT", []);
+        let _ = conn.execute("ALTER TABLE history ADD COLUMN text_len INTEGER", []);
 
         conn.execute_batch(
             r#"
@@ -75,6 +81,13 @@ impl Db {
                 email      TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 expires_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                user_id        TEXT PRIMARY KEY,
+                profile_json   TEXT NOT NULL,
+                analyzed_count INTEGER NOT NULL,
+                model_version  TEXT NOT NULL,
+                updated_at     TEXT NOT NULL
             );
             "#,
         )
@@ -178,9 +191,15 @@ impl Db {
 
     pub fn insert_history(&self, entry: &HistoryEntry) {
         let conn = self.conn.lock().unwrap();
+        // Ajan kararları tek JSON sütununda: 6 satır yerine 1 satır, ve
+        // ajan listesi değişirse şema göçü gerekmez.
+        let agents_json = entry
+            .agents
+            .as_ref()
+            .and_then(|a| serde_json::to_string(a).ok());
         let _ = conn.execute(
-            "INSERT INTO history (timestamp, client_id, text_preview, is_manipulated, dominant_manipulation, genel_sonuc, lang)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO history (timestamp, client_id, text_preview, is_manipulated, dominant_manipulation, genel_sonuc, lang, user_id, agents_json, predicted_product, text_len)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 entry.timestamp,
                 entry.client_id,
@@ -188,9 +207,36 @@ impl Db {
                 entry.is_manipulated as i64,
                 entry.dominant_manipulation,
                 entry.genel_sonuc,
-                entry.lang
+                entry.lang,
+                entry.user_id,
+                agents_json,
+                entry.predicted_product,
+                entry.text_len
             ],
         );
+    }
+
+    /// history satırından HistoryEntry kurar. Sütun sırası SELECT'lerde
+    /// ortaktır: timestamp, client_id, text_preview, is_manipulated,
+    /// dominant_manipulation, genel_sonuc, lang, user_id, agents_json,
+    /// predicted_product, text_len — `offset` ilk sütunun indeksidir.
+    fn row_to_entry(r: &rusqlite::Row, offset: usize) -> rusqlite::Result<HistoryEntry> {
+        let agents_json: Option<String> = r.get(offset + 8)?;
+        Ok(HistoryEntry {
+            timestamp: r.get(offset)?,
+            client_id: r.get(offset + 1)?,
+            text_preview: r.get(offset + 2)?,
+            is_manipulated: r.get::<_, i64>(offset + 3)? != 0,
+            dominant_manipulation: r.get(offset + 4)?,
+            genel_sonuc: r.get(offset + 5)?,
+            lang: r.get(offset + 6)?,
+            user_id: r.get(offset + 7)?,
+            agents: agents_json
+                .as_deref()
+                .and_then(|j| serde_json::from_str::<Vec<AgentVerdict>>(j).ok()),
+            predicted_product: r.get(offset + 9)?,
+            text_len: r.get(offset + 10)?,
+        })
     }
 
     /// En yeni kayıt önce, en fazla `limit` kayıt. Satır id'leri de döner:
@@ -198,25 +244,14 @@ impl Db {
     pub fn history_for_client(&self, client_id: &str, limit: i64) -> Vec<(i64, HistoryEntry)> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = match conn.prepare(
-            "SELECT id, timestamp, client_id, text_preview, is_manipulated, dominant_manipulation, genel_sonuc, lang
+            "SELECT id, timestamp, client_id, text_preview, is_manipulated, dominant_manipulation, genel_sonuc, lang, user_id, agents_json, predicted_product, text_len
              FROM history WHERE client_id = ?1 ORDER BY id DESC LIMIT ?2",
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
         };
         let rows = stmt.query_map(params![client_id, limit], |r| {
-            Ok((
-                r.get::<_, i64>(0)?,
-                HistoryEntry {
-                    timestamp: r.get(1)?,
-                    client_id: r.get(2)?,
-                    text_preview: r.get(3)?,
-                    is_manipulated: r.get::<_, i64>(4)? != 0,
-                    dominant_manipulation: r.get(5)?,
-                    genel_sonuc: r.get(6)?,
-                    lang: r.get(7)?,
-                },
-            ))
+            Ok((r.get::<_, i64>(0)?, Self::row_to_entry(r, 1)?))
         });
         match rows {
             Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
@@ -232,6 +267,72 @@ impl Db {
             "UPDATE history SET genel_sonuc = ?1, lang = ?2 WHERE id = ?3",
             params![genel_sonuc, lang, id],
         );
+    }
+
+    /// Veri seti dışa aktarımı için TÜM geçmiş, en eski kayıt önce.
+    /// Kullanıcı ayrımı `user_id` ile yapılır; eski kayıtlarda bu alan boşsa
+    /// `users` tablosundan e-postayla çözülür (çözülemezse None kalır).
+    pub fn history_for_export(&self) -> Vec<HistoryEntry> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = match conn.prepare(
+            "SELECT h.timestamp, h.client_id, h.text_preview, h.is_manipulated, h.dominant_manipulation, h.genel_sonuc, h.lang,
+                    COALESCE(h.user_id, u.id) AS user_id, h.agents_json, h.predicted_product, h.text_len
+             FROM history h LEFT JOIN users u ON u.email = h.client_id
+             ORDER BY h.id ASC",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        let rows = stmt.query_map([], |r| Self::row_to_entry(r, 0));
+        match rows {
+            Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    // ===== Kullanıcı profilleri =====
+
+    /// Profili yazar veya günceller (user_id birincil anahtar).
+    pub fn upsert_profile(&self, profile: &UserProfile) {
+        let Ok(profile_json) = serde_json::to_string(profile) else {
+            return;
+        };
+        let conn = self.conn.lock().unwrap();
+        let _ = conn.execute(
+            "INSERT INTO user_profiles (user_id, profile_json, analyzed_count, model_version, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(user_id) DO UPDATE SET
+                profile_json = excluded.profile_json,
+                analyzed_count = excluded.analyzed_count,
+                model_version = excluded.model_version,
+                updated_at = excluded.updated_at",
+            params![
+                profile.user_id,
+                profile_json,
+                profile.stats.total,
+                profile.model_version,
+                profile.updated_at
+            ],
+        );
+    }
+
+    pub fn profile_for_user(&self, user_id: &str) -> Option<UserProfile> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT profile_json FROM user_profiles WHERE user_id = ?1",
+            params![user_id],
+            |r| r.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|j| serde_json::from_str(&j).ok())
+    }
+
+    /// Kullanıcı profilini siler (KVKK: kullanıcı kendi profilini kaldırabilir).
+    pub fn delete_profile(&self, user_id: &str) -> bool {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM user_profiles WHERE user_id = ?1", params![user_id])
+            .map(|n| n > 0)
+            .unwrap_or(false)
     }
 
     // ===== Oturumlar =====
@@ -320,6 +421,10 @@ mod tests {
                 dominant_manipulation: "Dilsel".to_string(),
                 genel_sonuc: "sonuç".to_string(),
                 lang: Some("tr".to_string()),
+                user_id: None,
+                agents: None,
+                predicted_product: None,
+                text_len: None,
             });
         }
         db.insert_history(&HistoryEntry {
@@ -330,6 +435,10 @@ mod tests {
             dominant_manipulation: "Yok".to_string(),
             genel_sonuc: "temiz".to_string(),
             lang: None,
+            user_id: None,
+            agents: None,
+            predicted_product: None,
+            text_len: None,
         });
 
         let h = db.history_for_client("user1", 100);
@@ -360,6 +469,10 @@ mod tests {
             dominant_manipulation: "Dilsel".to_string(),
             genel_sonuc: "Türkçe özet".to_string(),
             lang: Some("tr".to_string()),
+            user_id: None,
+            agents: None,
+            predicted_product: None,
+            text_len: None,
         });
 
         let (id, _) = db.history_for_client("user1", 1)[0].clone();
