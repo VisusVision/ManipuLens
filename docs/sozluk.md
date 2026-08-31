@@ -1,10 +1,10 @@
 <!-- URETILMIS DOSYA - ELLE DUZENLEME.
-     Kaynak: site/src/content/sozluk/*.md · Uretici: site/scripts/build-sozluk.mjs
-     Yeniden uretmek icin: cd site && npm run sozluk -->
+     Kaynak: Site/src/content/sozluk/*.md · Uretici: Site/scripts/build-sozluk.mjs
+     Yeniden uretmek icin: cd Site && npm run sozluk -->
 
 # ManipuLens Sözlüğü
 
-42 terim · son üretim 2026-08-30
+42 terim · son üretim 2026-08-31
 
 Ekibin ortak dil sözleşmesi. Sitedeki karşılığı: `/sozluk`.
 
