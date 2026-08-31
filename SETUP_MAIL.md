@@ -2,16 +2,30 @@
 
 Doğrulama ve şifre sıfırlama kodlarının maile gidebilmesi için **gönderici bir e-posta hesabı** gerekir. Sistem bu hesabı SMTP üzerinden kullanır. Hesap tanımlanmazsa mail gönderilemez; kodlar backend konsoluna yazılır (geliştirici modu).
 
-## Geliştirme sırasında maili tamamen kapatmak
+## Kayıt doğrulama kodu (varsayılan kapalı)
 
-Ekip geliştirme yaparken her kayıt/giriş denemesinde 6 haneli kod girmek zaman
-kaybı. `.env` dosyasına şunu ekleyip backend'i yeniden başlatmak yeterli:
+Kayıt ve giriş akışı varsayılan olarak e-posta doğrulama kodu istemez. Kullanıcı
+kayıt sonrası doğrudan oturum açar; eski doğrulanmamış hesaplar da ilk başarılı
+girişte doğrulanmış işaretlenir. Şifre sıfırlama kodu güvenlik için etkin kalır.
+
+Bu davranışın açık ayarı:
+
+```
+AUTH_EMAIL_VERIFICATION_DISABLED=1
+```
+
+E-posta doğrulamasını yeniden açmak için değeri `0` yapın. `/healthz` yanıtındaki
+`email_verification_disabled` alanı çalışan modu gösterir.
+
+## Geliştirme sırasında tüm mail kodlarını kapatmak
+
+Yalnız yerel geliştirmede şifre sıfırlama kodunu da atlamak gerekirse:
 
 ```
 AUTH_MAIL_DISABLED=1
 ```
 
-Bu modda:
+Bu eski tam kapatma modunda:
 
 - `/v1/register` kullanıcıyı **doğrulanmış** oluşturur ve oturum token'ını
   doğrudan döner — uzantı kayıt sonrası hemen içeri alır.
@@ -23,10 +37,10 @@ Bu modda:
   ekranındaki kod kutularını buna bakarak gizler.
 - Sunucu açılışta uyarı satırı basar.
 
-**Güvenlik uyarısı:** bu mod açıkken `/v1/reset`, e-postayı bilen herkesin o
+**Güvenlik uyarısı:** `AUTH_MAIL_DISABLED=1` iken `/v1/reset`, e-postayı bilen herkesin o
 hesabın şifresini değiştirmesine izin verir. Yalnızca yerel geliştirmede
 kullanın; üretimde `AUTH_MAIL_DISABLED` tanımsız veya `0` olmalıdır
-(varsayılan davranış zaten kapalıdır). SMTP kodu silinmedi — bayrak
+(varsayılan davranış kapalıdır). SMTP kodu silinmedi — bayrak
 kaldırıldığında eski akış birebir geri döner.
 
 ## Gmail ile kurulum (önerilen, ~5 dakika)

@@ -381,10 +381,10 @@ async function getBaseUrl(forceRefresh = false) {
   return "http://127.0.0.1:3000";
 }
 
-// ============== MAIL MODU (AUTH_MAIL_DISABLED) ==============
-// Sunucu e-posta doğrulamasını kapattıysa doğrulama ve kod ekranlarını
-// göstermenin anlamı yok. Durum /healthz'den okunur; sunucuya ulaşılamazsa
-// güvenli varsayılan olarak "mail açık" kabul edilir (eski davranış).
+// ============== TAM MAIL KAPATMA MODU (AUTH_MAIL_DISABLED) ==============
+// Yalnız şifre sıfırlama kodu arayüzünü etkiler. Kayıt doğrulamasının kapalı
+// olması, register/login yanıtındaki token üzerinden zaten doğrudan ilerler.
+// Sağlık isteği başarısızsa güvenli varsayılan olarak "mail açık" kabul edilir.
 let mailDisabled = false;
 
 async function refreshMailMode() {
