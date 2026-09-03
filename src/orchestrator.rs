@@ -62,6 +62,10 @@ pub async fn run_orchestrator(text: &str, lang: &str) -> Result<FinalReport, Str
         },
     ];
 
+    // Kanıt doğrulaması: iddiası metne dayanmayan ajan raporlarını düşür.
+    let mut detailed_analyses = detailed_analyses;
+    verify_evidence(&mut detailed_analyses, text);
+
     // Marketing ajanından predicted_product al. Model şablondaki [X] slotunu
     // doldurmayıp literal bırakırsa paneli hiç gösterme (bozuk metin > yok).
     let mut predicted_product_str = None;
@@ -95,7 +99,7 @@ Output ONLY one valid JSON object, no markdown:
     });
 
     let payload = json!({
-        "model": "llama3",
+        "model": ollama_model(),
         "system": manager_prompt,
         "prompt": user_payload.to_string(),
         "stream": false,
@@ -162,6 +166,56 @@ Output ONLY one valid JSON object, no markdown:
     Ok(report)
 }
 
+// ===================== KANIT DOĞRULAMA =====================
+
+/// Karşılaştırma için metni sadeleştirir: küçük harf + yalnız harf/rakam.
+/// Model alıntıyı kopyalarken noktalama, tırnak veya boşluk kaydırabiliyor;
+/// bu sapmalar kanıtı geçersiz saymamalı, ama uydurma cümle de geçmemeli.
+fn normalize(s: &str) -> String {
+    s.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect()
+}
+
+/// Kanıt eşiği: bundan kısa alıntı cümle sayılmaz. Tek kelimelik "alıntı"
+/// hemen her metinde geçer, hiçbir şey kanıtlamaz.
+const MIN_EVIDENCE_LEN: usize = 10;
+
+/// Ajan "manipülasyon var" diyorsa bunu metinden BİREBİR bir cümleyle
+/// gösterebilmek zorundadır (prompt kuralı 2). Gösteremiyorsa iddia
+/// doğrulanamaz sayılır ve tespit düşürülür.
+///
+/// Neden kodda: aynı kural yönetici ajanın promptunda da yazıyor ama küçük
+/// model onu uygulamıyor. Doğrulanabilir bir kısıt LLM'e bırakılmaz.
+/// Ayrıca eklenti bu cümleleri sayfada exact-match arayıp vurguluyor;
+/// metinde olmayan alıntı zaten vurgulanamıyordu.
+///
+/// Düşürülen ajan sayısını döndürür.
+fn verify_evidence(analyses: &mut [AgentAnalysis], text: &str) -> usize {
+    let haystack = normalize(text);
+    let mut dusurulen = 0;
+
+    for a in analyses.iter_mut() {
+        if !a.detected {
+            continue;
+        }
+
+        a.target_sentences.retain(|q| {
+            let n = normalize(q);
+            n.chars().count() >= MIN_EVIDENCE_LEN && haystack.contains(&n)
+        });
+
+        if a.target_sentences.is_empty() {
+            a.detected = false;
+            a.confidence_score = 0.0;
+            dusurulen += 1;
+        }
+    }
+
+    if dusurulen > 0 {
+        tracing::debug!(dusurulen, "kanıtsız ajan tespiti düşürüldü");
+    }
+    dusurulen
+}
+
 // ===================== DİL ONARIM YARDIMCILARI =====================
 
 /// Tırnak içi bölümleri (orijinal metinden alıntılar) çıkarır — alıntıların
@@ -226,7 +280,7 @@ STRICT RULES:
     );
 
     let payload = json!({
-        "model": "llama3",
+        "model": ollama_model(),
         "system": system,
         "prompt": serde_json::to_string(texts).ok()?,
         "stream": false,
@@ -437,5 +491,71 @@ mod tests {
         let (manipulated, dominant, _) = fallback_summary(&clean, "en");
         assert!(!manipulated);
         assert_eq!(dominant, "Yok");
+    }
+
+    fn agent(t: &str, detected: bool, quotes: &[&str]) -> AgentAnalysis {
+        AgentAnalysis {
+            manipulation_type: t.to_string(),
+            detected,
+            confidence_score: if detected { 0.95 } else { 0.0 },
+            aciklama: "aciklama".to_string(),
+            target_sentences: quotes.iter().map(|q| q.to_string()).collect(),
+        }
+    }
+
+    const METIN: &str = "Son 3 adet kaldi! Bu firsat gece yarisi bitiyor. Fiyat 499 lira.";
+
+    #[test]
+    fn kanitsiz_tespit_dusurulur() {
+        // Model metinde geçmeyen bir cümle uydurdu.
+        let mut a = vec![agent("Algısal", true, &["Bilim insanlari bunu yillardir soyluyor"])];
+        assert_eq!(verify_evidence(&mut a, METIN), 1);
+        assert!(!a[0].detected);
+        assert_eq!(a[0].confidence_score, 0.0);
+    }
+
+    #[test]
+    fn alintisiz_tespit_dusurulur() {
+        let mut a = vec![agent("Dilsel", true, &[])];
+        assert_eq!(verify_evidence(&mut a, METIN), 1);
+        assert!(!a[0].detected);
+    }
+
+    #[test]
+    fn gercek_alinti_korunur() {
+        let mut a = vec![agent("Davranışsal", true, &["Bu firsat gece yarisi bitiyor"])];
+        assert_eq!(verify_evidence(&mut a, METIN), 0);
+        assert!(a[0].detected);
+        assert_eq!(a[0].confidence_score, 0.95);
+    }
+
+    #[test]
+    fn noktalama_ve_buyuk_harf_sapmasi_kaniti_bozmaz() {
+        let mut a = vec![agent("Davranışsal", true, &["\"SON 3 ADET KALDI\""])];
+        assert_eq!(verify_evidence(&mut a, METIN), 0);
+        assert!(a[0].detected);
+    }
+
+    #[test]
+    fn cok_kisa_alinti_kanit_sayilmaz() {
+        // "499" her yerde geçebilir; kanıt değeri yok.
+        let mut a = vec![agent("Pazarlama", true, &["499"])];
+        assert_eq!(verify_evidence(&mut a, METIN), 1);
+        assert!(!a[0].detected);
+    }
+
+    #[test]
+    fn uydurma_alinti_atilir_gercek_kalirsa_tespit_surer() {
+        let mut a = vec![agent("Sosyal", true, &["herkes aldi zaten", "Fiyat 499 lira"])];
+        assert_eq!(verify_evidence(&mut a, METIN), 0);
+        assert!(a[0].detected);
+        assert_eq!(a[0].target_sentences.len(), 1);
+    }
+
+    #[test]
+    fn tespit_etmeyen_ajana_dokunulmaz() {
+        let mut a = vec![agent("Dilsel", false, &[])];
+        assert_eq!(verify_evidence(&mut a, METIN), 0);
+        assert!(!a[0].detected);
     }
 }

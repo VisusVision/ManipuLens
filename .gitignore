@@ -20,3 +20,4 @@ server.log
 # yerel veri gozlem ciktilari (kisisel metin onizlemesi icerir)
 dataset.jsonl
 veri-raporu.html
+olcum-*.txt

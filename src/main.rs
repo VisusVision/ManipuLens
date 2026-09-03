@@ -1162,6 +1162,132 @@ async fn handle_health() -> Json<serde_json::Value> {
     }))
 }
 
+/// Etiketli doğrulama setini tam analiz akışından geçirir ve kalibrasyonu ölçer.
+///
+/// Neden gerekli: model/prompt değişikliğinin işe yarayıp yaramadığı ancak
+/// aynı set üzerinde önce/sonra karşılaştırmasıyla anlaşılır. Tek bir metne
+/// bakarak "düzeldi" demek ölçüm değil, izlenimdir.
+///
+/// Dosya biçimi: `ETIKET|metin` satırları; ETIKET = MANIP veya TEMIZ.
+/// `#` ile başlayan satırlar ve boş satırlar yok sayılır.
+async fn run_calibration(path: &str) -> i32 {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        eprintln!("Dosya okunamadı: {}", path);
+        return 1;
+    };
+
+    let cases: Vec<(bool, String)> = content
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+        .filter_map(|l| {
+            let (label, text) = l.split_once('|')?;
+            match label.trim() {
+                "MANIP" => Some((true, text.trim().to_string())),
+                "TEMIZ" => Some((false, text.trim().to_string())),
+                _ => None,
+            }
+        })
+        .collect();
+
+    if cases.is_empty() {
+        eprintln!("Etiketli satır bulunamadı. Biçim: MANIP|metin veya TEMIZ|metin");
+        return 1;
+    }
+
+    println!("{} etiketli metin analiz ediliyor...\n", cases.len());
+
+    let (mut dogru, mut yanlis_pozitif, mut yanlis_negatif) = (0usize, 0usize, 0usize);
+    let mut ajan_tetik: std::collections::BTreeMap<String, (usize, usize)> = Default::default();
+
+    for (i, (beklenen, text)) in cases.iter().enumerate() {
+        let baslangic = std::time::Instant::now();
+        let rapor = match orchestrator::run_orchestrator(text, "tr").await {
+            Ok(r) => r,
+            Err(e) => {
+                println!("[{}] ANALIZ HATASI: {}", i + 1, e);
+                continue;
+            }
+        };
+
+        // Ajan başına: (kaç TEMIZ metinde tetiklendi, kaç MANIP metinde tetiklendi)
+        for a in &rapor.detailed_analyses {
+            let giris = ajan_tetik.entry(a.manipulation_type.clone()).or_default();
+            if a.detected {
+                if *beklenen {
+                    giris.1 += 1;
+                } else {
+                    giris.0 += 1;
+                }
+            }
+        }
+
+        let sonuc = match (*beklenen, rapor.is_manipulated) {
+            (true, true) | (false, false) => {
+                dogru += 1;
+                "DOGRU"
+            }
+            (false, true) => {
+                yanlis_pozitif += 1;
+                "YANLIS POZITIF"
+            }
+            (true, false) => {
+                yanlis_negatif += 1;
+                "YANLIS NEGATIF"
+            }
+        };
+
+        let tetikleyen: Vec<String> = rapor
+            .detailed_analyses
+            .iter()
+            .filter(|a| a.detected)
+            .map(|a| format!("{} {:.2}", a.manipulation_type, a.confidence_score))
+            .collect();
+
+        println!(
+            "[{:>2}] beklenen={:<5} sonuc={:<5} -> {:<14} ({:.1}s)",
+            i + 1,
+            if *beklenen { "MANIP" } else { "TEMIZ" },
+            if rapor.is_manipulated { "MANIP" } else { "TEMIZ" },
+            sonuc,
+            baslangic.elapsed().as_secs_f32()
+        );
+        println!("     {}", text.chars().take(72).collect::<String>());
+        println!("     tetikleyen: {}", if tetikleyen.is_empty() { "yok".to_string() } else { tetikleyen.join(", ") });
+        println!("     ozet: {}", rapor.genel_sonuc.chars().take(110).collect::<String>());
+    }
+
+    let toplam = cases.len();
+    let manip_sayisi = cases.iter().filter(|(b, _)| *b).count();
+    let temiz_sayisi = toplam - manip_sayisi;
+
+    println!("\n{}", "=".repeat(70));
+    println!("SONUC: {}/{} dogru (%{:.0})", dogru, toplam, 100.0 * dogru as f32 / toplam as f32);
+    if temiz_sayisi > 0 {
+        println!(
+            "yanlis pozitif: {}/{} temiz metin manipulatif sayildi (%{:.0})",
+            yanlis_pozitif,
+            temiz_sayisi,
+            100.0 * yanlis_pozitif as f32 / temiz_sayisi as f32
+        );
+    }
+    if manip_sayisi > 0 {
+        println!(
+            "yanlis negatif: {}/{} manipulatif metin kacirildi (%{:.0})",
+            yanlis_negatif,
+            manip_sayisi,
+            100.0 * yanlis_negatif as f32 / manip_sayisi as f32
+        );
+    }
+    println!("\nAJAN BASINA TETIKLENME (temiz metinlerde tetiklenme = yanlis alarm)");
+    for (ajan, (temizde, manipte)) in &ajan_tetik {
+        println!(
+            "  {:<14} temiz metinlerde {}/{}   manipulatif metinlerde {}/{}",
+            ajan, temizde, temiz_sayisi, manipte, manip_sayisi
+        );
+    }
+    0
+}
+
 #[tokio::main]
 async fn main() {
     // Yapılandırılmış log: RUST_LOG ile seviye ayarlanabilir (varsayılan info)
@@ -1210,6 +1336,17 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+    }
+
+    // Kalibrasyon ölçümü: etiketli seti tam analiz akışından geçirir, doğruluk
+    // ve yanlış pozitif oranını basar, çıkar. Sunucu ve eklenti gerekmez.
+    //   manipulation-detector --analyze-file dogrulama-seti.txt
+    if let Some(pos) = args.iter().position(|a| a == "--analyze-file") {
+        let Some(path) = args.get(pos + 1) else {
+            eprintln!("Kullanım: --analyze-file <etiketli-set.txt>");
+            std::process::exit(2);
+        };
+        std::process::exit(run_calibration(path).await);
     }
 
     // Chrome Extension + ngrok için düzeltilmiş CORS ayarı

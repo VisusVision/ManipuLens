@@ -1,0 +1,20 @@
+# ManipuLens dogrulama seti — ajan kalibrasyonunu olcmek icin.
+# Bicim: ETIKET|metin      ETIKET = MANIP (manipulatif) veya TEMIZ (manipulatif degil)
+# Kullanim: cargo run --release -- --analyze-file dogrulama-seti.txt
+#
+# TEMIZ ornekler bilincli olarak cesitli: ansiklopedi, tarif, hava durumu, resmi
+# duyuru, durust urun incelemesi, kisisel duygu beyani. Hicbiri okuyucuyu
+# aldatmaya calismiyor. Ajan bunlara "manipulasyon var" diyorsa yanlis pozitif.
+TEMIZ|Ankara, Türkiye'nin başkenti ve İstanbul'dan sonra en kalabalık ikinci şehridir. İç Anadolu Bölgesi'nde yer alır ve 2023 sayımına göre nüfusu yaklaşık 5,8 milyondur.
+TEMIZ|Mercimek çorbası için bir su bardağı kırmızı mercimeği yıkayın, bir soğanı doğrayın ve tencerede zeytinyağıyla kavurun. Üzerine dört bardak su ekleyip yirmi dakika kaynatın.
+TEMIZ|Yarın sabah saatlerinde bölgede parçalı bulutlu bir hava bekleniyor. Sıcaklıklar 18 ile 24 derece arasında seyredecek, öğleden sonra yer yer sağanak yağış görülebilir.
+TEMIZ|Telefonun pil ömrü iki gün gidiyor ve ekranı güneşte rahat okunuyor. Buna karşılık kamerası gece çekimlerinde zayıf kalıyor ve şarj adaptörü kutudan çıkmıyor. Almadan önce rakip modellerle karşılaştırmanızı öneririm.
+TEMIZ|Öğrencilerin bahar dönemi ders kayıtları 3 Mart Pazartesi başlayıp 7 Mart Cuma günü sona erecektir. Kayıt işlemleri öğrenci bilgi sistemi üzerinden yapılacaktır.
+TEMIZ|Bugün hava çok güzeldi, sahilde uzun bir yürüyüş yaptım ve akşam eve dönerken kitapçıya uğradım. Uzun zamandır bu kadar dinlenmemiştim.
+TEMIZ|Su, oda sıcaklığında renksiz ve kokusuz bir sıvıdır. Deniz seviyesinde 100 santigrat derecede kaynar, 0 derecede donar. Bir molekülü iki hidrojen ve bir oksijen atomundan oluşur.
+# MANIP ornekleri: her biri farkli bir ajanin alanini hedefliyor.
+MANIP|SON 3 ADET KALDI! Bu fırsat gece yarısı bitiyor, kaçıranlar bir yıl daha bekleyecek. Hemen tıkla, stoklar tükenmeden yerini ayırt. Herkes aldı, sadece sen geride kalma!
+MANIP|Doktorların sizden gizlediği bu bitki karışımı sayesinde bir haftada 10 kilo verdim, hiç spor yapmadan. Eczaneler bu formülü raflardan kaldırttı çünkü ilaç sektörü kazancını kaybediyor. Sadece bugün %80 indirimli.
+MANIP|Ailesini gerçekten seven hiçbir baba çocuğunun geleceğini şansa bırakmaz. Bu poliçeyi almazsan yarın bir şey olduğunda çocukların ortada kalacak ve bunun tek sorumlusu sen olacaksın.
+MANIP|Uzmanlara göre bu ürün piyasadaki en güvenilir seçenek. Bilim insanları yıllardır bunu söylüyor ama bazı çevreler duyulmasını istemiyor. Aklı başında herkes çoktan geçiş yaptı, hâlâ direnenler ise gerçeklerle yüzleşmekten korkuyor.
+MANIP|Yaptığın o konuşmayı ben hiç öyle hatırlamıyorum, sen olayları hep abartıyorsun. Böyle şeyleri sürekli kafanda büyütmen normal değil, herkes bunu fark ediyor ama söylemeye çekiniyor.

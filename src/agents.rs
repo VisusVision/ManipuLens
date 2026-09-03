@@ -8,6 +8,17 @@ pub fn ollama_url() -> String {
     std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string())
 }
 
+/// Analizde kullanılacak Ollama modeli: OLLAMA_MODEL ile değiştirilebilir.
+///
+/// Sabit değil çünkü model kapasitesi ölçülecek bir değişken: `--analyze-file`
+/// aynı etiketli seti farklı modellerle koşup kalibrasyonu karşılaştırmak için
+/// var. Ayrıca model yerelden silindiğinde (llama3'te olduğu gibi) sistem her
+/// metne "manipülasyon yok" demeye başlıyordu; yeniden derlemeden model
+/// değiştirebilmek bu arızadan çıkış yolu.
+pub fn ollama_model() -> String {
+    std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string())
+}
+
 /// Tek paylaşımlı HTTP client: her istekte yeni bağlantı havuzu kurmayı önler.
 pub fn http_client() -> &'static reqwest::Client {
     static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
@@ -21,12 +32,23 @@ fn output_language(lang: &str) -> &'static str {
 /// Ortak kurallar — kısa tutuldu: uzun promptlar 7 LLM çağrısında ciddi
 /// gecikme yaratıyor. target_sentences'ın BİREBİR kopyalanması kritik:
 /// eklenti bu cümleleri sayfada exact-match ile arayıp vurguluyor.
+///
+/// STEP 0 dışlama kapısı ve kalibrasyon örnekleri 2026-09-03 ölçümünden sonra
+/// eklendi: 12 metinlik etiketli sette temiz metinlerin %57'si manipülatif
+/// sayılıyordu. Tek istisna, promptunda zaten bir dışlama adımı ve örnekleri
+/// bulunan Pazarlama ajanıydı (temiz metinlerde 0/7 yanlış alarm). Küçük model
+/// "manipülasyon analisti" rolünü verilen her metinde bulgu üretmek diye
+/// okuyor; rolü dengeleyen açık bir "hayır" yolu olmadan tarafsız kalamıyor.
 fn shared_rules(type_name: &str, out_lang: &str) -> String {
     format!(
         r#"
+STEP 0 - EXCLUSION CHECK, do this BEFORE anything else. If the text is any of the following, it is NOT manipulation: reference or encyclopedic facts (geography, science, history, statistics stated plainly); instructions or a recipe; a weather, traffic or sports report; an official announcement, schedule or regulation; a balanced review that also names downsides or advises comparing alternatives; someone describing their own day, feelings or beliefs without pressuring anyone. In ALL these cases output detected = false, confidence_score = 0.0 and STOP - do not look for your manipulation type at all.
+
+A text is not manipulative merely because it is short, incomplete, one-sided, emotional, religious, angry, or about an upsetting subject. Absence of a tactic is the NORMAL case: most texts a person reads are not manipulative. Reporting "no manipulation found" is a correct and valuable answer, not a failure to do your job.
+
 RULES:
 1. Judge ONLY the given text. Be conservative: if in doubt, detected = false.
-2. "target_sentences": copy sentences VERBATIM from the input, character-for-character. Empty array [] if detected = false.
+2. "target_sentences": copy sentences VERBATIM from the input, character-for-character. Empty array [] if detected = false. If you cannot point to a specific sentence that carries the tactic, then the tactic is not there -> detected = false.
 3. "aciklama": max 2 plain sentences for an everyday reader. LANGUAGE: "aciklama" MUST be written in {out_lang}. This is mandatory even if the input text is in a different language - do NOT mirror the input's language, ALWAYS answer in {out_lang}.
 4. confidence_score: 0.90+ unmistakable | 0.75+ clear | 0.60+ probable | below 0.60 -> set detected = false.
 5. Output ONLY one valid JSON object, no markdown, no extra text:
@@ -43,7 +65,7 @@ async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<Agent
 /// aynı çağrı ayarlarını (model, sıcaklık, keep_alive) paylaşsın diye ayrıldı.
 async fn call_ollama_json(system_prompt: &str, user_text: &str) -> Result<String, String> {
     let payload = json!({
-        "model": "llama3",
+        "model": ollama_model(),
         "system": system_prompt,
         "prompt": user_text,
         "stream": false,
@@ -270,6 +292,12 @@ pub async fn analyze_perceptual(text: &str, lang: &str) -> Result<AgentAnalysis,
 DETECT only: cherry-picked data; omitted context that reverses a claim's meaning; technically-true-but-misleading framing; statistical distortion (no baseline, cropped scales); false dichotomy.
 NOT manipulation: one-sided but honest advocacy, simplified explanations, merely incomplete informative text.
 TEST: is information curated so the reader reliably reaches a FALSE conclusion? Incompleteness alone is not enough -> detected = false.
+You must be able to name the FALSE conclusion the reader would reach and the fact that was hidden to produce it. If you cannot name both, detected = false.
+
+CALIBRATION (decisions only, never copy their wording):
+- "The capital city's population is about 5.8 million according to the 2023 census." -> detected = false. A plainly stated fact is not framing, even though it omits everything else about the city.
+- "Water boils at 100 degrees at sea level." -> detected = false. Textbook facts have no target audience to mislead.
+- "Our product cut costs by 40%" while hiding that the comparison is against a deliberately overpriced package -> detected = true, 0.90. Hidden baseline produces a false conclusion.
 {shared}"#,
         shared = shared_rules("Algısal", out_lang)
     );
