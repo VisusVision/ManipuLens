@@ -6,6 +6,7 @@ hale getirir. Veritabanini SALT OKUNUR acar; sunucu calisirken guvenlidir.
 Kullanim:
     python veri.py           # terminale ozet bas
     python veri.py --html    # veri-raporu.html uret ve yolunu yaz
+    python veri.py --html --db baska.db --out baska.html
 
 Neden ayri bir arac: ham `history` tablosunda ajan kararlari tek bir JSON
 metni olarak duruyor, SQLite tarayicisinda okunmuyor. Burada acilip tabloya
@@ -21,14 +22,27 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
 KOK = Path(__file__).resolve().parent
-DB = KOK / "manipulens.db"
-CIKTI = KOK / "veri-raporu.html"
+
+
+def _arg(bayrak, varsayilan):
+    """`--bayrak deger` bicimindeki secenegi okur."""
+    if bayrak in sys.argv:
+        i = sys.argv.index(bayrak)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return varsayilan
+
+
+# --db ve --out ornek rapor uretmek icin var: gercek taramalarin yerine
+# sentetik bir veritabanindan cikti alinabilsin.
+DB = Path(_arg("--db", KOK / "manipulens.db"))
+CIKTI = Path(_arg("--out", KOK / "veri-raporu.html"))
 
 AJAN_SIRASI = ["Dilsel", "Psikolojik", "Davranışsal", "Algısal", "Sosyal", "Pazarlama"]
 
 
 def veriyi_oku():
-    con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    con = sqlite3.connect(f"file:{DB.as_posix()}?mode=ro", uri=True)
     analizler = []
     for r in con.execute(
         "select id, timestamp, lang, text_len, is_manipulated, dominant_manipulation,"

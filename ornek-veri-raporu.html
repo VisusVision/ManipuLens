@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8">
+<title>ManipuLens veri raporu</title>
+<style>
+ body{font:14px/1.55 system-ui,Segoe UI,sans-serif;margin:0;background:#f6f7f9;color:#1a1d23}
+ .sar{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+ h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:36px 0 12px}
+ h3{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#5b6472;margin:20px 0 8px}
+ .ust{color:#5b6472;margin:0 0 24px;font-size:13px}
+ .kutular{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+ .kutu{background:#fff;border:1px solid #e2e5ea;border-radius:10px;padding:14px 18px;min-width:130px}
+ .kutu b{display:block;font-size:24px;font-weight:600}
+ .kutu span{font-size:12px;color:#5b6472}
+ .uyari{background:#fff4e5;border:1px solid #f0c48a;border-radius:10px;padding:12px 16px;margin:16px 0;font-size:13px}
+ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e5ea;border-radius:10px;overflow:hidden}
+ th,td{padding:9px 11px;text-align:left;border-bottom:1px solid #eef0f3;vertical-align:top}
+ th{background:#fafbfc;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#5b6472}
+ th.ajan{writing-mode:horizontal-tb;font-size:10px;text-align:center;width:64px}
+ td.var{text-align:center;background:#fdecec;color:#b42318;font-weight:600;font-variant-numeric:tabular-nums}
+ td.bos{text-align:center;color:#c3c8d0}
+ .no{color:#98a0ac;font-variant-numeric:tabular-nums;width:34px}
+ .ts{color:#5b6472;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+ .metin{max-width:460px}
+ .alt{color:#5b6472;font-size:12px;margin-top:3px}
+ .urun{color:#8a5a00;font-size:12px;margin-top:3px}
+ .rozet{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px}
+ .manip{background:#fdecec;color:#b42318} .temiz{background:#e8f5ec;color:#116b34}
+ .bozuk{background:#eceff3;color:#5b6472}
+ .calisiyor{background:#e8f5ec;border:1px solid #b5dfc4;border-radius:10px;padding:12px 16px;color:#116b34}
+ .profil td.deger{font-weight:600} .profil td.guven{font-variant-numeric:tabular-nums;width:60px}
+ .profil td.dayanak{color:#5b6472;font-size:12px}
+ .ozet{background:#fff;border:1px solid #e2e5ea;border-radius:10px;padding:12px 16px;margin-top:12px}
+ .sayac,.bos-not{color:#5b6472}
+ code{background:#eef0f3;padding:1px 5px;border-radius:4px;font-size:12px}
+</style></head><body><div class="sar">
+<h1>ManipuLens veri raporu</h1>
+<p class="ust">Kaynak: <code>manipulens.db</code> &rarr; <code>history</code> + <code>user_profiles</code>.
+Uretim: <code>python veri.py --html</code></p>
+
+<div class="kutular">
+ <div class="kutu"><b>6</b><span>gecerli analiz</span></div>
+ <div class="kutu"><b>3</b><span>manipulatif</span></div>
+ <div class="kutu"><b>3</b><span>temiz</span></div>
+ <div class="kutu"><b>%50</b><span>manipulasyon orani</span></div>
+ <div class="kutu"><b>0</b><span>bozuk cagri</span></div>
+</div>
+
+
+<h2>Analizler</h2>
+<table><thead><tr><th>#</th><th>Zaman</th><th>Metin</th>
+<th class="ajan">Dilsel</th><th class="ajan">Psikolojik</th><th class="ajan">Davranışsal</th><th class="ajan">Algısal</th><th class="ajan">Sosyal</th><th class="ajan">Pazarlama</th>
+</tr></thead><tbody><tr><td class='no'>6</td><td class='ts'>2026-01-07 19:15:00</td><td class='metin'>Dün akşam kuzenimle uzun uzun konuştuk, çocukluğumuzu hatırladık. İyi geldi.<div class='alt'>118 karakter &middot; <span class="rozet temiz">temiz</span></div></td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td></tr><tr><td class='no'>5</td><td class='ts'>2026-01-07 08:30:00</td><td class='metin'>Mercimek çorbası için bir su bardağı kırmızı mercimeği yıkayın ve tencerede kavurun.<div class='alt'>141 karakter &middot; <span class="rozet temiz">temiz</span></div></td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td></tr><tr><td class='no'>4</td><td class='ts'>2026-01-06 14:22:00</td><td class='metin'>Ankara, Türkiye&#x27;nin başkenti ve İstanbul&#x27;dan sonra en kalabalık ikinci şehridir.<div class='alt'>158 karakter &middot; <span class="rozet temiz">temiz</span></div></td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td><td class="bos">-</td></tr><tr><td class='no'>3</td><td class='ts'>2026-01-06 09:05:00</td><td class='metin'>Ailesini gerçekten seven hiçbir baba çocuğunun geleceğini şansa bırakmaz.<div class='alt'>120 karakter &middot; <span class="rozet manip">manipulatif</span> &middot; dominant: Psikolojik</div></td><td class="bos">-</td><td class="var">0.95</td><td class="bos">-</td><td class="bos">-</td><td class="var">0.85</td><td class="bos">-</td></tr><tr><td class='no'>2</td><td class='ts'>2026-01-05 11:40:00</td><td class='metin'>Doktorların sizden gizlediği bu bitki karışımı sayesinde bir haftada 10 kilo verdim.<div class='alt'>132 karakter &middot; <span class="rozet manip">manipulatif</span> &middot; dominant: Pazarlama</div><div class=urun>urun tahmini: Kişi zayıflama ürünü satın almaya veya yönelmeye meyilli olabilir.</div></td><td class="bos">-</td><td class="var">0.85</td><td class="bos">-</td><td class="var">0.80</td><td class="bos">-</td><td class="var">0.95</td></tr><tr><td class='no'>1</td><td class='ts'>2026-01-05 10:12:00</td><td class='metin'>SON 3 ADET KALDI! Bu fırsat gece yarısı bitiyor, kaçıranlar bir yıl daha bekleyecek.<div class='alt'>148 karakter &middot; <span class="rozet manip">manipulatif</span> &middot; dominant: Davranışsal</div><div class=urun>urun tahmini: Kişi kampanyalı ürünü satın almaya veya yönelmeye meyilli olabilir.</div></td><td class="bos">-</td><td class="bos">-</td><td class="var">0.95</td><td class="bos">-</td><td class="var">0.85</td><td class="var">0.90</td></tr></tbody></table>
+<p class="ust">Ajan sutunlarindaki sayi guven degeridir; bos hucre o ajanin tespit bulmadigini gosterir.</p>
+
+<h2>Demografi ajani</h2>
+
+        <p class="calisiyor">Durum: CALISIYOR &mdash; 6 analiz islendi, son kosu 2026-01-07 19:15:04,
+           model surumu <code>demographic-v1</code></p>
+        <h3>Sayac katmani (LLM yok, dogrudan veriden)</h3>
+        <p class="sayac">toplam 6 analiz &middot; 3 manipulatif &middot;
+           ortalama 136 karakter &middot; diller: tr</p>
+        <h3>Cikarim katmani (demografi ajani, llama3)</h3>
+        <table class="profil"><thead><tr><th>Alan</th><th>Deger</th><th>Guven</th><th>Ajanin dayanagi</th></tr></thead>
+        <tbody><tr><td>Yas araligi</td><td class='deger'>bilinmiyor</td><td class='guven'>0.45</td><td class='dayanak'>Taranan metinlerde yaşa dair bir işaret yok.</td></tr><tr><td>Cinsiyet</td><td class='deger'>bilinmiyor</td><td class='guven'>0.30</td><td class='dayanak'>Önizlemelerde kişinin kendine dair bir ifadesi geçmiyor.</td></tr><tr><td>Egitim</td><td class='deger'>bilinmiyor</td><td class='guven'>0.40</td><td class='dayanak'>Eğitim seviyesini destekleyecek gözlem yok.</td></tr><tr><td>Tuketici egilimi</td><td class='deger'>kampanyalı satış metinleri</td><td class='guven'>0.75</td><td class='dayanak'>Taranan metinlerin yarısı indirim ve stok baskısı içeren satış metni.</td></tr></tbody></table>
+        <p class="ozet">Bu kişi ağırlıklı olarak satış ve kampanya metinlerini tarıyor; arada bilgi ve kişisel içerik de kontrol ediyor.</p>
+        
+</div></body></html>
