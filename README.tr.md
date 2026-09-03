@@ -99,6 +99,19 @@ cargo run -- --export-dataset dataset.jsonl
 
 Gizlilik: dışa aktarımda e-posta yer almaz; kullanıcı ayrımı UUID ile yapılır.
 
+**Veriyi okumak** — `history` tablosunda ajan kararları tek bir JSON metni
+olarak durur ve SQLite tarayıcısında okunmaz. `veri.py` bunu açıp okunur hale
+getirir; veritabanını salt okunur açtığı için sunucu çalışırken de kullanılır:
+
+```
+python veri.py           # terminal ozeti: analizler, ajan guvenleri, profil
+python veri.py --html    # veri-raporu.html uretir, cift tiklayip acarsiniz
+```
+
+`manipulens.db`, `dataset.jsonl` ve `veri-raporu.html` sürüm kontrolü dışındadır
+(taranan metin önizlemeleri kişiseldir). Depoyu klonlayan aracı alır, veriyi
+almaz; sunucuyu çalıştırıp kendi analizleriyle kendi raporunu üretir.
+
 ## 🗺️ Sistem Mimarisi
 
 ManipuLens, ana olay döngülerini engellemeden karmaşık çoklu ajan analizlerini yönetmek için optimize edilmiş asenkron bir işlem hattı kullanır:
