@@ -171,26 +171,37 @@ Google Chrome Tarayıcı (Veya Chromium tabanlı herhangi bir tarayıcı)
 Optimize edilmiş çok aşamalı Docker kurulumumuz sayesinde, tüm Rust matrisini derleyebilir ve ortamı tek bir komutla ayağa kaldırabilirsiniz.
 
 1. Yerel Yapay Zeka Modelini İndirin ve Başlatın
-Sistem terminalinizi açın ve analiz modelini bilgisayarınıza çekin:
+Sistem terminalinizi açın ve Ollama kullanarak llama3 çekirdek modelini bilgisayarınıza çekin:
 ```
-ollama pull deepseek-r1:14b
+ollama pull llama3
 ```
-Model adı `.env` içindeki `OLLAMA_MODEL` ile seçilir (varsayılan: `llama3`).
+Proje `llama3` üzerine kuruludur ve varsayılan model odur. Model adı `.env`
+içindeki `OLLAMA_MODEL` ile değiştirilebilir; bu yalnızca karşılaştırma
+ölçümü içindir, üretim yapılandırması `llama3` kalır.
 
-**Model seçimi ölçümle yapılır.** Etiketli doğrulama seti üzerinde tam analiz
-akışını koşturup doğruluk ve yanlış pozitif oranını basan bir mod var:
+**Kalite değişikliği ölçümle kanıtlanır.** Etiketli doğrulama seti üzerinde tam
+analiz akışını koşturup doğruluk ve yanlış pozitif oranını basan bir mod var:
 ```
 cargo run --release -- --analyze-file dogrulama-seti.txt
 ```
-2026-09-03 ölçümü (12 metin: 7 manipülatif olmayan, 5 manipülatif):
+Prompt veya akış değiştiğinde bu seti önce ve sonra koşturun; tek metne bakıp
+"düzeldi" demek ölçüm değildir. Yeni bir şikâyet türü çıktığında sete etiketli
+örnek olarak eklenir.
 
-| Model | Doğruluk | Yanlış pozitif | Analiz süresi |
-| --- | --- | --- | --- |
-| llama3 (8B) | %67 | 4/7 temiz metin | ~10 sn |
-| deepseek-r1:14b | %92 | 0/7 | ~24 sn |
+`dogrulama-seti-2.txt` ayrık (held-out) settir: prompt ayarı ona bakılmadan
+yapılır, yalnız genellemeyi ölçmek için koşulur. Ayrık setteki bir metin
+düzeltme için kullanıldıysa ayrık olmaktan çıkar; ana sete taşıyın.
 
-`llama3` her metinde manipülasyon buluyordu; ansiklopedi maddesi ve yemek
-tarifi dahil. Yeni model eklerken aynı seti koşturun, izlenime güvenmeyin.
+2026-09-03 ölçümü, llama3:
+
+| Aşama | Doğruluk | Yanlış pozitif |
+| --- | --- | --- |
+| Başlangıç | %67 | 4/7 temiz metin |
+| Prompt dışlama + kanıt doğrulaması | %75 | 3/7 |
+| Ön eleme (triage) eklendi | %100 | 0/7 |
+
+Ön eleme temiz metinlerde altı ajanı hiç çağırmadığı için analiz süresi de
+düştü: ikna metni ~12 sn, ikna olmayan metin ~0,4 sn.
 2. Çoklu Ajan Kümesini Docker Compose ile Çalıştırın
 Proje ana dizinine (/manipulation-detector) gidin ve derleme komutunu çalıştırın:
 ```

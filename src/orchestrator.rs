@@ -3,6 +3,16 @@ use crate::types::{AgentAnalysis, FinalReport};
 use serde_json::json;
 
 pub async fn run_orchestrator(text: &str, lang: &str) -> Result<FinalReport, String> {
+    // ÖN ELEME: metin ikna/etkileme amacı taşımıyorsa uzman ajanları hiç çağırma.
+    // Ajanlar rol gereği bulgu üretmeye eğilimli; bilgi metnine hiç bakmamak,
+    // baktıktan sonra "yok" demesini ummaktan güvenilir. Çağrı başarısız olursa
+    // eski davranışa düşülür (tam analiz), ön eleme tek hata noktası olmasın.
+    match needs_full_analysis(text).await {
+        Ok(false) => return Ok(clean_report(lang)),
+        Ok(true) => {}
+        Err(e) => tracing::warn!(error = %e, "ön eleme başarısız; tam analize geçiliyor"),
+    }
+
     // 6 ajanı paralel çalıştır
     let (r1, r2, r3, r4, r5, r6) = tokio::join!(
         analyze_linguistic(text, lang),
@@ -164,6 +174,44 @@ Output ONLY one valid JSON object, no markdown:
     repair_language(&mut report, lang).await;
 
     Ok(report)
+}
+
+// ===================== ÖN ELEME SONUCU =====================
+
+/// Ön elemenin "ikna metni değil" dediği durumda dönen rapor.
+///
+/// Özet LLM'e yazdırılmaz: söylenecek şey zaten sabit ve modelin olmayan bir
+/// manipülasyonu açıklamaya çalışması saçma metin üretiyordu. Altı ajan da
+/// tespit yok olarak listelenir; eklenti panelleri boş kalmasın.
+fn clean_report(lang: &str) -> FinalReport {
+    let (ozet, ajan_notu) = if lang == "en" {
+        (
+            "No manipulation was found in this text. It reads as informative or personal writing rather than an attempt to steer you.",
+            "No manipulative use of this type was found.",
+        )
+    } else {
+        (
+            "Bu metinde manipülasyon bulunmadı. Metin sizi yönlendirmeye çalışmak yerine bilgi veren ya da kişisel bir anlatım gibi görünüyor.",
+            "Bu türde manipülatif bir kullanım bulunmadı.",
+        )
+    };
+
+    FinalReport {
+        is_manipulated: false,
+        dominant_manipulation: "Yok".to_string(),
+        genel_sonuc: ozet.to_string(),
+        predicted_product: None,
+        detailed_analyses: ["Dilsel", "Psikolojik", "Davranışsal", "Algısal", "Sosyal", "Pazarlama"]
+            .iter()
+            .map(|t| AgentAnalysis {
+                manipulation_type: t.to_string(),
+                detected: false,
+                confidence_score: 0.0,
+                aciklama: ajan_notu.to_string(),
+                target_sentences: vec![],
+            })
+            .collect(),
+    }
 }
 
 // ===================== KANIT DOĞRULAMA =====================

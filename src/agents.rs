@@ -56,6 +56,68 @@ RULES:
     )
 }
 
+/// ÖN ELEME (TRIAGE) — metnin türünü belirler, uzman ajanlar koşmadan önce.
+///
+/// Neden ayrı bir çağrı: llama3 8B, "manipülasyon analisti" rolü verilince
+/// uzun bir dışlama listesini okusa bile her metinde bulgu üretiyor. 2026-09-03
+/// ölçümünde ansiklopedi maddesi, bilimsel tanım ve dengeli ürün incelemesi
+/// prompt içindeki STEP 0 kapısına rağmen manipülatif sayıldı.
+///
+/// Tür sınıflandırması küçük modelin gerçekten yapabildiği bir iş: "bu metin
+/// okuyucuyu bir şeye ikna etmeye mi çalışıyor, yoksa bilgi mi veriyor?"
+/// Rol yüklü değil, incelik gerektirmiyor. İkna amacı yoksa altı uzman ajan
+/// hiç çağrılmaz — hem yanlış alarm kesilir hem de temiz metinlerde analiz
+/// yedi çağrı yerine tek çağrıya iner.
+///
+/// `true` dönerse metin ikna/etkileme amacı taşıyor, tam analiz koşmalı.
+pub async fn needs_full_analysis(text: &str) -> Result<bool, String> {
+    let prompt = r#"You are a TEXT GENRE classifier. You do NOT look for manipulation. You only decide what kind of text this is.
+
+Choose exactly one "category":
+- "bilgi": reference or encyclopedic facts, science, history, geography, statistics stated plainly.
+- "talimat": instructions, a recipe, a manual, a how-to.
+- "rapor": weather, traffic, sports or market report; plain news reporting of events.
+- "duyuru": official announcement, schedule, regulation, timetable.
+- "kisisel": someone describing THEIR OWN day, feelings, memories or beliefs, addressed to no one in particular.
+- "inceleme": a review that names BOTH strengths and weaknesses, or advises comparing alternatives.
+- "ikna": advertising or sales copy; campaign or propaganda text; an argument pushing the reader toward a belief or an action; an appeal to authority, science or majority opinion used to settle a claim; a text that tells another person what to think, feel or remember, blames them, or dismisses their account of events; any demand or pressure aimed at a person.
+
+Decide by the text's PURPOSE, not its subject or tone. Two tests, in this order:
+1. Is the text AIMED at a person - telling them what to do, what to believe, or what they got wrong? If yes -> "ikna", even when it sounds like a private conversation and mentions no product.
+2. Otherwise, is it built to move a reader toward a belief, a decision or a purchase? If yes -> "ikna".
+If neither, pick the descriptive category. An upsetting, angry, religious or emotional text is "kisisel" ONLY when the writer is describing their own experience and not pressing anyone.
+
+CALIBRATION (decide the same way for similar texts, never copy their wording):
+- "I walked by the sea today and stopped at the bookshop on the way home." -> "kisisel". The writer describes their own day and asks nothing of anyone.
+- "I don't remember that conversation the way you do, you always blow things out of proportion, everyone notices it." -> "ikna". It is aimed at a person and overrides their memory - private tone does not make it neutral.
+- "Experts agree this is the most reliable option and anyone sensible has already switched." -> "ikna". Authority and majority are used to settle the question for the reader.
+- "After everything I sacrificed for you, you don't even call. Everyone talks about it behind your back." -> "ikna". Reproach and guilt over past favours are pressure, not a description of the writer's day - a family setting does not make it "kisisel".
+- "The capital's population was about 5.8 million in the 2023 census." -> "bilgi". A plain fact with no reader to move.
+
+"needs_analysis" = true ONLY for category "ikna". For every other category it is false.
+
+Output ONLY one valid JSON object, no markdown, no extra text:
+{"category":"bilgi"|"talimat"|"rapor"|"duyuru"|"kisisel"|"inceleme"|"ikna","needs_analysis":true|false}"#;
+
+    let raw = call_ollama_json(prompt, text).await?;
+
+    #[derive(serde::Deserialize)]
+    struct Triage {
+        #[serde(default)]
+        category: String,
+        #[serde(default)]
+        needs_analysis: bool,
+    }
+
+    let t: Triage = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+
+    // Kategori ile bayrak çelişirse kategoriye güven: model bayrağı
+    // doldururken kategoriden daha sık kayıyor.
+    let ikna = t.category.trim().eq_ignore_ascii_case("ikna");
+    tracing::debug!(category = %t.category, needs_analysis = t.needs_analysis, "ön eleme");
+    Ok(ikna || (t.category.trim().is_empty() && t.needs_analysis))
+}
+
 async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<AgentAnalysis, String> {
     let raw = call_ollama_json(system_prompt, user_text).await?;
     serde_json::from_str(&raw).map_err(|e| e.to_string())

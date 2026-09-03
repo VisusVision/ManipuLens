@@ -1,0 +1,10 @@
+# Ayrik dogrulama seti (held-out). Prompt ayari BU metinlere bakilmadan yapildi;
+# amaci duzeltmenin ezberleme mi yoksa gercek genelleme mi oldugunu olcmek.
+TEMIZ|Fotosentez, bitkilerin güneş ışığını kullanarak karbondioksit ve sudan glikoz üretmesidir. Süreç yaprakların kloroplast adı verilen organellerinde gerçekleşir ve yan ürün olarak oksijen açığa çıkar.
+TEMIZ|Çamaşır makinesinin filtresini temizlemek için önce fişi prizden çekin. Alt kapağı açıp filtreyi saat yönünün tersine çevirerek çıkarın, saç ve tüyleri temizleyip yerine takın.
+TEMIZ|Dün akşam kuzenimle uzun uzun konuştuk, çocukluğumuzu hatırladık. Bu aralar işler yoğun olduğu için görüşemiyorduk, iyi geldi.
+TEMIZ|Merkez Bankası politika faizini yüzde 42,5 seviyesinde sabit tuttu. Karar metninde enflasyondaki düşüş eğiliminin sürdüğü, sıkı duruşun korunacağı belirtildi.
+TEMIZ|Kulaklığın ses yalıtımı beklediğimden iyi çıktı ve şarjı uzun gidiyor. Ancak kulak yastıkları uzun kullanımda terletiyor ve mikrofon kalitesi vasat. Bu fiyat aralığında başka seçeneklere de bakmakta fayda var.
+MANIP|Bu kursu almazsan beş yıl sonra da aynı maaşa çalışıyor olacaksın. Arkadaşların çoktan kariyer atlamışken sen hâlâ bahane üretiyorsun. Kayıtlar bu gece kapanıyor, karar senin.
+MANIP|Piyasadaki tüm uzmanlar bu hisseyi işaret ediyor, kaçıranlar sonra dövünecek. Bankalar küçük yatırımcının kazanmasını istemediği için bu bilgi ana akım medyada yer almıyor. Pozisyonu bugün açmayan fırsatı kaçırır.
+MANIP|Ürünümüzü kullananların yüzde 97'si ilk haftada fark ettiğini söylüyor. Klinik olarak kanıtlanmış formül, hiçbir yan etkisi olmadan cildinizi on yaş gençleştiriyor. Stoklar sınırlı, bugün sipariş verene kargo bedava.
