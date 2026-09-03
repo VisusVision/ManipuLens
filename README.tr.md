@@ -99,19 +99,6 @@ cargo run -- --export-dataset dataset.jsonl
 
 Gizlilik: dışa aktarımda e-posta yer almaz; kullanıcı ayrımı UUID ile yapılır.
 
-**Veriyi okumak** — `history` tablosunda ajan kararları tek bir JSON metni
-olarak durur ve SQLite tarayıcısında okunmaz. `veri.py` bunu açıp okunur hale
-getirir; veritabanını salt okunur açtığı için sunucu çalışırken de kullanılır:
-
-```
-python veri.py           # terminal ozeti: analizler, ajan guvenleri, profil
-python veri.py --html    # veri-raporu.html uretir, cift tiklayip acarsiniz
-```
-
-`manipulens.db`, `dataset.jsonl` ve `veri-raporu.html` sürüm kontrolü dışındadır
-(taranan metin önizlemeleri kişiseldir). Depoyu klonlayan aracı alır, veriyi
-almaz; sunucuyu çalıştırıp kendi analizleriyle kendi raporunu üretir.
-
 ## 🗺️ Sistem Mimarisi
 
 ManipuLens, ana olay döngülerini engellemeden karmaşık çoklu ajan analizlerini yönetmek için optimize edilmiş asenkron bir işlem hattı kullanır:
@@ -188,33 +175,6 @@ Sistem terminalinizi açın ve Ollama kullanarak llama3 çekirdek modelini bilgi
 ```
 ollama pull llama3
 ```
-Proje `llama3` üzerine kuruludur ve varsayılan model odur. Model adı `.env`
-içindeki `OLLAMA_MODEL` ile değiştirilebilir; bu yalnızca karşılaştırma
-ölçümü içindir, üretim yapılandırması `llama3` kalır.
-
-**Kalite değişikliği ölçümle kanıtlanır.** Etiketli doğrulama seti üzerinde tam
-analiz akışını koşturup doğruluk ve yanlış pozitif oranını basan bir mod var:
-```
-cargo run --release -- --analyze-file dogrulama-seti.txt
-```
-Prompt veya akış değiştiğinde bu seti önce ve sonra koşturun; tek metne bakıp
-"düzeldi" demek ölçüm değildir. Yeni bir şikâyet türü çıktığında sete etiketli
-örnek olarak eklenir.
-
-`dogrulama-seti-2.txt` ayrık (held-out) settir: prompt ayarı ona bakılmadan
-yapılır, yalnız genellemeyi ölçmek için koşulur. Ayrık setteki bir metin
-düzeltme için kullanıldıysa ayrık olmaktan çıkar; ana sete taşıyın.
-
-2026-09-03 ölçümü, llama3:
-
-| Aşama | Doğruluk | Yanlış pozitif |
-| --- | --- | --- |
-| Başlangıç | %67 | 4/7 temiz metin |
-| Prompt dışlama + kanıt doğrulaması | %75 | 3/7 |
-| Ön eleme (triage) eklendi | %100 | 0/7 |
-
-Ön eleme temiz metinlerde altı ajanı hiç çağırmadığı için analiz süresi de
-düştü: ikna metni ~12 sn, ikna olmayan metin ~0,4 sn.
 2. Çoklu Ajan Kümesini Docker Compose ile Çalıştırın
 Proje ana dizinine (/manipulation-detector) gidin ve derleme komutunu çalıştırın:
 ```
