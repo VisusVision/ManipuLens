@@ -71,8 +71,19 @@ def veriyi_oku():
 
 
 def cagri_basarisiz(a):
-    """Ajan cagrisi coktugunde butun guvenler 0.0 kalir; gercek 'temiz' sonuc degildir."""
-    return a["ajan_var"] and all(g == 0.0 for _, g in a["ajanlar"].values())
+    """Ajan cagrisi coktugunde butun guvenler 0.0 kalir; gercek 'temiz' sonuc degildir.
+    Ancak on eleme kapisi (clean_report) tarafindan uretilen temiz sonucun
+    ozetinde manipülasyon bulunmadığı belirtilir; bu gecerli bir temiz analizdir.
+    """
+    if not a["ajan_var"]:
+        return True
+    hepsi_sifir = all(g == 0.0 for _, g in a["ajanlar"].values())
+    if hepsi_sifir:
+        ozet = a.get("ozet") or ""
+        if "manipülasyon bulunmadı" in ozet or "No manipulation was found" in ozet or a.get("dominant") == "Yok" and not a["manipulatif"]:
+            return False
+        return True
+    return False
 
 
 # ---------------------------------------------------------------- terminal
