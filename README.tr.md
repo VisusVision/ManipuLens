@@ -92,6 +92,31 @@ GET  /v1/profile          → kendi profilin (yoksa exists:false)
 POST /v1/profile/delete   → kendi profilini sil (geçmişe dokunmaz)
 ```
 
+## 📣 Reklam Hedefleme
+
+Toplanan profil, kullanıcıya hangi önerinin gösterileceğine karar veren hedefleme
+ajanını besler (`src/ads.rs`). Ajan iki katmanlıdır: kural katmanı LLM'siz skorlar
+ve hariç tutar, LLM yalnız "neden bu reklam?" cümlesini yazar — karar
+deterministik ve denetlenebilir kalsın diye.
+
+Sınırlar koda gömülüdür:
+- **Rıza zorunlu.** `users.ads_consent` varsayılan `false`; rıza yokken profil hiç
+  okunmaz. Rıza geri alınınca o rızayla üretilmiş kararlar silinir.
+- Hassas kategoriler (kumar, alkol, kredi) güvenilir bir **yetişkin yaş sinyali**
+  olmadan gösterilmez; yaş "bilinmiyor" ise yetişkin sayılmaz.
+- **Aciliyet kurgusu** kullanan kampanya, davranışsal manipülasyona en açık
+  kullanıcıya gösterilmez. ManipuLens bu tuzağı gösteren araçtır; aynı tuzağı
+  kendi panelinde kurmaz.
+- Güveni 0.60 altındaki demografi sinyali skora girmez.
+- Her reklamın yanında "neden bu reklam?" satırı durur ve reklam gizlenebilir.
+
+```
+GET  /v1/ads               → sana uygun öneriler (+ decision_id)
+POST /v1/ads/feedback      → impression | click | dismiss
+POST /v1/consent           → reklam rızasını aç/kapa
+POST /v1/ads/inventory     → kampanya ekle/güncelle (ADS_ADMIN_TOKEN gerekir)
+```
+
 **Veri seti dışa aktarımı** — sunucu açmadan çalışır, satır başına bir analiz:
 
 ```

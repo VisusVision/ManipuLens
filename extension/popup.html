@@ -657,6 +657,22 @@
       margin: 0 !important;
     }
 
+    /* Hedefli öneri kartındaki ikincil butonlar (rıza aç, gizle).
+       Reklam kartı raporun altında durur; butonları raporun ana
+       eylemleriyle karışmasın diye düşük vurgulu. */
+    .ads-btn {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      border: 1px solid var(--pred-border);
+      background: transparent;
+      color: var(--pred-title);
+      cursor: pointer;
+    }
+    .ads-btn:hover {
+      background: var(--pred-bg);
+    }
+
     /* ===== KVKK Overlay ===== */
     #kvkk-overlay {
       position: fixed;

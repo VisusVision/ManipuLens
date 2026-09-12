@@ -1,3 +1,4 @@
+mod ads;
 mod agents;
 mod audit;
 mod auth;
@@ -1154,6 +1155,182 @@ async fn handle_profile_delete(
     Ok(Json(json!({ "deleted": deleted })))
 }
 
+// ========== REKLAM HEDEFLEME ==========
+/// Yönetim ucu için paylaşılan sır. Tanımlı değilse envanter ucu KAPALIDIR —
+/// kimliksiz bir yönetim ucu açık bırakmaktansa hiç açmamak doğrusu.
+fn ads_admin_token() -> Option<String> {
+    std::env::var("ADS_ADMIN_TOKEN")
+        .ok()
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+}
+
+/// Kullanıcının reklam rızasını okur/yazar.
+///
+/// Rıza varsayılan olarak kapalıdır (`users.ads_consent = false`): çıkarılmış
+/// demografiye dayalı hedefleme KVKK/GDPR'da açık rıza ister. Rıza geri
+/// alındığında o rızayla üretilmiş kararlar da silinir.
+async fn handle_consent(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    body: Option<Json<serde_json::Value>>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(session) = authenticate(&state, &headers).await else {
+        return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
+    };
+
+    // Gövdesiz ya da `ads_consent` alanı olmayan istek yalnızca durumu sorar.
+    let consent = body
+        .as_ref()
+        .and_then(|Json(b)| b.get("ads_consent"))
+        .and_then(|v| v.as_bool());
+
+    let Some(consent) = consent else {
+        return Ok(Json(json!({
+            "ads_consent": state.db.ads_consent(&session.user_id).await
+        })));
+    };
+
+    let updated = state.db.set_ads_consent(&session.user_id, consent).await;
+    audit(
+        "ads_consent",
+        json!({ "user_id": session.user_id, "consent": consent, "updated": updated }),
+    );
+    Ok(Json(json!({ "ads_consent": consent, "updated": updated })))
+}
+
+/// Kullanıcıya uygun reklamları döner.
+///
+/// Akış: rıza kontrolü → profil → kural katmanı (LLM'siz skorlama) → gerekçe
+/// katmanı (tek Ollama çağrısı). Rıza yoksa profil hiç okunmaz ve boş liste
+/// döner; profil henüz oluşmadıysa da hedefleme yapılmaz.
+async fn handle_ads(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(session) = authenticate(&state, &headers).await else {
+        return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
+    };
+
+    if !state.db.ads_consent(&session.user_id).await {
+        return Ok(Json(json!({
+            "ads": [],
+            "consent": false,
+            "reason": "Reklam kişiselleştirmesi kapalı. Profilin kullanılmıyor."
+        })));
+    }
+
+    let Some(profile) = state.db.profile_for_user(&session.user_id).await else {
+        return Ok(Json(json!({
+            "ads": [],
+            "consent": true,
+            "min_analyses": profile::PROFILE_MIN_ANALYSES,
+            "reason": "Profil henüz oluşmadı."
+        })));
+    };
+
+    let inventory = state.db.active_inventory().await;
+    let candidates = ads::score_candidates(&profile, &inventory);
+    if candidates.is_empty() {
+        return Ok(Json(json!({ "ads": [], "consent": true })));
+    }
+
+    let decisions = ads::explain_top(&candidates, &profile, "tr").await;
+
+    // Kararları kaydet; dönen satır id'si geri bildirimde kullanılır.
+    let mut payload = Vec::with_capacity(decisions.len());
+    for d in &decisions {
+        let decision_id = state
+            .db
+            .record_ad_decision(
+                &session.user_id,
+                &d.ad_id,
+                d.score,
+                &d.reason,
+                ads::TARGETING_MODEL_VERSION,
+            )
+            .await;
+        payload.push(json!({
+            "decision_id": decision_id,
+            "ad_id": d.ad_id,
+            "brand": d.brand,
+            "title": d.title,
+            "body": d.body,
+            "reason": d.reason,
+        }));
+    }
+
+    audit(
+        "ads_served",
+        json!({ "user_id": session.user_id, "count": payload.len() }),
+    );
+    Ok(Json(json!({ "ads": payload, "consent": true })))
+}
+
+/// Gösterim/tıklama/gizleme geri bildirimi. Başkasının kararına olay
+/// eklenemez: kayıt yalnızca karar bu kullanıcıya aitse yazılır.
+async fn handle_ads_feedback(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(session) = authenticate(&state, &headers).await else {
+        return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
+    };
+
+    let Some(decision_id) = body.get("decision_id").and_then(|v| v.as_i64()) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "decision_id ve kind alanları gerekli.".to_string(),
+        ));
+    };
+    let kind = body.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+
+    let recorded = state
+        .db
+        .record_ad_event(decision_id, &session.user_id, kind)
+        .await;
+    Ok(Json(json!({ "recorded": recorded })))
+}
+
+/// Kampanya ekler/günceller. `ADS_ADMIN_TOKEN` tanımlı değilse uç kapalıdır.
+async fn handle_ads_inventory(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let Some(expected) = ads_admin_token() else {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Envanter ucu kapalı: ADS_ADMIN_TOKEN tanımlı değil.".to_string(),
+        ));
+    };
+
+    let provided = headers
+        .get("x-ads-admin-token")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if provided != expected {
+        return Err((StatusCode::UNAUTHORIZED, "Yetkisiz.".to_string()));
+    }
+
+    let active = body.get("active").and_then(|v| v.as_bool()).unwrap_or(true);
+    let Ok(ad) = serde_json::from_value::<ads::Ad>(body) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "Kampanya gövdesi geçersiz (id, brand, category, title, body gerekli).".to_string(),
+        ));
+    };
+
+    match state.db.upsert_ad(&ad, active).await {
+        Ok(()) => {
+            audit("ads_inventory_upsert", json!({ "ad_id": ad.id }));
+            Ok(Json(json!({ "saved": true, "ad_id": ad.id })))
+        }
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
+    }
+}
+
 // ========== HEALTH ==========
 async fn handle_health() -> Json<serde_json::Value> {
     // `mail_disabled` eski tam kapatma modunu ve şifre sıfırlama arayüzünü,
@@ -1422,6 +1599,10 @@ DATABASE_URL ile adres verebilirsin."));
         .route("/v1/history", get(handle_history))
         .route("/v1/profile", get(handle_profile))
         .route("/v1/profile/delete", post(handle_profile_delete))
+        .route("/v1/consent", post(handle_consent))
+        .route("/v1/ads", get(handle_ads))
+        .route("/v1/ads/feedback", post(handle_ads_feedback))
+        .route("/v1/ads/inventory", post(handle_ads_inventory))
         .route("/healthz", get(handle_health))
         .layer(cors)
         .with_state(state);

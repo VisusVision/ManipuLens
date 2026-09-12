@@ -46,6 +46,11 @@ const i18n = {
     midLevel: "Orta Seviye",
     lowLevel: "Az Seviye",
     predictionTitle: "Satın Alma Eğilimi Tahmini:",
+    adsTitle: "Sana Uygun",
+    adsWhy: "Neden bu reklam?",
+    adsDismiss: "Gizle",
+    adsConsentInvite: "Reklam kişiselleştirmesi kapalı. Açarsan profilin yalnızca sana uygun öneriyi seçmek için kullanılır; istediğin an kapatabilirsin.",
+    adsConsentBtn: "Kişiselleştirmeyi aç",
     manipulation: "Manipülasyon",
     clean: "Temiz",
     loadingStages: [
@@ -156,6 +161,11 @@ const i18n = {
     midLevel: "Medium Level",
     lowLevel: "Low Level",
     predictionTitle: "Purchase Intent Prediction:",
+    adsTitle: "Suggested for you",
+    adsWhy: "Why this ad?",
+    adsDismiss: "Hide",
+    adsConsentInvite: "Ad personalisation is off. If you turn it on, your profile is used only to pick a relevant suggestion; you can turn it off at any time.",
+    adsConsentBtn: "Turn on personalisation",
     manipulation: "Manipulation",
     clean: "Clean",
     loadingStages: [
@@ -1456,6 +1466,10 @@ function renderResult(data) {
 
   resultDiv.innerHTML = html;
 
+  // Hedefli öneri raporun ALTINA, ayrı bir kart olarak eklenir: manipülasyon
+  // ajanlarının kararıyla karışmasın. Rıza kapalıysa yalnız davet gösterilir.
+  loadTargetedAds();
+
   setTimeout(() => {
     document.querySelectorAll('.progress-bar').forEach(bar => {
       const width = bar.style.width;
@@ -1463,6 +1477,97 @@ function renderResult(data) {
       setTimeout(() => { bar.style.width = width; }, 30);
     });
   }, 80);
+}
+
+// ============== HEDEFLİ ÖNERİ (/v1/ads) ==============
+// Reklam kartı raporun bir parçası değildir: ayrı kutuda durur, her zaman
+// "neden bu reklam?" satırını taşır ve gizlenebilir. Rıza kapalıyken sunucu
+// profili hiç okumaz, buraya da yalnızca davet düşer.
+async function adsApi(path, method = "GET", body = null) {
+  const token = await getAuthToken();
+  if (!token) return null;
+
+  const baseUrl = await getBaseUrl();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true"
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal
+    });
+    if (response.status === 401) {
+      await handleSessionExpired();
+      return null;
+    }
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (e) {
+    // Reklam katmanı yardımcı bir özellik: hata analiz akışını bozmaz.
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadTargetedAds() {
+  const resultDiv = document.getElementById("result");
+  if (!resultDiv) return;
+
+  const data = await adsApi("/v1/ads");
+  if (!data) return;
+
+  const box = document.createElement("div");
+  box.className = "prediction-box";
+  box.style.marginTop = "14px";
+
+  if (data.consent === false) {
+    box.innerHTML = `
+      <span class="prediction-title">📣 ${t("adsTitle")}</span>
+      <p class="prediction-text">${t("adsConsentInvite")}</p>
+      <button class="ads-btn" id="ads-consent-btn" style="margin-top:8px;">${t("adsConsentBtn")}</button>
+    `;
+    resultDiv.appendChild(box);
+    document.getElementById("ads-consent-btn")?.addEventListener("click", async () => {
+      await adsApi("/v1/consent", "POST", { ads_consent: true });
+      box.remove();
+      loadTargetedAds();
+    });
+    return;
+  }
+
+  const ads = Array.isArray(data.ads) ? data.ads : [];
+  if (ads.length === 0) return;
+
+  box.innerHTML = `<span class="prediction-title">📣 ${t("adsTitle")}</span>`;
+  ads.forEach((ad) => {
+    const item = document.createElement("div");
+    item.style.marginTop = "10px";
+    item.innerHTML = `
+      <p class="prediction-text" style="font-weight:600;">${escapeHTML(ad.brand)} — ${escapeHTML(ad.title)}</p>
+      <p class="prediction-text">${escapeHTML(ad.body)}</p>
+      <p class="prediction-text" style="opacity:0.75; font-size:11px;">${t("adsWhy")} ${escapeHTML(ad.reason)}</p>
+      <button class="ads-btn">${t("adsDismiss")}</button>
+    `;
+    box.appendChild(item);
+
+    if (ad.decision_id) {
+      adsApi("/v1/ads/feedback", "POST", { decision_id: ad.decision_id, kind: "impression" });
+      item.querySelector("button")?.addEventListener("click", async () => {
+        await adsApi("/v1/ads/feedback", "POST", { decision_id: ad.decision_id, kind: "dismiss" });
+        item.remove();
+        if (!box.querySelector("div")) box.remove();
+      });
+    }
+  });
+
+  resultDiv.appendChild(box);
 }
 
 function escapeHTML(str) {

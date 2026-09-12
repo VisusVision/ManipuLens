@@ -91,6 +91,31 @@ GET  /v1/profile          → your own profile (exists:false if not built yet)
 POST /v1/profile/delete   → delete your own profile (history untouched)
 ```
 
+## 📣 Ad Targeting
+
+The collected profile feeds a targeting agent (`src/ads.rs`) that decides which
+suggestion a user sees. Two layers: a rule layer scores and excludes without any
+LLM call, and the LLM only phrases the "why this ad?" line — so the decision stays
+deterministic and auditable.
+
+Limits are baked into the code:
+- **Consent required.** `users.ads_consent` defaults to `false`; with consent off
+  the profile is never read. Revoking consent deletes the decisions made under it.
+- Sensitive categories (gambling, alcohol, credit) need a reliable **adult age
+  signal**; an unknown age does not count as adult.
+- Campaigns framed with artificial **urgency** are withheld from the users most
+  exposed to behavioural manipulation. ManipuLens exposes that trap; it will not
+  run it in its own panel.
+- Demographic signals below 0.60 confidence never reach the score.
+- Every ad carries a visible "why this ad?" line and can be dismissed.
+
+```
+GET  /v1/ads               → suggestions for you (+ decision_id)
+POST /v1/ads/feedback      → impression | click | dismiss
+POST /v1/consent           → turn ad personalisation on/off
+POST /v1/ads/inventory     → add/update a campaign (requires ADS_ADMIN_TOKEN)
+```
+
 **Dataset export** — runs without starting the server, one analysis per line:
 
 ```

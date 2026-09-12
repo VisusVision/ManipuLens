@@ -15,6 +15,7 @@
 //! bir veritabanı ya da `sqlx prepare` ile üretilmiş offline veri ister;
 //! bu projede derlemenin veritabanından bağımsız kalması daha değerli.
 
+use crate::ads::Ad;
 use crate::types::{AgentVerdict, HistoryEntry, User, UserProfile};
 use sqlx::postgres::{PgPoolOptions, PgRow};
 use sqlx::{PgPool, Row};
@@ -345,13 +346,168 @@ impl Db {
     }
 
     /// Kullanıcı profilini siler (KVKK: kullanıcı kendi profilini kaldırabilir).
+    /// Profilden türetilmiş reklam kararları da silinir — profil gittiyse onun
+    /// üstüne kurulmuş hedefleme kaydının durması anlamsız olurdu.
     pub async fn delete_profile(&self, user_id: &str) -> bool {
-        sqlx::query("DELETE FROM user_profiles WHERE user_id = $1")
+        let deleted = sqlx::query("DELETE FROM user_profiles WHERE user_id = $1")
             .bind(user_id)
             .execute(&self.pool)
             .await
             .map(|r| r.rows_affected() > 0)
+            .unwrap_or(false);
+        self.delete_ad_decisions_for_user(user_id).await;
+        deleted
+    }
+
+    // ===== Reklam hedefleme =====
+
+    /// Kullanıcı reklam hedeflemesine rıza verdi mi? Varsayılan false;
+    /// rıza yoksa profil hedeflemede hiç okunmaz.
+    pub async fn ads_consent(&self, user_id: &str) -> bool {
+        sqlx::query_scalar::<_, bool>("SELECT ads_consent FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()
             .unwrap_or(false)
+    }
+
+    /// Rızayı açar/kapatır. Kapatıldığında geçmiş kararlar da silinir:
+    /// rıza geri alındıysa o rızayla üretilmiş kayıt da durmamalı.
+    pub async fn set_ads_consent(&self, user_id: &str, consent: bool) -> bool {
+        let updated = sqlx::query("UPDATE users SET ads_consent = $1 WHERE id = $2")
+            .bind(consent)
+            .bind(user_id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
+            .unwrap_or(false);
+
+        if updated && !consent {
+            self.delete_ad_decisions_for_user(user_id).await;
+        }
+        updated
+    }
+
+    /// Aktif kampanyalar. Envanter elle doldurulur; dış reklam ağı yoktur.
+    pub async fn active_inventory(&self) -> Vec<Ad> {
+        let rows = sqlx::query(
+            "SELECT id, brand, category, title, body, target, sensitive, urgency
+             FROM ad_inventory WHERE active = true ORDER BY id ASC",
+        )
+        .fetch_all(&self.pool)
+        .await;
+
+        match rows {
+            Ok(rows) => rows
+                .iter()
+                .map(|r| Ad {
+                    id: r.get("id"),
+                    brand: r.get("brand"),
+                    category: r.get("category"),
+                    title: r.get("title"),
+                    body: r.get("body"),
+                    target: r
+                        .try_get::<serde_json::Value, _>("target")
+                        .ok()
+                        .and_then(|v| serde_json::from_value(v).ok())
+                        .unwrap_or_default(),
+                    sensitive: r.get("sensitive"),
+                    urgency: r.get("urgency"),
+                })
+                .collect(),
+            Err(e) => {
+                tracing::warn!(error = %e, "reklam envanteri okunamadı");
+                Vec::new()
+            }
+        }
+    }
+
+    /// Kampanya ekler veya günceller (yönetim ucu).
+    pub async fn upsert_ad(&self, ad: &Ad, active: bool) -> Result<(), String> {
+        let target = serde_json::to_value(&ad.target).map_err(|e| e.to_string())?;
+        sqlx::query(
+            "INSERT INTO ad_inventory (id, brand, category, title, body, target, sensitive, urgency, active)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             ON CONFLICT (id) DO UPDATE SET
+                brand = EXCLUDED.brand,
+                category = EXCLUDED.category,
+                title = EXCLUDED.title,
+                body = EXCLUDED.body,
+                target = EXCLUDED.target,
+                sensitive = EXCLUDED.sensitive,
+                urgency = EXCLUDED.urgency,
+                active = EXCLUDED.active",
+        )
+        .bind(&ad.id)
+        .bind(&ad.brand)
+        .bind(&ad.category)
+        .bind(&ad.title)
+        .bind(&ad.body)
+        .bind(target)
+        .bind(ad.sensitive)
+        .bind(ad.urgency)
+        .bind(active)
+        .execute(&self.pool)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+    }
+
+    /// Kararı kaydeder ve satır id'sini döner; geri bildirim bu id ile gelir.
+    pub async fn record_ad_decision(
+        &self,
+        user_id: &str,
+        ad_id: &str,
+        score: f32,
+        reason: &str,
+        model_version: &str,
+    ) -> Option<i64> {
+        sqlx::query_scalar::<_, i64>(
+            "INSERT INTO ad_decisions (user_id, ad_id, score, reason, model_version)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        )
+        .bind(user_id)
+        .bind(ad_id)
+        .bind(score)
+        .bind(reason)
+        .bind(model_version)
+        .fetch_one(&self.pool)
+        .await
+        .ok()
+    }
+
+    /// Gösterim/tıklama/gizleme kaydeder. Karar başka kullanıcıya aitse
+    /// hiçbir şey yazılmaz — kimse başkasının kararına olay ekleyemez.
+    pub async fn record_ad_event(&self, decision_id: i64, user_id: &str, kind: &str) -> bool {
+        if !matches!(kind, "impression" | "click" | "dismiss") {
+            return false;
+        }
+        sqlx::query(
+            "INSERT INTO ad_events (decision_id, kind)
+             SELECT $1, $2 WHERE EXISTS (
+                 SELECT 1 FROM ad_decisions WHERE id = $1 AND user_id = $3
+             )",
+        )
+        .bind(decision_id)
+        .bind(kind)
+        .bind(user_id)
+        .execute(&self.pool)
+        .await
+        .map(|r| r.rows_affected() > 0)
+        .unwrap_or(false)
+    }
+
+    /// Kullanıcının reklam kararlarını siler (olaylar ON DELETE CASCADE ile
+    /// gider). Profil silindiğinde ve rıza geri alındığında çağrılır.
+    pub async fn delete_ad_decisions_for_user(&self, user_id: &str) -> u64 {
+        sqlx::query("DELETE FROM ad_decisions WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected())
+            .unwrap_or(0)
     }
 
     // ===== Oturumlar =====

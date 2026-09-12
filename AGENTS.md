@@ -34,11 +34,12 @@ Two runtimes joined by HTTP:
 - Backend calls local **Ollama** (`OLLAMA_URL`, default `http://localhost:11434`); no cloud LLM.
 
 ### Backend modules (all route handlers live in `main.rs`, not split out)
-- `main.rs` — Axum router; all HTTP handlers (register/login/verify/resend/forgot/reset/analyze/translate-report/history/healthz); `authenticate()` middleware; SMTP sending; `.env` loader.
+- `main.rs` — Axum router; all HTTP handlers (register/login/verify/resend/forgot/reset/analyze/translate-report/history/profile/consent/ads/healthz); `authenticate()` middleware; SMTP sending; `.env` loader.
 - `orchestrator.rs` — core of `/v1/analyze`: runs 6 expert agents in parallel (`tokio::join!`), reduces via "Synthesizer" (manager) LLM call into `FinalReport`; on synthesizer failure `fallback_summary()` builds local summary from highest-confidence agent. Also `repair_language` and `translate_report`.
 - `agents.rs` — one Ollama prompt fn per manipulation type (Linguistic/Psychological/Behavioral/Perceptual/Social/Marketing); all share `call_ollama_agent()` and a `reqwest::Client` in `OnceLock`.
 - `auth.rs` — in-memory rate limiting (`RateWindow`), brute-force lock (`LoginGuard`), session token generation (`new_token`, 128 hex chars).
 - `db.rs` — PostgreSQL via `sqlx` (`PgPool`, runtime query API — no compile-time DB needed): `users`, `history`, `sessions`, `user_profiles`. Schema lives in `migrations/`, applied on startup. Connection from `DATABASE_URL` (default `postgres://postgres:postgres@127.0.0.1:5433/manipulens`). One-time auto-import from legacy `users.json`/`history.jsonl` (`migrate_from_json_files`); source files not deleted.
+- `ads.rs` — ad targeting agent. Two layers: `score_candidates()` is a pure, LLM-free scoring/exclusion function (testable, auditable) and `explain_top()` makes ONE Ollama call only to phrase the "why this ad?" line; if it fails the rule labels are used. Hard exclusions: no consent, campaign language the user never reads, sensitive category without a reliable adult age signal, and urgency-framed campaigns for users whose dominant manipulation type is Davranışsal (the tool does not run the trap it exposes).
 - `import_sqlite.rs` — one-shot migration `--import-sqlite manipulens.db`: reads the old SQLite file into PostgreSQL, skips any table that already has rows, never touches the source.
 - `audit.rs` — daily-rotating JSONL audit log (`logs/audit-YYYY-MM-DD.jsonl`); full analyzed text is NEVER logged, only first 120 chars preview.
 - `types.rs` — all serde DTOs; single source of truth for the backend↔extension JSON contract.
@@ -58,3 +59,6 @@ Backend address is not hardcoded: extension fetches `ngrok_url` from `extension/
 
 ### i18n (TR/EN)
 `lang` field ("tr"/"en") selects LLM prompts and UI messages (`norm_lang`, `pick` helpers in `main.rs`). Wrong-language LLM output trips the `orchestrator::wrong_language` heuristic → `repair_language` fixes it in one batch translation call. `HistoryEntry.lang` records generation language; on UI language switch only wrong-language entries get translated, and the translation is persisted to DB (no repeat Ollama call for the same entry).
+
+### Ads (`/v1/ads`)
+Targeting reads the inferred profile, so it is gated on explicit consent: `users.ads_consent` defaults to **false**, and with consent off the profile is never read. Revoking consent deletes that user's `ad_decisions` (events cascade); deleting the profile deletes them too. `POST /v1/ads/inventory` is the admin endpoint and stays CLOSED unless `ADS_ADMIN_TOKEN` is set (header `x-ads-admin-token`). Every served ad carries a user-visible reason line.
