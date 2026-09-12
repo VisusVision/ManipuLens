@@ -61,7 +61,7 @@ ManipuLens relies on a structured hierarchy of local generative agents to parse,
 
 ## 📊 User Profile and Dataset
 
-Every analysis is written to the SQLite `history` table together with the six
+Every analysis is written to the PostgreSQL `history` table together with the six
 expert agents' verdicts (not the full text — a 120-character preview). A
 two-layer user profile is built on top of it:
 

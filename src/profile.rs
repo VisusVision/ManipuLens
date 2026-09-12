@@ -125,9 +125,10 @@ pub fn compute_stats(entries: &[HistoryEntry]) -> ProfileStats {
 /// `client_id` geçmiş tablosundaki kimliktir (bugün e-posta), `user_id` ise
 /// profilin anahtarıdır (UUID). Yeterli kayıt yoksa profil yazılmaz —
 /// yarım veriyle üretilmiş profil, profilin olmamasından kötüdür.
-pub fn refresh_stats(db: &Db, user_id: &str, client_id: &str) -> Option<UserProfile> {
+pub async fn refresh_stats(db: &Db, user_id: &str, client_id: &str) -> Option<UserProfile> {
     let entries: Vec<HistoryEntry> = db
         .history_for_client(client_id, PROFILE_HISTORY_LIMIT)
+        .await
         .into_iter()
         .map(|(_, e)| e)
         .collect();
@@ -140,7 +141,7 @@ pub fn refresh_stats(db: &Db, user_id: &str, client_id: &str) -> Option<UserProf
 
     // Var olan çıkarım (demografi ajanı çıktısı) korunur; bu fonksiyon
     // yalnızca sayaç katmanını tazeler.
-    let previous = db.profile_for_user(user_id);
+    let previous = db.profile_for_user(user_id).await;
     let profile = UserProfile {
         user_id: user_id.to_string(),
         stats,
@@ -156,7 +157,7 @@ pub fn refresh_stats(db: &Db, user_id: &str, client_id: &str) -> Option<UserProf
         inference_count: previous.as_ref().and_then(|p| p.inference_count),
     };
 
-    db.upsert_profile(&profile);
+    db.upsert_profile(&profile).await;
     Some(profile)
 }
 
@@ -221,6 +222,7 @@ pub async fn refresh_inference(
 ) -> Option<UserProfile> {
     let entries: Vec<HistoryEntry> = db
         .history_for_client(client_id, PROFILE_HISTORY_LIMIT)
+        .await
         .into_iter()
         .map(|(_, e)| e)
         .collect();
@@ -252,7 +254,7 @@ pub async fn refresh_inference(
         inference_count: Some(total),
     };
 
-    db.upsert_profile(&profile);
+    db.upsert_profile(&profile).await;
     tracing::info!(user_id, analyses = total, "kullanıcı profili çıkarımı tazelendi");
     Some(profile)
 }
@@ -262,10 +264,10 @@ pub async fn refresh_inference(
 /// Gizlilik: e-posta ASLA yazılmaz — kullanıcı ayrımı `user_id` (UUID) ile
 /// yapılır, çözülemeyen eski kayıtlar `null` kalır. Metnin tamamı zaten
 /// saklanmıyor; yalnızca 120 karakterlik önizleme dışa aktarılır.
-pub fn export_dataset(db: &Db, path: &str) -> Result<usize, String> {
+pub async fn export_dataset(db: &Db, path: &str) -> Result<usize, String> {
     use std::io::Write;
 
-    let entries = db.history_for_export();
+    let entries = db.history_for_export().await;
     let file = std::fs::File::create(path).map_err(|e| e.to_string())?;
     let mut writer = std::io::BufWriter::new(file);
     let mut written = 0usize;
@@ -354,23 +356,26 @@ mod tests {
         assert!(stats.top_products.is_empty());
     }
 
-    #[test]
-    fn refresh_stats_requires_minimum_history() {
-        let db = Db::open_in_memory();
+    #[tokio::test]
+    async fn refresh_stats_requires_minimum_history() {
+        let db = Db::connect_test().await;
         for i in 0..(PROFILE_MIN_ANALYSES - 1) {
             db.insert_history(&entry(
                 &format!("2026-01-0{}T00:00:00+03:00", i + 1),
                 true,
                 "Pazarlama",
                 "tr",
-            ));
+            )).await;
         }
-        assert!(refresh_stats(&db, "uid-1", "a@b.com").is_none());
+        assert!(refresh_stats(&db, "uid-1", "a@b.com").await.is_none());
 
-        db.insert_history(&entry("2026-01-09T00:00:00+03:00", true, "Pazarlama", "tr"));
-        let profile = refresh_stats(&db, "uid-1", "a@b.com").expect("profil üretilmeli");
+        db.insert_history(&entry("2026-01-09T00:00:00+03:00", true, "Pazarlama", "tr")).await;
+        let profile = refresh_stats(&db, "uid-1", "a@b.com").await.expect("profil üretilmeli");
         assert_eq!(profile.stats.total, PROFILE_MIN_ANALYSES);
-        assert_eq!(db.profile_for_user("uid-1").unwrap().stats.total, PROFILE_MIN_ANALYSES);
+        assert_eq!(
+            db.profile_for_user("uid-1").await.unwrap().stats.total,
+            PROFILE_MIN_ANALYSES
+        );
     }
 
     fn profile_with(total: i64, inference_count: Option<i64>, inference_at: Option<String>) -> UserProfile {
@@ -434,35 +439,36 @@ mod tests {
         assert_eq!(evidence["stats"]["total"], 40);
     }
 
-    #[test]
-    fn refresh_stats_preserves_existing_inference() {
-        let db = Db::open_in_memory();
+    #[tokio::test]
+    async fn refresh_stats_preserves_existing_inference() {
+        let db = Db::connect_test().await;
         for i in 0..PROFILE_MIN_ANALYSES {
             db.insert_history(&entry(
                 &format!("2026-01-{:02}T00:00:00+03:00", i + 1),
                 true,
                 "Pazarlama",
                 "tr",
-            ));
+            )).await;
         }
         db.upsert_profile(&profile_with(
             PROFILE_MIN_ANALYSES,
             Some(PROFILE_MIN_ANALYSES),
             Some(Local::now().to_rfc3339()),
-        ));
+        ))
+        .await;
 
-        let refreshed = refresh_stats(&db, "uid-1", "a@b.com").expect("profil üretilmeli");
+        let refreshed = refresh_stats(&db, "uid-1", "a@b.com").await.expect("profil üretilmeli");
         // Sayaç tazelemesi çıkarımı silmez
         assert!(refreshed.inference.is_some());
         assert_eq!(refreshed.inference_count, Some(PROFILE_MIN_ANALYSES));
     }
 
-    #[test]
-    fn agents_survive_database_roundtrip() {
-        let db = Db::open_in_memory();
-        db.insert_history(&entry("2026-01-01T00:00:00+03:00", true, "Pazarlama", "tr"));
+    #[tokio::test]
+    async fn agents_survive_database_roundtrip() {
+        let db = Db::connect_test().await;
+        db.insert_history(&entry("2026-01-01T00:00:00+03:00", true, "Pazarlama", "tr")).await;
 
-        let rows = db.history_for_client("a@b.com", 10);
+        let rows = db.history_for_client("a@b.com", 10).await;
         let stored = &rows[0].1;
         let agents = stored.agents.as_ref().expect("ajan kararları saklanmalı");
         assert_eq!(agents.len(), 2);

@@ -2,6 +2,7 @@ mod agents;
 mod audit;
 mod auth;
 mod db;
+mod import_sqlite;
 mod orchestrator;
 mod profile;
 mod types;
@@ -187,22 +188,23 @@ async fn verify_password(password: String, hash_str: String) -> bool {
 }
 
 /// Authorization: Bearer <token> başlığını doğrular; geçerli oturumu döner.
-fn authenticate(state: &SharedState, headers: &HeaderMap) -> Option<db::Session> {
+async fn authenticate(state: &SharedState, headers: &HeaderMap) -> Option<db::Session> {
     let value = headers.get(axum::http::header::AUTHORIZATION)?.to_str().ok()?;
     let token = value.strip_prefix("Bearer ")?.trim();
     if token.is_empty() {
         return None;
     }
-    state.db.session_by_token(token, Local::now().timestamp())
+    state.db.session_by_token(token, Local::now().timestamp()).await
 }
 
 /// Başarılı kimlik doğrulama sonrası oturum açar, token döner.
-fn open_session(state: &SharedState, user_id: &str, email: &str) -> String {
+async fn open_session(state: &SharedState, user_id: &str, email: &str) -> String {
     let token = auth::new_token();
     let now = Local::now().timestamp();
     state
         .db
-        .create_session(&token, user_id, email, now, now + auth::SESSION_TTL_SECS);
+        .create_session(&token, user_id, email, now, now + auth::SESSION_TTL_SECS)
+        .await;
     token
 }
 
@@ -459,7 +461,7 @@ async fn handle_register(
         );
     }
 
-    if state.db.user_by_email(&email).is_some() {
+    if state.db.user_by_email(&email).await.is_some() {
         return auth_fail(
             pick(lang, "Bu e-posta adresi zaten kayıtlı.", "This email is already registered.").to_string(),
         );
@@ -484,7 +486,7 @@ async fn handle_register(
     };
 
     // UNIQUE(email) kısıtı yarış durumunda bile çifte kaydı engeller
-    if state.db.insert_user(&new_user).is_err() {
+    if state.db.insert_user(&new_user).await.is_err() {
         return auth_fail(
             pick(lang, "Bu e-posta adresi zaten kayıtlı.", "This email is already registered.").to_string(),
         );
@@ -494,7 +496,7 @@ async fn handle_register(
 
     // E-posta doğrulaması kapalı: kod üretme, doğrudan oturum aç.
     if verification_off {
-        let token = open_session(&state, &new_user.id, &new_user.email);
+        let token = open_session(&state, &new_user.id, &new_user.email).await;
         audit("register_auto_verified", json!({ "email": email }));
         return Json(AuthResponse {
             success: true,
@@ -560,7 +562,7 @@ async fn handle_login(
         }
     }
 
-    let user = state.db.user_by_email(&email);
+    let user = state.db.user_by_email(&email).await;
     let password_ok = match &user {
         Some(u) => verify_password(password, u.password_hash.clone()).await,
         // Kullanıcı yoksa da sahte doğrulama yap: yanıt süresi üzerinden
@@ -576,7 +578,7 @@ async fn handle_login(
         // kaydı bir kez doğrulanmış işaretleyip normal akışa devam ederiz.
         (Some(u), true) if u.verified || email_verification_disabled() => {
             if !u.verified {
-                state.db.set_verified(&email);
+                state.db.set_verified(&email).await;
                 audit("login_auto_verified", json!({ "email": email }));
             }
             {
@@ -585,7 +587,7 @@ async fn handle_login(
                     g.record_success();
                 }
             }
-            let token = open_session(&state, &u.id, &u.email);
+            let token = open_session(&state, &u.id, &u.email).await;
             audit("login_success", json!({ "email": email }));
             Json(AuthResponse {
                 success: true,
@@ -672,8 +674,8 @@ async fn handle_verify(
         }
     }
 
-    if let Some(user) = state.db.set_verified(&email) {
-        let token = open_session(&state, &user.id, &user.email);
+    if let Some(user) = state.db.set_verified(&email).await {
+        let token = open_session(&state, &user.id, &user.email).await;
         audit("verify_success", json!({ "email": email }));
         return Json(AuthResponse {
             success: true,
@@ -712,7 +714,7 @@ async fn handle_resend(
         );
     }
 
-    let needs_code = matches!(state.db.user_by_email(&email), Some(u) if !u.verified);
+    let needs_code = matches!(state.db.user_by_email(&email).await, Some(u) if !u.verified);
 
     if needs_code {
         let mail_result = store_and_send_code(&state, "verify", &email, lang).await;
@@ -762,7 +764,7 @@ async fn handle_forgot(
         });
     }
 
-    if state.db.user_by_email(&email).is_some() {
+    if state.db.user_by_email(&email).await.is_some() {
         let mail_result = store_and_send_code(&state, "reset", &email, lang).await;
         // Rate-limit ve gönderim hatası kullanıcıya bildirilir; ancak
         // e-postanın kayıtlı olup olmadığı sızdırılmaz (mesajlar nötr).
@@ -856,10 +858,10 @@ async fn handle_reset(
         );
     };
 
-    if state.db.update_password(&email, &password_hash) {
+    if state.db.update_password(&email, &password_hash).await {
         // Güvenlik: şifre değişince eski tüm oturumlar geçersiz olur
         // (token'ı ele geçirmiş biri varsa dışarı atılır).
-        state.db.delete_sessions_for_user(&email);
+        state.db.delete_sessions_for_user(&email).await;
         audit("password_reset", json!({ "email": email }));
         return Json(AuthResponse {
             success: true,
@@ -889,7 +891,7 @@ async fn handle_analyze(
 
     // KİMLİK: geçerli oturum token'ı zorunlu. Eskiden bu uç tamamen açıktı;
     // URL'i bilen herkes sınırsız analiz (7 LLM çağrısı) tetikleyebiliyordu.
-    let Some(session) = authenticate(&state, &headers) else {
+    let Some(session) = authenticate(&state, &headers).await else {
         audit("analyze_unauthorized", json!({ "lang": lang }));
         return Err((StatusCode::UNAUTHORIZED, unauthorized_msg(lang)));
     };
@@ -961,7 +963,7 @@ async fn handle_analyze(
                 predicted_product: report.predicted_product.clone(),
                 text_len: Some(text.chars().count() as i64),
             };
-            state.db.insert_history(&entry);
+            state.db.insert_history(&entry).await;
 
             // Profili isteğin DIŞINDA tazele: kullanıcı raporunu beklemeden
             // alır, profil sonra sessizce güncellenir.
@@ -974,7 +976,8 @@ async fn handle_analyze(
                 let client_id = session.email.clone();
                 let lang = lang.to_string();
                 tokio::spawn(async move {
-                    let Some(profile) = profile::refresh_stats(&state.db, &user_id, &client_id)
+                    let Some(profile) =
+                        profile::refresh_stats(&state.db, &user_id, &client_id).await
                     else {
                         return;
                     };
@@ -1033,7 +1036,7 @@ async fn handle_translate_report(
         _ => "tr",
     };
     // Oturum zorunlu: bu uç da Ollama kaynağı tüketiyor
-    if authenticate(&state, &headers).is_none() {
+    if authenticate(&state, &headers).await.is_none() {
         return Err((StatusCode::UNAUTHORIZED, unauthorized_msg(lang)));
     }
     Ok(Json(orchestrator::translate_report(payload.report, lang).await))
@@ -1050,11 +1053,11 @@ async fn handle_history(
     // GÜVENLİK: Eskiden geçmiş, istemcinin beyan ettiği client_id ile
     // filtreleniyordu — başkasının kimliğini bilen herkes onun geçmişini
     // çekebiliyordu (IDOR). Artık kimlik yalnızca oturum token'ından türetilir.
-    let Some(session) = authenticate(&state, &headers) else {
+    let Some(session) = authenticate(&state, &headers).await else {
         return Err((StatusCode::UNAUTHORIZED, unauthorized_msg(lang_q)));
     };
 
-    let mut rows = state.db.history_for_client(&session.email, HISTORY_LIMIT);
+    let mut rows = state.db.history_for_client(&session.email, HISTORY_LIMIT).await;
 
     // DİL TUTARLILIĞI (v2): Yeni kayıtlar hangi dilde üretildiğini `lang`
     // alanında taşır — tespit tahmine değil bu alana dayanır (eski lang'sız
@@ -1080,7 +1083,7 @@ async fn handle_history(
                 for (i, translated) in wrong_idx.into_iter().zip(translations) {
                     if let Some((id, entry)) = rows.get_mut(i) {
                         // Kalıcılaştır: bir sonraki açılış Ollama'sız döner
-                        state.db.update_history_summary(*id, &translated, lang);
+                        state.db.update_history_summary(*id, &translated, lang).await;
                         entry.genel_sonuc = translated;
                         entry.lang = Some(lang.to_string());
                     }
@@ -1110,11 +1113,11 @@ async fn handle_profile(
     State(state): State<SharedState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let Some(session) = authenticate(&state, &headers) else {
+    let Some(session) = authenticate(&state, &headers).await else {
         return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
     };
 
-    match state.db.profile_for_user(&session.user_id) {
+    match state.db.profile_for_user(&session.user_id).await {
         Some(p) => {
             // Profil bayatsa arka planda tazele; kullanıcı beklemeden
             // eldeki profili görür, bir sonraki açılışta güncelini bulur.
@@ -1142,11 +1145,11 @@ async fn handle_profile_delete(
     State(state): State<SharedState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let Some(session) = authenticate(&state, &headers) else {
+    let Some(session) = authenticate(&state, &headers).await else {
         return Err((StatusCode::UNAUTHORIZED, unauthorized_msg("tr")));
     };
 
-    let deleted = state.db.delete_profile(&session.user_id);
+    let deleted = state.db.delete_profile(&session.user_id).await;
     audit("profile_deleted", json!({ "user_id": session.user_id, "existed": deleted }));
     Ok(Json(json!({ "deleted": deleted })))
 }
@@ -1314,19 +1317,53 @@ async fn main() {
         );
     }
 
-    // SQLite aç + eski JSON verilerini (varsa) bir kez içe aktar
-    let db = Db::open("manipulens.db").expect("SQLite veritabanı açılamadı");
-    db.migrate_from_json_files();
+    // PostgreSQL aç + eski JSON verilerini (varsa) bir kez içe aktar
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| db::DEFAULT_DATABASE_URL.to_string());
+    let db = Db::connect(&database_url)
+        .await
+        .unwrap_or_else(|e| panic!("{e}
+DATABASE_URL ile adres verebilirsin."));
+    db.migrate_from_json_files().await;
+
+    let args: Vec<String> = std::env::args().collect();
+
+    // Tek seferlik göç: eski SQLite dosyasını PostgreSQL'e aktar ve çık.
+    //   manipulation-detector --import-sqlite manipulens.db
+    if let Some(pos) = args.iter().position(|a| a == "--import-sqlite") {
+        let Some(path) = args.get(pos + 1) else {
+            eprintln!("Kullanım: --import-sqlite <manipulens.db>");
+            std::process::exit(2);
+        };
+        match import_sqlite::import_from_sqlite(&db, path).await {
+            Ok(rapor) => {
+                println!(
+                    "Aktarıldı: {} kullanıcı, {} geçmiş kaydı, {} profil, {} oturum",
+                    rapor.users, rapor.history, rapor.profiles, rapor.sessions
+                );
+                if !rapor.skipped_tables.is_empty() {
+                    println!(
+                        "Atlanan tablolar (hedefte veri vardı): {}",
+                        rapor.skipped_tables.join(", ")
+                    );
+                }
+                std::process::exit(0);
+            }
+            Err(e) => {
+                eprintln!("Göç başarısız: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 
     // Veri seti dışa aktarımı: sunucu açmadan çalışır ve çıkar.
     //   manipulation-detector --export-dataset dataset.jsonl
-    let args: Vec<String> = std::env::args().collect();
     if let Some(pos) = args.iter().position(|a| a == "--export-dataset") {
         let Some(path) = args.get(pos + 1) else {
             eprintln!("Kullanım: --export-dataset <cikti.jsonl>");
             std::process::exit(2);
         };
-        match profile::export_dataset(&db, path) {
+        match profile::export_dataset(&db, path).await {
             Ok(n) => {
                 println!("{} kayıt dışa aktarıldı → {}", n, path);
                 std::process::exit(0);
@@ -1489,9 +1526,9 @@ mod tests {
         assert!(verify("x", DUMMY_HASH).is_ok());
     }
 
-    fn test_state() -> SharedState {
+    async fn test_state() -> SharedState {
         Arc::new(AppState {
-            db: Db::open_in_memory(),
+            db: Db::connect_test().await,
             codes: Mutex::new(HashMap::new()),
             login_guards: Mutex::new(HashMap::new()),
             analyze_rate: Mutex::new(HashMap::new()),
@@ -1500,7 +1537,7 @@ mod tests {
 
     #[tokio::test]
     async fn code_brute_force_cancels_code() {
-        let state = test_state();
+        let state = test_state().await;
         let now = Local::now().timestamp();
         state.codes.lock().await.insert(
             "verify:a@b.com".to_string(),
@@ -1533,7 +1570,7 @@ mod tests {
 
     #[tokio::test]
     async fn correct_code_consumed_once() {
-        let state = test_state();
+        let state = test_state().await;
         let now = Local::now().timestamp();
         state.codes.lock().await.insert(
             "reset:a@b.com".to_string(),
@@ -1558,7 +1595,7 @@ mod tests {
 
     #[tokio::test]
     async fn expired_code_rejected() {
-        let state = test_state();
+        let state = test_state().await;
         let now = Local::now().timestamp();
         state.codes.lock().await.insert(
             "verify:a@b.com".to_string(),
@@ -1575,31 +1612,31 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn authenticate_rejects_bad_headers() {
-        let state = test_state();
+    #[tokio::test]
+    async fn authenticate_rejects_bad_headers() {
+        let state = test_state().await;
         // Header yok
-        assert!(authenticate(&state, &HeaderMap::new()).is_none());
+        assert!(authenticate(&state, &HeaderMap::new()).await.is_none());
         // Bearer değil
         let mut h = HeaderMap::new();
         h.insert(axum::http::header::AUTHORIZATION, "Basic abc".parse().unwrap());
-        assert!(authenticate(&state, &h).is_none());
+        assert!(authenticate(&state, &h).await.is_none());
         // Geçersiz token
         let mut h = HeaderMap::new();
         h.insert(axum::http::header::AUTHORIZATION, "Bearer gecersiz".parse().unwrap());
-        assert!(authenticate(&state, &h).is_none());
+        assert!(authenticate(&state, &h).await.is_none());
     }
 
-    #[test]
-    fn authenticate_accepts_valid_session() {
-        let state = test_state();
-        let token = open_session(&state, "uid-1", "a@b.com");
+    #[tokio::test]
+    async fn authenticate_accepts_valid_session() {
+        let state = test_state().await;
+        let token = open_session(&state, "uid-1", "a@b.com").await;
         let mut h = HeaderMap::new();
         h.insert(
             axum::http::header::AUTHORIZATION,
             format!("Bearer {}", token).parse().unwrap(),
         );
-        let s = authenticate(&state, &h).expect("oturum geçerli olmalı");
+        let s = authenticate(&state, &h).await.expect("oturum geçerli olmalı");
         assert_eq!(s.email, "a@b.com");
         assert_eq!(s.user_id, "uid-1");
     }

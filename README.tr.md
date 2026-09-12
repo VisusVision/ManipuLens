@@ -61,7 +61,7 @@ ManipuLens, içeriklerin anlamsal bütünlüğünü ayrıştırmak, incelemek ve
 
 ## 📊 Kullanıcı Profili ve Veri Seti
 
-Her analiz, 6 uzman ajanın kararıyla birlikte SQLite `history` tablosuna yazılır
+Her analiz, 6 uzman ajanın kararıyla birlikte PostgreSQL `history` tablosuna yazılır
 (tam metin değil, 120 karakterlik önizleme). Bunun üstünde iki katmanlı bir
 kullanıcı profili durur:
 

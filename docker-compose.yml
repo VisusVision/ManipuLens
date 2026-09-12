@@ -1,19 +1,46 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: manipulens-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=manipulens
+    ports:
+      # Yerelde 5433: makinede kurulu başka bir PostgreSQL 5432'yi tutuyor olabilir
+      - "5433:5432"
+    volumes:
+      - manipulens-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d manipulens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   manipulens-backend:
     build: .
     container_name: manipulens-backend
     ports:
       - "3000:3000"
     volumes:
-      # Kullanıcı kayıtları ve analiz geçmişi container yeniden başlasa da korunur
-      - ./data:/app/data
+      # Denetim logları container yeniden başlasa da korunur
+      - ./logs:/app/logs
     environment:
       # Container içinden host makinedeki Ollama'ya erişim
       # (localhost container'ın kendisi olur, bu yüzden host.docker.internal gerekir)
       - OLLAMA_URL=http://host.docker.internal:11434
+      # Kullanıcılar, analiz geçmişi ve profiller PostgreSQL'de
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/manipulens
     # SMTP ayarları .env dosyasından okunur (SETUP_MAIL.md)
     env_file:
       - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  manipulens-pgdata:

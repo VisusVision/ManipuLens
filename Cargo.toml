@@ -15,6 +15,15 @@ http = "1"
 bcrypt = "0.15"
 uuid = { version = "1.0", features = ["v4"] }
 lettre = { version = "0.11", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"] }
+sqlx = { version = "0.8", default-features = false, features = [
+    "postgres",
+    "runtime-tokio-rustls",
+    "json",
+    "migrate",
+    "macros",
+] }
+# Yalnızca `--import-sqlite` göç komutu için: eski manipulens.db dosyasını
+# okuyup PostgreSQL'e aktarır. Uygulamanın çalışma yolunda SQLite kalmadı.
 rusqlite = { version = "0.31", features = ["bundled"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

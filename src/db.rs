@@ -1,17 +1,29 @@
-//! SQLite veri katmanı.
+//! PostgreSQL veri katmanı.
 //!
-//! Eski sürüm users.json / history.jsonl dosyalarına yazıyordu; her kayıtta
-//! tüm dosya yeniden yazılıyor ve dosyalar sınırsız büyüyordu. Artık tüm
-//! kalıcı veri (kullanıcılar, analiz geçmişi, oturumlar) tek SQLite
-//! dosyasında tutulur. İlk açılışta eski JSON dosyaları varsa İÇE AKTARILIR
-//! (dosyalar silinmez/değiştirilmez — geri dönüş her zaman mümkün).
+//! Önce users.json / history.jsonl dosyaları vardı (her kayıtta tüm dosya
+//! yeniden yazılıyordu), sonra tek bir SQLite dosyası. Artık kalıcı veri
+//! PostgreSQL'de: kullanıcı profili üstüne kurulacak reklam hedefleme katmanı
+//! "şu ilgi alanına sahip kullanıcılar" gibi sorgular soracak ve bu, profilin
+//! `jsonb` olarak indekslenebildiği bir veritabanı ister.
+//!
+//! Eski kaynaklardan içe aktarım iki yoldan yapılır ve ikisi de kaynağa
+//! dokunmaz: `migrate_from_json_files` (JSON dosyaları) ve
+//! `import_from_sqlite` (`--import-sqlite manipulens.db`).
+//!
+//! Sorgular derleme zamanı denetimli `query!` makroları yerine çalışma zamanı
+//! API'si (`sqlx::query`) ile yazıldı: makro, `cargo build` sırasında ayakta
+//! bir veritabanı ya da `sqlx prepare` ile üretilmiş offline veri ister;
+//! bu projede derlemenin veritabanından bağımsız kalması daha değerli.
 
 use crate::types::{AgentVerdict, HistoryEntry, User, UserProfile};
-use rusqlite::{params, Connection};
-use std::sync::Mutex;
+use sqlx::postgres::{PgPoolOptions, PgRow};
+use sqlx::{PgPool, Row};
+
+/// Varsayılan bağlantı adresi; `DATABASE_URL` ile ezilir.
+pub const DEFAULT_DATABASE_URL: &str = "postgres://postgres:postgres@127.0.0.1:5433/manipulens";
 
 pub struct Db {
-    conn: Mutex<Connection>,
+    pool: PgPool,
 }
 
 /// Oturum kaydı (Authorization: Bearer <token> ile doğrulanır)
@@ -22,92 +34,79 @@ pub struct Session {
 }
 
 impl Db {
-    pub fn open(path: &str) -> Result<Self, String> {
-        let conn = Connection::open(path).map_err(|e| e.to_string())?;
-        let db = Db { conn: Mutex::new(conn) };
-        db.init_schema()?;
+    /// Havuzu açar ve şema göçlerini uygular.
+    pub async fn connect(url: &str) -> Result<Self, String> {
+        let pool = PgPoolOptions::new()
+            // Analiz isteği sırasında profil tazeleme ayrı bir görevde koşuyor;
+            // beş bağlantı tek kullanıcılı yerel kurulum için fazlasıyla yeter.
+            .max_connections(5)
+            .connect(url)
+            .await
+            .map_err(|e| format!("PostgreSQL bağlantısı kurulamadı: {e}"))?;
+
+        let db = Db { pool };
+        db.run_migrations().await?;
         Ok(db)
     }
 
-    #[cfg(test)]
-    pub fn open_in_memory() -> Self {
-        let conn = Connection::open_in_memory().unwrap();
-        let db = Db { conn: Mutex::new(conn) };
-        db.init_schema().unwrap();
-        db
+    async fn run_migrations(&self) -> Result<(), String> {
+        sqlx::migrate!("./migrations")
+            .run(&self.pool)
+            .await
+            .map_err(|e| format!("şema göçü başarısız: {e}"))
     }
 
-    fn init_schema(&self) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute_batch(
-            r#"
-            PRAGMA journal_mode = WAL;
-            CREATE TABLE IF NOT EXISTS users (
-                id            TEXT PRIMARY KEY,
-                email         TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at    TEXT NOT NULL,
-                verified      INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS history (
-                id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp             TEXT NOT NULL,
-                client_id             TEXT NOT NULL,
-                text_preview          TEXT NOT NULL,
-                is_manipulated        INTEGER NOT NULL,
-                dominant_manipulation TEXT NOT NULL,
-                genel_sonuc           TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_history_client ON history(client_id);
-            "#,
-        )
-        .map_err(|e| e.to_string())?;
+    /// Testler için izole şema: her çağrı kendi `test_<rastgele>` şemasını
+    /// açar ve göçleri orada koşar. Böylece testler paralel çalışsa da
+    /// birbirinin satırlarını görmez; tek gereksinim ayakta bir PostgreSQL.
+    #[cfg(test)]
+    pub async fn connect_test() -> Self {
+        let url = std::env::var("DATABASE_URL_TEST").unwrap_or_else(|_| {
+            "postgres://postgres:postgres@127.0.0.1:5433/manipulens_test".to_string()
+        });
+        let schema = format!("test_{}", uuid::Uuid::new_v4().simple());
 
-        // Şema göçü: eski kurulumlarda history tablosunda bu sütunlar yok.
-        // ALTER TABLE idempotent değil; sütun zaten varsa hata döner, yok sayılır.
-        let _ = conn.execute("ALTER TABLE history ADD COLUMN lang TEXT", []);
-        // Veri seti katmanı: kimlik e-posta yerine UUID ile taşınsın ve 6
-        // uzman ajanın kararı da saklansın (eskiden yalnızca baskın tip vardı).
-        let _ = conn.execute("ALTER TABLE history ADD COLUMN user_id TEXT", []);
-        let _ = conn.execute("ALTER TABLE history ADD COLUMN agents_json TEXT", []);
-        let _ = conn.execute("ALTER TABLE history ADD COLUMN predicted_product TEXT", []);
-        let _ = conn.execute("ALTER TABLE history ADD COLUMN text_len INTEGER", []);
+        let setup = PgPoolOptions::new()
+            .max_connections(1)
+            .connect(&url)
+            .await
+            .expect("test PostgreSQL'ine bağlanılamadı (DATABASE_URL_TEST)");
+        sqlx::query(&format!("CREATE SCHEMA \"{schema}\""))
+            .execute(&setup)
+            .await
+            .expect("test şeması oluşturulamadı");
+        setup.close().await;
 
-        conn.execute_batch(
-            r#"
-            CREATE TABLE IF NOT EXISTS sessions (
-                token      TEXT PRIMARY KEY,
-                user_id    TEXT NOT NULL,
-                email      TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS user_profiles (
-                user_id        TEXT PRIMARY KEY,
-                profile_json   TEXT NOT NULL,
-                analyzed_count INTEGER NOT NULL,
-                model_version  TEXT NOT NULL,
-                updated_at     TEXT NOT NULL
-            );
-            "#,
-        )
-        .map_err(|e| e.to_string())
+        let schema_for_hook = schema.clone();
+        let pool = PgPoolOptions::new()
+            .max_connections(2)
+            .after_connect(move |conn, _| {
+                let schema = schema_for_hook.clone();
+                Box::pin(async move {
+                    sqlx::query(&format!("SET search_path TO \"{schema}\""))
+                        .execute(conn)
+                        .await?;
+                    Ok(())
+                })
+            })
+            .connect(&url)
+            .await
+            .expect("test havuzu açılamadı");
+
+        let db = Db { pool };
+        db.run_migrations().await.expect("test şema göçü başarısız");
+        db
     }
 
     /// Eski JSON dosyalarını (varsa) bir kez içe aktarır. Tablolar boş
     /// değilse hiçbir şey yapmaz; kaynak dosyalara dokunulmaz.
-    pub fn migrate_from_json_files(&self) {
-        let user_count: i64 = {
-            let conn = self.conn.lock().unwrap();
-            conn.query_row("SELECT COUNT(*) FROM users", [], |r| r.get(0))
-                .unwrap_or(0)
-        };
-        if user_count == 0 {
+    pub async fn migrate_from_json_files(&self) {
+        if self.count("users").await == 0 {
             if let Ok(content) = std::fs::read_to_string("users.json") {
                 if let Ok(users) = serde_json::from_str::<Vec<User>>(&content) {
                     let mut imported = 0;
                     for u in &users {
-                        if self.insert_user(u).is_ok() {
+                        if self.insert_user(u).await.is_ok() {
                             imported += 1;
                         }
                     }
@@ -116,17 +115,12 @@ impl Db {
             }
         }
 
-        let history_count: i64 = {
-            let conn = self.conn.lock().unwrap();
-            conn.query_row("SELECT COUNT(*) FROM history", [], |r| r.get(0))
-                .unwrap_or(0)
-        };
-        if history_count == 0 {
+        if self.count("history").await == 0 {
             if let Ok(content) = std::fs::read_to_string("history.jsonl") {
                 let mut imported = 0;
                 for line in content.lines() {
                     if let Ok(entry) = serde_json::from_str::<HistoryEntry>(line) {
-                        self.insert_history(&entry);
+                        self.insert_history(&entry).await;
                         imported += 1;
                     }
                 }
@@ -135,245 +129,291 @@ impl Db {
         }
     }
 
+    async fn count(&self, table: &str) -> i64 {
+        // Tablo adı sabit listeden gelir (users/history); kullanıcı girdisi değil.
+        sqlx::query_scalar::<_, i64>(&format!("SELECT COUNT(*) FROM {table}"))
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or(0)
+    }
+
+    /// Göç araçları için: hedef tablo boş mu? Dolu tabloya ikinci kez aktarım
+    /// yapılmaz, yoksa komut iki kez çalıştırıldığında geçmiş ikiye katlanır.
+    pub async fn is_table_empty(&self, table: &str) -> bool {
+        self.count(table).await == 0
+    }
+
     // ===== Kullanıcılar =====
 
-    pub fn user_by_email(&self, email: &str) -> Option<User> {
-        let conn = self.conn.lock().unwrap();
-        conn.query_row(
-            "SELECT id, email, password_hash, created_at, verified FROM users WHERE email = ?1",
-            params![email],
-            |r| {
-                Ok(User {
-                    id: r.get(0)?,
-                    email: r.get(1)?,
-                    password_hash: r.get(2)?,
-                    created_at: r.get(3)?,
-                    verified: r.get::<_, i64>(4)? != 0,
-                })
-            },
-        )
-        .ok()
+    pub async fn user_by_email(&self, email: &str) -> Option<User> {
+        sqlx::query("SELECT id, email, password_hash, created_at, verified FROM users WHERE email = $1")
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()
+            .map(|r: PgRow| User {
+                id: r.get("id"),
+                email: r.get("email"),
+                password_hash: r.get("password_hash"),
+                created_at: r.get("created_at"),
+                verified: r.get("verified"),
+            })
     }
 
     /// UNIQUE(email) ihlalinde Err döner (yarış durumunda çifte kayıt imkânsız).
-    pub fn insert_user(&self, user: &User) -> Result<(), String> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO users (id, email, password_hash, created_at, verified) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![user.id, user.email, user.password_hash, user.created_at, user.verified as i64],
+    pub async fn insert_user(&self, user: &User) -> Result<(), String> {
+        sqlx::query(
+            "INSERT INTO users (id, email, password_hash, created_at, verified)
+             VALUES ($1, $2, $3, $4, $5)",
         )
+        .bind(&user.id)
+        .bind(&user.email)
+        .bind(&user.password_hash)
+        .bind(&user.created_at)
+        .bind(user.verified)
+        .execute(&self.pool)
+        .await
         .map(|_| ())
         .map_err(|e| e.to_string())
     }
 
     /// Doğrulandı olarak işaretler; güncel kullanıcıyı döner.
-    pub fn set_verified(&self, email: &str) -> Option<User> {
-        {
-            let conn = self.conn.lock().unwrap();
-            conn.execute("UPDATE users SET verified = 1 WHERE email = ?1", params![email])
-                .ok()?;
-        }
-        self.user_by_email(email)
+    pub async fn set_verified(&self, email: &str) -> Option<User> {
+        sqlx::query("UPDATE users SET verified = true WHERE email = $1")
+            .bind(email)
+            .execute(&self.pool)
+            .await
+            .ok()?;
+        self.user_by_email(email).await
     }
 
-    pub fn update_password(&self, email: &str, password_hash: &str) -> bool {
-        let conn = self.conn.lock().unwrap();
+    pub async fn update_password(&self, email: &str, password_hash: &str) -> bool {
         matches!(
-            conn.execute(
-                "UPDATE users SET password_hash = ?1 WHERE email = ?2",
-                params![password_hash, email],
-            ),
-            Ok(n) if n > 0
+            sqlx::query("UPDATE users SET password_hash = $1 WHERE email = $2")
+                .bind(password_hash)
+                .bind(email)
+                .execute(&self.pool)
+                .await,
+            Ok(res) if res.rows_affected() > 0
         )
     }
 
     // ===== Geçmiş =====
 
-    pub fn insert_history(&self, entry: &HistoryEntry) {
-        let conn = self.conn.lock().unwrap();
-        // Ajan kararları tek JSON sütununda: 6 satır yerine 1 satır, ve
+    pub async fn insert_history(&self, entry: &HistoryEntry) {
+        // Ajan kararları tek jsonb sütununda: 6 satır yerine 1 satır, ve
         // ajan listesi değişirse şema göçü gerekmez.
         let agents_json = entry
             .agents
             .as_ref()
-            .and_then(|a| serde_json::to_string(a).ok());
-        let _ = conn.execute(
+            .and_then(|a| serde_json::to_value(a).ok());
+
+        let result = sqlx::query(
             "INSERT INTO history (timestamp, client_id, text_preview, is_manipulated, dominant_manipulation, genel_sonuc, lang, user_id, agents_json, predicted_product, text_len)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![
-                entry.timestamp,
-                entry.client_id,
-                entry.text_preview,
-                entry.is_manipulated as i64,
-                entry.dominant_manipulation,
-                entry.genel_sonuc,
-                entry.lang,
-                entry.user_id,
-                agents_json,
-                entry.predicted_product,
-                entry.text_len
-            ],
-        );
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        )
+        .bind(&entry.timestamp)
+        .bind(&entry.client_id)
+        .bind(&entry.text_preview)
+        .bind(entry.is_manipulated)
+        .bind(&entry.dominant_manipulation)
+        .bind(&entry.genel_sonuc)
+        .bind(&entry.lang)
+        .bind(&entry.user_id)
+        .bind(agents_json)
+        .bind(&entry.predicted_product)
+        .bind(entry.text_len)
+        .execute(&self.pool)
+        .await;
+
+        if let Err(e) = result {
+            tracing::warn!(error = %e, "geçmiş kaydı yazılamadı");
+        }
     }
 
-    /// history satırından HistoryEntry kurar. Sütun sırası SELECT'lerde
-    /// ortaktır: timestamp, client_id, text_preview, is_manipulated,
-    /// dominant_manipulation, genel_sonuc, lang, user_id, agents_json,
-    /// predicted_product, text_len — `offset` ilk sütunun indeksidir.
-    fn row_to_entry(r: &rusqlite::Row, offset: usize) -> rusqlite::Result<HistoryEntry> {
-        let agents_json: Option<String> = r.get(offset + 8)?;
-        Ok(HistoryEntry {
-            timestamp: r.get(offset)?,
-            client_id: r.get(offset + 1)?,
-            text_preview: r.get(offset + 2)?,
-            is_manipulated: r.get::<_, i64>(offset + 3)? != 0,
-            dominant_manipulation: r.get(offset + 4)?,
-            genel_sonuc: r.get(offset + 5)?,
-            lang: r.get(offset + 6)?,
-            user_id: r.get(offset + 7)?,
-            agents: agents_json
-                .as_deref()
-                .and_then(|j| serde_json::from_str::<Vec<AgentVerdict>>(j).ok()),
-            predicted_product: r.get(offset + 9)?,
-            text_len: r.get(offset + 10)?,
-        })
+    /// history satırından HistoryEntry kurar. Sütun adları tüm SELECT'lerde
+    /// aynıdır; `user_id` dışa aktarımda COALESCE ile üretilir.
+    fn row_to_entry(r: &PgRow) -> HistoryEntry {
+        let agents_json: Option<serde_json::Value> = r.try_get("agents_json").ok().flatten();
+        HistoryEntry {
+            timestamp: r.get("timestamp"),
+            client_id: r.get("client_id"),
+            text_preview: r.get("text_preview"),
+            is_manipulated: r.get("is_manipulated"),
+            dominant_manipulation: r.get("dominant_manipulation"),
+            genel_sonuc: r.get("genel_sonuc"),
+            lang: r.get("lang"),
+            user_id: r.get("user_id"),
+            agents: agents_json.and_then(|j| serde_json::from_value::<Vec<AgentVerdict>>(j).ok()),
+            predicted_product: r.get("predicted_product"),
+            text_len: r.get("text_len"),
+        }
     }
 
     /// En yeni kayıt önce, en fazla `limit` kayıt. Satır id'leri de döner:
     /// çeviri sonrası özetin kalıcı güncellenmesi (update_history_summary) için.
-    pub fn history_for_client(&self, client_id: &str, limit: i64) -> Vec<(i64, HistoryEntry)> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = match conn.prepare(
+    pub async fn history_for_client(&self, client_id: &str, limit: i64) -> Vec<(i64, HistoryEntry)> {
+        let rows = sqlx::query(
             "SELECT id, timestamp, client_id, text_preview, is_manipulated, dominant_manipulation, genel_sonuc, lang, user_id, agents_json, predicted_product, text_len
-             FROM history WHERE client_id = ?1 ORDER BY id DESC LIMIT ?2",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-        let rows = stmt.query_map(params![client_id, limit], |r| {
-            Ok((r.get::<_, i64>(0)?, Self::row_to_entry(r, 1)?))
-        });
+             FROM history WHERE client_id = $1 ORDER BY id DESC LIMIT $2",
+        )
+        .bind(client_id)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await;
+
         match rows {
-            Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
-            Err(_) => Vec::new(),
+            Ok(rows) => rows
+                .iter()
+                .map(|r| (r.get::<i64, _>("id"), Self::row_to_entry(r)))
+                .collect(),
+            Err(e) => {
+                tracing::warn!(error = %e, "geçmiş okunamadı");
+                Vec::new()
+            }
         }
     }
 
     /// Çevrilen özeti kalıcı yazar: aynı kayıt bir daha Ollama'ya gitmez.
     /// (Dil tutarlılığı düzeltmesi — geçmiş her açılışta yeniden çevrilmesin.)
-    pub fn update_history_summary(&self, id: i64, genel_sonuc: &str, lang: &str) {
-        let conn = self.conn.lock().unwrap();
-        let _ = conn.execute(
-            "UPDATE history SET genel_sonuc = ?1, lang = ?2 WHERE id = ?3",
-            params![genel_sonuc, lang, id],
-        );
+    pub async fn update_history_summary(&self, id: i64, genel_sonuc: &str, lang: &str) {
+        let _ = sqlx::query("UPDATE history SET genel_sonuc = $1, lang = $2 WHERE id = $3")
+            .bind(genel_sonuc)
+            .bind(lang)
+            .bind(id)
+            .execute(&self.pool)
+            .await;
     }
 
     /// Veri seti dışa aktarımı için TÜM geçmiş, en eski kayıt önce.
     /// Kullanıcı ayrımı `user_id` ile yapılır; eski kayıtlarda bu alan boşsa
     /// `users` tablosundan e-postayla çözülür (çözülemezse None kalır).
-    pub fn history_for_export(&self) -> Vec<HistoryEntry> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = match conn.prepare(
+    pub async fn history_for_export(&self) -> Vec<HistoryEntry> {
+        let rows = sqlx::query(
             "SELECT h.timestamp, h.client_id, h.text_preview, h.is_manipulated, h.dominant_manipulation, h.genel_sonuc, h.lang,
                     COALESCE(h.user_id, u.id) AS user_id, h.agents_json, h.predicted_product, h.text_len
              FROM history h LEFT JOIN users u ON u.email = h.client_id
              ORDER BY h.id ASC",
-        ) {
-            Ok(s) => s,
-            Err(_) => return Vec::new(),
-        };
-        let rows = stmt.query_map([], |r| Self::row_to_entry(r, 0));
+        )
+        .fetch_all(&self.pool)
+        .await;
+
         match rows {
-            Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
-            Err(_) => Vec::new(),
+            Ok(rows) => rows.iter().map(Self::row_to_entry).collect(),
+            Err(e) => {
+                tracing::warn!(error = %e, "dışa aktarım için geçmiş okunamadı");
+                Vec::new()
+            }
         }
     }
 
     // ===== Kullanıcı profilleri =====
 
     /// Profili yazar veya günceller (user_id birincil anahtar).
-    pub fn upsert_profile(&self, profile: &UserProfile) {
-        let Ok(profile_json) = serde_json::to_string(profile) else {
+    pub async fn upsert_profile(&self, profile: &UserProfile) {
+        let Ok(profile_json) = serde_json::to_value(profile) else {
             return;
         };
-        let conn = self.conn.lock().unwrap();
-        let _ = conn.execute(
+        let _ = sqlx::query(
             "INSERT INTO user_profiles (user_id, profile_json, analyzed_count, model_version, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)
-             ON CONFLICT(user_id) DO UPDATE SET
-                profile_json = excluded.profile_json,
-                analyzed_count = excluded.analyzed_count,
-                model_version = excluded.model_version,
-                updated_at = excluded.updated_at",
-            params![
-                profile.user_id,
-                profile_json,
-                profile.stats.total,
-                profile.model_version,
-                profile.updated_at
-            ],
-        );
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (user_id) DO UPDATE SET
+                profile_json = EXCLUDED.profile_json,
+                analyzed_count = EXCLUDED.analyzed_count,
+                model_version = EXCLUDED.model_version,
+                updated_at = EXCLUDED.updated_at",
+        )
+        .bind(&profile.user_id)
+        .bind(profile_json)
+        .bind(profile.stats.total)
+        .bind(&profile.model_version)
+        .bind(&profile.updated_at)
+        .execute(&self.pool)
+        .await;
     }
 
-    pub fn profile_for_user(&self, user_id: &str) -> Option<UserProfile> {
-        let conn = self.conn.lock().unwrap();
-        conn.query_row(
-            "SELECT profile_json FROM user_profiles WHERE user_id = ?1",
-            params![user_id],
-            |r| r.get::<_, String>(0),
-        )
-        .ok()
-        .and_then(|j| serde_json::from_str(&j).ok())
+    pub async fn profile_for_user(&self, user_id: &str) -> Option<UserProfile> {
+        let json: serde_json::Value =
+            sqlx::query_scalar("SELECT profile_json FROM user_profiles WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await
+                .ok()
+                .flatten()?;
+        serde_json::from_value(json).ok()
     }
 
     /// Kullanıcı profilini siler (KVKK: kullanıcı kendi profilini kaldırabilir).
-    pub fn delete_profile(&self, user_id: &str) -> bool {
-        let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM user_profiles WHERE user_id = ?1", params![user_id])
-            .map(|n| n > 0)
+    pub async fn delete_profile(&self, user_id: &str) -> bool {
+        sqlx::query("DELETE FROM user_profiles WHERE user_id = $1")
+            .bind(user_id)
+            .execute(&self.pool)
+            .await
+            .map(|r| r.rows_affected() > 0)
             .unwrap_or(false)
     }
 
     // ===== Oturumlar =====
 
-    pub fn create_session(&self, token: &str, user_id: &str, email: &str, now: i64, expires_at: i64) {
-        let conn = self.conn.lock().unwrap();
-        let _ = conn.execute(
-            "INSERT INTO sessions (token, user_id, email, created_at, expires_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![token, user_id, email, now, expires_at],
-        );
+    pub async fn create_session(
+        &self,
+        token: &str,
+        user_id: &str,
+        email: &str,
+        now: i64,
+        expires_at: i64,
+    ) {
+        let _ = sqlx::query(
+            "INSERT INTO sessions (token, user_id, email, created_at, expires_at)
+             VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(token)
+        .bind(user_id)
+        .bind(email)
+        .bind(now)
+        .bind(expires_at)
+        .execute(&self.pool)
+        .await;
+
         // Süresi dolan oturumları fırsattan temizle
-        let _ = conn.execute("DELETE FROM sessions WHERE expires_at < ?1", params![now]);
+        let _ = sqlx::query("DELETE FROM sessions WHERE expires_at < $1")
+            .bind(now)
+            .execute(&self.pool)
+            .await;
     }
 
     /// Geçerli (süresi dolmamış) oturumu döner; dolmuşsa siler.
-    pub fn session_by_token(&self, token: &str, now: i64) -> Option<Session> {
-        let conn = self.conn.lock().unwrap();
-        let session = conn
-            .query_row(
-                "SELECT user_id, email, expires_at FROM sessions WHERE token = ?1",
-                params![token],
-                |r| {
-                    Ok(Session {
-                        user_id: r.get(0)?,
-                        email: r.get(1)?,
-                        expires_at: r.get(2)?,
-                    })
-                },
-            )
-            .ok()?;
+    pub async fn session_by_token(&self, token: &str, now: i64) -> Option<Session> {
+        let row = sqlx::query("SELECT user_id, email, expires_at FROM sessions WHERE token = $1")
+            .bind(token)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .flatten()?;
+
+        let session = Session {
+            user_id: row.get("user_id"),
+            email: row.get("email"),
+            expires_at: row.get("expires_at"),
+        };
+
         if session.expires_at < now {
-            let _ = conn.execute("DELETE FROM sessions WHERE token = ?1", params![token]);
+            let _ = sqlx::query("DELETE FROM sessions WHERE token = $1")
+                .bind(token)
+                .execute(&self.pool)
+                .await;
             return None;
         }
         Some(session)
     }
 
     /// Şifre değişince kullanıcının tüm oturumlarını düşür (çalınmış token ölür).
-    pub fn delete_sessions_for_user(&self, email: &str) {
-        let conn = self.conn.lock().unwrap();
-        let _ = conn.execute("DELETE FROM sessions WHERE email = ?1", params![email]);
+    pub async fn delete_sessions_for_user(&self, email: &str) {
+        let _ = sqlx::query("DELETE FROM sessions WHERE email = $1")
+            .bind(email)
+            .execute(&self.pool)
+            .await;
     }
 }
 
@@ -391,27 +431,30 @@ mod tests {
         }
     }
 
-    #[test]
-    fn user_roundtrip_and_unique_email() {
-        let db = Db::open_in_memory();
-        db.insert_user(&sample_user("a@b.com")).unwrap();
+    #[tokio::test]
+    async fn user_roundtrip_and_unique_email() {
+        let db = Db::connect_test().await;
+        db.insert_user(&sample_user("a@b.com")).await.unwrap();
         // Aynı e-posta ikinci kez eklenemez
-        assert!(db.insert_user(&sample_user("a@b.com")).is_err());
+        assert!(db.insert_user(&sample_user("a@b.com")).await.is_err());
 
-        let u = db.user_by_email("a@b.com").unwrap();
+        let u = db.user_by_email("a@b.com").await.unwrap();
         assert!(!u.verified);
 
-        let u = db.set_verified("a@b.com").unwrap();
+        let u = db.set_verified("a@b.com").await.unwrap();
         assert!(u.verified);
 
-        assert!(db.update_password("a@b.com", "newhash"));
-        assert_eq!(db.user_by_email("a@b.com").unwrap().password_hash, "newhash");
-        assert!(!db.update_password("yok@b.com", "x"));
+        assert!(db.update_password("a@b.com", "newhash").await);
+        assert_eq!(
+            db.user_by_email("a@b.com").await.unwrap().password_hash,
+            "newhash"
+        );
+        assert!(!db.update_password("yok@b.com", "x").await);
     }
 
-    #[test]
-    fn history_isolated_per_client_and_ordered() {
-        let db = Db::open_in_memory();
+    #[tokio::test]
+    async fn history_isolated_per_client_and_ordered() {
+        let db = Db::connect_test().await;
         for i in 0..3 {
             db.insert_history(&HistoryEntry {
                 timestamp: format!("t{}", i),
@@ -425,7 +468,8 @@ mod tests {
                 agents: None,
                 predicted_product: None,
                 text_len: None,
-            });
+            })
+            .await;
         }
         db.insert_history(&HistoryEntry {
             timestamp: "tx".to_string(),
@@ -439,9 +483,10 @@ mod tests {
             agents: None,
             predicted_product: None,
             text_len: None,
-        });
+        })
+        .await;
 
-        let h = db.history_for_client("user1", 100);
+        let h = db.history_for_client("user1", 100).await;
         assert_eq!(h.len(), 3);
         // En yeni önce
         assert_eq!(h[0].1.timestamp, "t2");
@@ -450,17 +495,47 @@ mod tests {
         // lang alanı korunur
         assert_eq!(h[0].1.lang.as_deref(), Some("tr"));
 
-        let h2 = db.history_for_client("user1", 2);
+        let h2 = db.history_for_client("user1", 2).await;
         assert_eq!(h2.len(), 2);
 
         // lang'sız (eski) kayıt None döner
-        let h3 = db.history_for_client("user2", 10);
+        let h3 = db.history_for_client("user2", 10).await;
         assert_eq!(h3[0].1.lang, None);
     }
 
-    #[test]
-    fn history_summary_update_persists_translation() {
-        let db = Db::open_in_memory();
+    #[tokio::test]
+    async fn agent_verdicts_survive_jsonb_roundtrip() {
+        let db = Db::connect_test().await;
+        db.insert_history(&HistoryEntry {
+            timestamp: "t0".to_string(),
+            client_id: "user1".to_string(),
+            text_preview: "önizleme".to_string(),
+            is_manipulated: true,
+            dominant_manipulation: "Pazarlama".to_string(),
+            genel_sonuc: "sonuç".to_string(),
+            lang: Some("tr".to_string()),
+            user_id: Some("uid-1".to_string()),
+            agents: Some(vec![AgentVerdict {
+                t: "Pazarlama".to_string(),
+                d: true,
+                c: 0.9,
+            }]),
+            predicted_product: Some("Kişi Kripto-X satın almaya meyilli olabilir.".to_string()),
+            text_len: Some(120),
+        })
+        .await;
+
+        let (_, entry) = db.history_for_client("user1", 1).await[0].clone();
+        let agents = entry.agents.expect("ajan kararları jsonb'den dönmeli");
+        assert_eq!(agents[0].t, "Pazarlama");
+        assert!(agents[0].d);
+        assert_eq!(entry.text_len, Some(120));
+        assert_eq!(entry.user_id.as_deref(), Some("uid-1"));
+    }
+
+    #[tokio::test]
+    async fn history_summary_update_persists_translation() {
+        let db = Db::connect_test().await;
         db.insert_history(&HistoryEntry {
             timestamp: "t0".to_string(),
             client_id: "user1".to_string(),
@@ -473,32 +548,35 @@ mod tests {
             agents: None,
             predicted_product: None,
             text_len: None,
-        });
+        })
+        .await;
 
-        let (id, _) = db.history_for_client("user1", 1)[0].clone();
-        db.update_history_summary(id, "English summary", "en");
+        let (id, _) = db.history_for_client("user1", 1).await[0].clone();
+        db.update_history_summary(id, "English summary", "en").await;
 
-        let (_, updated) = db.history_for_client("user1", 1)[0].clone();
+        let (_, updated) = db.history_for_client("user1", 1).await[0].clone();
         assert_eq!(updated.genel_sonuc, "English summary");
         assert_eq!(updated.lang.as_deref(), Some("en"));
     }
 
-    #[test]
-    fn session_lifecycle() {
-        let db = Db::open_in_memory();
+    #[tokio::test]
+    async fn session_lifecycle() {
+        let db = Db::connect_test().await;
         let now = 1_000_000;
-        db.create_session("tok1", "uid", "a@b.com", now, now + 100);
+        db.create_session("tok1", "uid", "a@b.com", now, now + 100)
+            .await;
 
-        let s = db.session_by_token("tok1", now).unwrap();
+        let s = db.session_by_token("tok1", now).await.unwrap();
         assert_eq!(s.email, "a@b.com");
 
         // Süresi dolunca None döner ve silinir
-        assert!(db.session_by_token("tok1", now + 101).is_none());
-        assert!(db.session_by_token("tok1", now).is_none());
+        assert!(db.session_by_token("tok1", now + 101).await.is_none());
+        assert!(db.session_by_token("tok1", now).await.is_none());
 
         // Şifre sıfırlanınca tüm oturumlar düşer
-        db.create_session("tok2", "uid", "a@b.com", now, now + 100);
-        db.delete_sessions_for_user("a@b.com");
-        assert!(db.session_by_token("tok2", now).is_none());
+        db.create_session("tok2", "uid", "a@b.com", now, now + 100)
+            .await;
+        db.delete_sessions_for_user("a@b.com").await;
+        assert!(db.session_by_token("tok2", now).await.is_none());
     }
 }
