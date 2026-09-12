@@ -78,9 +78,15 @@ pub async fn run_orchestrator(text: &str, lang: &str) -> Result<FinalReport, Str
 
     // Marketing ajanından predicted_product al. Model şablondaki [X] slotunu
     // doldurmayıp literal bırakırsa paneli hiç gösterme (bozuk metin > yok).
+    // Aynı gerekçeyle jenerik dolgu da ("bu ürün", "bir hizmet") elenir:
+    // prompt bunu yasaklıyor ama llama3 yine de üretiyor ve panelde
+    // "Kişi bu ürün satın almaya meyilli" gibi bilgisiz bir cümle kalıyor.
     let mut predicted_product_str = None;
     if let Some(marketing) = detailed_analyses.iter().find(|a| a.manipulation_type == "Pazarlama") {
-        if marketing.detected && !marketing.aciklama.contains('[') {
+        if marketing.detected
+            && !marketing.aciklama.contains('[')
+            && !is_generic_product_claim(&marketing.aciklama)
+        {
             predicted_product_str = Some(marketing.aciklama.clone());
         }
     }
@@ -154,10 +160,18 @@ Output ONLY one valid JSON object, no markdown:
     }
     .await;
 
-    let (is_manipulated, dominant_manipulation, genel_sonuc) = match manager_result {
+    let (is_manipulated, mut dominant_manipulation, genel_sonuc) = match manager_result {
         Some(result) => result,
         None => fallback_summary(&detailed_analyses, lang),
     };
+
+    // Ticari metinlerde sentezör, Pazarlama ajanı en yüksek güvenle yakalamış
+    // olsa bile "Dilsel" gibi bir tipi baskın seçebiliyor (2026-09-12 ölçümü).
+    // Eşitlikte ve üstünlükte ticari niyet etiketi öne alınır: kullanıcı için
+    // "sana bir şey satılıyor" bilgisi, kullanılan söz sanatından daha önemli.
+    if is_manipulated {
+        prefer_commercial_dominant(&detailed_analyses, &mut dominant_manipulation);
+    }
 
     let mut report = FinalReport {
         is_manipulated,
@@ -174,6 +188,57 @@ Output ONLY one valid JSON object, no markdown:
     repair_language(&mut report, lang).await;
 
     Ok(report)
+}
+
+// ===================== TİCARİ NİYET DÜZELTMELERİ =====================
+
+/// Güvenilir sayılan en düşük eşik; sentezör prompt'undaki eşikle aynı.
+const RELIABLE_CONFIDENCE: f32 = 0.60;
+
+/// Pazarlama ajanı güvenilir bulguların en yükseğine sahipse baskın tipi ona
+/// çeker. Eşitlikte de Pazarlama kazanır: iki ajan aynı güvenle bakıyorsa
+/// kullanıcının işine yarayan etiket ticari olandır.
+fn prefer_commercial_dominant(analyses: &[AgentAnalysis], dominant: &mut String) {
+    if dominant == "Pazarlama" {
+        return;
+    }
+
+    let marketing = analyses
+        .iter()
+        .find(|a| a.manipulation_type == "Pazarlama" && a.detected)
+        .filter(|a| a.confidence_score >= RELIABLE_CONFIDENCE);
+
+    let Some(marketing) = marketing else { return };
+
+    let strongest_other = analyses
+        .iter()
+        .filter(|a| a.manipulation_type != "Pazarlama" && a.detected)
+        .map(|a| a.confidence_score)
+        .fold(0.0_f32, f32::max);
+
+    if marketing.confidence_score >= strongest_other {
+        *dominant = "Pazarlama".to_string();
+    }
+}
+
+/// Pazarlama ajanının ürün cümlesi jenerik dolguya mı düştü? Prompt "bir ürün"
+/// benzeri dolguları yasaklıyor; model yine de yazarsa panel bilgisiz kalır.
+fn is_generic_product_claim(aciklama: &str) -> bool {
+    const FILLERS: [&str; 10] = [
+        "bu ürünü",
+        "bu ürün",
+        "bir ürünü",
+        "bir ürün",
+        "bu hizmeti",
+        "bu hizmet",
+        "bir hizmeti",
+        "bir hizmet",
+        "a product",
+        "a service",
+    ];
+
+    let lower = aciklama.to_lowercase();
+    FILLERS.iter().any(|f| lower.contains(f))
 }
 
 // ===================== ÖN ELEME SONUCU =====================
@@ -473,6 +538,60 @@ fn fallback_summary(analyses: &[AgentAnalysis], lang: &str) -> (bool, String, St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn verdict(tip: &str, detected: bool, guven: f32) -> AgentAnalysis {
+        AgentAnalysis {
+            manipulation_type: tip.to_string(),
+            detected,
+            confidence_score: guven,
+            aciklama: "aciklama".to_string(),
+            target_sentences: vec![],
+        }
+    }
+
+    #[test]
+    fn commercial_dominant_wins_ties_and_higher_confidence() {
+        let analyses = vec![
+            verdict("Dilsel", true, 0.90),
+            verdict("Pazarlama", true, 0.90),
+        ];
+        let mut dominant = "Dilsel".to_string();
+        prefer_commercial_dominant(&analyses, &mut dominant);
+        assert_eq!(dominant, "Pazarlama", "eşitlikte ticari etiket öne alınır");
+    }
+
+    #[test]
+    fn commercial_dominant_does_not_override_stronger_agent() {
+        let analyses = vec![
+            verdict("Psikolojik", true, 0.95),
+            verdict("Pazarlama", true, 0.70),
+        ];
+        let mut dominant = "Psikolojik".to_string();
+        prefer_commercial_dominant(&analyses, &mut dominant);
+        assert_eq!(dominant, "Psikolojik");
+
+        // Eşiğin altındaki Pazarlama bulgusu hiç sayılmaz
+        let zayif = vec![
+            verdict("Sosyal", true, 0.65),
+            verdict("Pazarlama", true, 0.55),
+        ];
+        let mut dominant = "Sosyal".to_string();
+        prefer_commercial_dominant(&zayif, &mut dominant);
+        assert_eq!(dominant, "Sosyal");
+    }
+
+    #[test]
+    fn generic_product_claims_are_rejected() {
+        assert!(is_generic_product_claim(
+            "Kişi bu ürün satın almaya veya yönelmeye meyilli olabilir."
+        ));
+        assert!(is_generic_product_claim(
+            "The reader may be inclined to purchase a service."
+        ));
+        assert!(!is_generic_product_claim(
+            "Kişi Kripto-X satın almaya veya yönelmeye meyilli olabilir."
+        ));
+    }
 
     #[test]
     fn strip_quoted_removes_citations() {

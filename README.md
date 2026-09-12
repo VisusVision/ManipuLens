@@ -46,6 +46,7 @@ ManipuLens relies on a structured hierarchy of local generative agents to parse,
 | **Behavioral (Davranışsal)** | Creating artificial urgency, FOMO, and impulsive action traps. | `#f8961e` (Orange) |
 | **Perceptual (Algısal)** | Cherry-picking facts, biased framing, and selective presentation. | `#7209b7` (Purple) |
 | **Social (Sosyal)** | Peer pressure, herd mentality, polarization, and tribal biases. | `#4361ee` (Dark Blue) |
+| **Marketing (Pazarlama)** | Disguised advertising, problem inflation, miracle claims, and purchase pressure. | `#2a9d8f` (Teal) |
 
 ---
 

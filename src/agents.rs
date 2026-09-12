@@ -56,6 +56,117 @@ RULES:
     )
 }
 
+/// Satış kopyası sinyal grupları. Tek başına hiçbiri yeterli değil: haber de
+/// "indirim" yazar. En az İKİ ayrı grup eşleşirse metin reklam kalıbı sayılır.
+const SALES_SIGNAL_GROUPS: [&[&str]; 5] = [
+    // Aciliyet
+    &[
+        "son saat", "son gun", "son sans", "son firsat", "acele", "hemen",
+        "sadece bugun", "bugune ozel", "sure doluyor", "kacirma", "gec kalma",
+        "geride kalma", "last chance", "hurry", "only today", "ends today", "act now",
+    ],
+    // Kıtlık
+    &[
+        "stok", "tukeniyor", "tukendi", "sinirli sayida", "son adet", "kalmadi",
+        "limited stock", "running out", "sold out",
+    ],
+    // Fiyat / kampanya
+    &[
+        "indirim", "kampanya", "ucretsiz kargo", "taksit", "bedava", "hediye",
+        "firsat fiyati", "discount", "free shipping", "sale price", "% off",
+    ],
+    // Eyleme çağrı
+    &[
+        "hemen al", "satin al", "siparis", "tikla", "kayit ol", "uye ol",
+        "abone ol", "buy now", "order now", "click here", "sign up", "shop now",
+    ],
+    // Sosyal kanıt
+    &[
+        "herkes al", "herkes kullan", "binlerce kisi", "milyonlarca kisi",
+        "everyone is", "thousands of people",
+    ],
+];
+
+/// Türkçe metni sinyal taramasına uygun sade biçime indirger: küçük harf +
+/// aksansız. `to_lowercase()` tek başına yetmez ("İ" nokta bırakıyor) ve
+/// kullanıcılar zaten "kacirma/kaçırma" diye karışık yazıyor.
+fn normalize_for_signals(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'ı' | 'i' | 'İ' | '\u{0307}' => 'i',
+            'ş' => 's',
+            'ğ' => 'g',
+            'ü' => 'u',
+            'ö' => 'o',
+            'ç' => 'c',
+            'â' => 'a',
+            other => other,
+        })
+        .collect()
+}
+
+/// Metin reklam/satış kopyası kalıbı taşıyor mu? En az iki farklı sinyal
+/// grubu ya da yüzdelik indirim ifadesi + tek grup aranır; tek sinyalle
+/// "ikna" demek market haberlerini de içeri alırdı.
+fn looks_like_sales_copy(text: &str) -> bool {
+    let t = normalize_for_signals(text);
+
+    let mut groups = SALES_SIGNAL_GROUPS
+        .iter()
+        .filter(|group| group.iter().any(|needle| t.contains(needle)))
+        .count();
+
+    // "Son 3 saat", "son 2 gun": araya sayı giren aciliyet kalıbı yukarıdaki
+    // düz eşleşmeye takılmaz.
+    if t.split_whitespace().collect::<Vec<_>>().windows(3).any(|w| {
+        w[0] == "son"
+            && w[1].chars().all(|c| c.is_ascii_digit())
+            && (w[2].starts_with("saat") || w[2].starts_with("gun") || w[2].starts_with("dakika"))
+    }) {
+        groups += 1;
+    }
+
+    // "%90 indirim" / "90% off": yüzde işareti sayıya bitişikse fiyat sinyali.
+    let has_percent_offer = t.match_indices('%').any(|(i, _)| {
+        let before = t[..i].chars().last().is_some_and(|c| c.is_ascii_digit());
+        let after = t[i + 1..].chars().next().is_some_and(|c| c.is_ascii_digit());
+        before || after
+    });
+    if has_percent_offer {
+        groups += 1;
+    }
+
+    groups >= 2
+}
+
+/// Gaslighting / suçlama kalıpları. Satış sinyallerinin aksine tek eşleşme
+/// yeter: bu kalıplar zaten muhatabın algısını geçersiz kılmaya dönük ve
+/// günlük bilgi metninde geçmiyor.
+const PERSONAL_PRESSURE_MARKERS: [&str; 14] = [
+    "sen hep",
+    "sen hic",
+    "hep sen",
+    "senin yuzunden",
+    "sorun sende",
+    "suc sende",
+    "abartiyorsun",
+    "abartiyorsunuz",
+    "oyle bir sey demedim",
+    "oyle demedim",
+    "yanlis hatirliyorsun",
+    "kafanda kurmus",
+    "you always",
+    "the problem is you",
+];
+
+/// Metin, muhatabını suçlayan veya hafızasını geçersiz kılan bir baskı kalıbı
+/// taşıyor mu? Taşıyorsa tür sınıflandırıcısına güvenilmez, tam analiz koşar.
+fn looks_like_personal_pressure(text: &str) -> bool {
+    let t = normalize_for_signals(text);
+    PERSONAL_PRESSURE_MARKERS.iter().any(|m| t.contains(m))
+}
+
 /// ÖN ELEME (TRIAGE) — metnin türünü belirler, uzman ajanlar koşmadan önce.
 ///
 /// Neden ayrı bir çağrı: llama3 8B, "manipülasyon analisti" rolü verilince
@@ -71,6 +182,25 @@ RULES:
 ///
 /// `true` dönerse metin ikna/etkileme amacı taşıyor, tam analiz koşmalı.
 pub async fn needs_full_analysis(text: &str) -> Result<bool, String> {
+    // Satış kopyası kalıbı varsa modele hiç sormadan tam analize geç. 2026-09-12
+    // ölçümünde llama3, "Son 3 saat! Herkes aldı, stoklar bitiyor." gibi kısa
+    // reklam metnini "rapor" sayıp elemişti; reklamlar kısa olduğu için kapı
+    // tam da hedef kitleyi kaçırıyordu. Desen eşleşirse kapı atlanır, bu da
+    // bir Ollama çağrısı tasarrufudur — kapı tek hata noktası olmaktan çıkar.
+    if looks_like_sales_copy(text) {
+        tracing::debug!("ön eleme: satış kopyası deseni, kapı atlandı");
+        return Ok(true);
+    }
+
+    // Aynı gerekçe kişiye yönelen baskı için: llama3, "Sen hep abartıyorsun,
+    // öyle bir şey demedim, sorun sende." cümlesine prompt'ta birebir örneği
+    // dursa bile "kisisel" diyor (2026-09-12 ölçümü, Türkçe). Gaslighting
+    // kalıbı yakalandığında kapı atlanır; kararı uzman ajanlar verir.
+    if looks_like_personal_pressure(text) {
+        tracing::debug!("ön eleme: kişiye yönelen baskı deseni, kapı atlandı");
+        return Ok(true);
+    }
+
     let prompt = r#"You are a TEXT GENRE classifier. You do NOT look for manipulation. You only decide what kind of text this is.
 
 Choose exactly one "category":
@@ -93,6 +223,11 @@ CALIBRATION (decide the same way for similar texts, never copy their wording):
 - "Experts agree this is the most reliable option and anyone sensible has already switched." -> "ikna". Authority and majority are used to settle the question for the reader.
 - "After everything I sacrificed for you, you don't even call. Everyone talks about it behind your back." -> "ikna". Reproach and guilt over past favours are pressure, not a description of the writer's day - a family setting does not make it "kisisel".
 - "The capital's population was about 5.8 million in the 2023 census." -> "bilgi". A plain fact with no reader to move.
+- "Only 3 hours left! Everyone already bought it, don't fall behind, stock is running out." -> "ikna". Countdown plus social proof plus scarcity is sales copy, NOT a report - a market or weather "rapor" states facts and asks nothing of the reader.
+- "You always blow things out of proportion, I never said that, the problem is you." -> "ikna". One short sentence aimed at a person, overriding their account and blaming them.
+- "Rain tomorrow, don't forget your umbrella." -> "rapor". A forecast with a harmless practical note, selling nothing and blaming no one.
+
+LENGTH IS NOT A SIGNAL: a single short sentence can be "ikna". Never pick a descriptive category just because the text is short, has an exclamation mark, or names no product.
 
 "needs_analysis" = true ONLY for category "ikna". For every other category it is false.
 
@@ -236,6 +371,47 @@ fn sanitize_demographic(inference: &mut DemographicInference, lang: &str) {
 mod tests {
     use super::*;
     use crate::types::DemographicTrait;
+
+    #[test]
+    fn sales_copy_gate_catches_short_ads() {
+        // 2026-09-12 ölçümünde llama3 bu metne "rapor" demişti.
+        assert!(looks_like_sales_copy(
+            "Son 3 saat! Herkes aldı, geride kalma, stoklar bitiyor."
+        ));
+        assert!(looks_like_sales_copy(
+            "%90 indirim bugüne özel, hemen sipariş ver."
+        ));
+        assert!(looks_like_sales_copy(
+            "Limited stock, everyone is switching - buy now."
+        ));
+    }
+
+    #[test]
+    fn personal_pressure_gate_catches_gaslighting() {
+        assert!(looks_like_personal_pressure(
+            "Sen hep abartıyorsun, öyle bir şey demedim, sorun sende."
+        ));
+        assert!(looks_like_personal_pressure(
+            "Yanlış hatırlıyorsun, senin yüzünden herkes tedirgin."
+        ));
+        assert!(!looks_like_personal_pressure(
+            "Dün sahilde yürüdüm, dönüşte kitapçıya uğradım."
+        ));
+    }
+
+    #[test]
+    fn sales_copy_gate_leaves_plain_texts_alone() {
+        assert!(!looks_like_sales_copy(
+            "Yarın hava yağmurlu olacak, şemsiye almayı unutma."
+        ));
+        assert!(!looks_like_sales_copy(
+            "Başkentin nüfusu 2023 sayımında yaklaşık 5,8 milyondu."
+        ));
+        // Tek sinyal yeterli değil: haber metni de "indirim" yazar.
+        assert!(!looks_like_sales_copy(
+            "Market fiyatlarındaki indirim ekimde de sürdü."
+        ));
+    }
 
     fn trait_of(deger: &str, guven: f32) -> DemographicTrait {
         DemographicTrait {

@@ -46,6 +46,7 @@ ManipuLens, içeriklerin anlamsal bütünlüğünü ayrıştırmak, incelemek ve
 | **Davranışsal (Behavioral)** | Yapay aciliyet hissi oluşturma, FOMO ve fevri eylem tuzakları. | `#f8961e` (Turuncu) |
 | **Algısal (Perceptual)** | Gerçekleri cımbızlama (cherry-picking), taraflı çerçeveleme ve seçici sunum. | `#7209b7` (Mor) |
 | **Sosyal (Social)** | Mahalle baskısı, sürü psikolojisi, kutuplaştırma ve kabilecilik önyargıları. | `#4361ee` (Koyu Mavi) |
+| **Pazarlama (Marketing)** | Gizli reklam, sorun şişirme, mucize vaadi ve satın alma baskısı. | `#2a9d8f` (Turkuaz) |
 
 ---
 
