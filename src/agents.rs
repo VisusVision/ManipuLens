@@ -65,20 +65,28 @@ const SALES_SIGNAL_GROUPS: [&[&str]; 5] = [
         "sadece bugun", "bugune ozel", "sure doluyor", "kacirma", "gec kalma",
         "geride kalma", "last chance", "hurry", "only today", "ends today", "act now",
     ],
-    // Kıtlık
+    // Kıtlık. Burada "kontenjan/doluyor/randevu" denendi ve geri alındı: ikinci
+    // sette (kapi-dogrulama-seti-2.txt) tek bir reklamı yakalamadılar, buna
+    // karşılık belediyenin ücretsiz kurs duyurusunda boşuna tetiklendiler.
+    // Genel kelimeleri listeye koymak sızıntı üretiyor; gizlenmiş reklamı
+    // `commercial_intent_gate` yakalıyor.
     &[
         "stok", "tukeniyor", "tukendi", "sinirli sayida", "son adet", "kalmadi",
         "limited stock", "running out", "sold out",
     ],
-    // Fiyat / kampanya
+    // Fiyat / kampanya. "indirim kodu/ozel fiyat/yarim fiyat": reklam kendini
+    // kişisel hikâye ya da inceleme gibi gösterse de dönüşüm cümlesi kalıyor.
     &[
         "indirim", "kampanya", "ucretsiz kargo", "taksit", "bedava", "hediye",
-        "firsat fiyati", "discount", "free shipping", "sale price", "% off",
+        "firsat fiyati", "indirim kodu", "kupon kodu", "ozel fiyat", "yarim fiyat",
+        "kargo bedava", "discount", "free shipping", "sale price", "% off",
     ],
-    // Eyleme çağrı
+    // Eyleme çağrı. Sosyal medya reklamında çağrı "satın al" değil "profildeki
+    // koda bak", "linki aşağıda" biçiminde geliyor.
     &[
         "hemen al", "satin al", "siparis", "tikla", "kayit ol", "uye ol",
-        "abone ol", "buy now", "order now", "click here", "sign up", "shop now",
+        "abone ol", "profilde", "profilim", "linki asagi", "asagidaki link",
+        "buy now", "order now", "click here", "sign up", "shop now", "link in bio",
     ],
     // Sosyal kanıt
     &[
@@ -109,7 +117,7 @@ fn normalize_for_signals(text: &str) -> String {
 /// Metin reklam/satış kopyası kalıbı taşıyor mu? En az iki farklı sinyal
 /// grubu ya da yüzdelik indirim ifadesi + tek grup aranır; tek sinyalle
 /// "ikna" demek market haberlerini de içeri alırdı.
-fn looks_like_sales_copy(text: &str) -> bool {
+pub(crate) fn looks_like_sales_copy(text: &str) -> bool {
     let t = normalize_for_signals(text);
 
     let mut groups = SALES_SIGNAL_GROUPS
@@ -162,9 +170,24 @@ const PERSONAL_PRESSURE_MARKERS: [&str; 14] = [
 
 /// Metin, muhatabını suçlayan veya hafızasını geçersiz kılan bir baskı kalıbı
 /// taşıyor mu? Taşıyorsa tür sınıflandırıcısına güvenilmez, tam analiz koşar.
-fn looks_like_personal_pressure(text: &str) -> bool {
+pub(crate) fn looks_like_personal_pressure(text: &str) -> bool {
     let t = normalize_for_signals(text);
     PERSONAL_PRESSURE_MARKERS.iter().any(|m| t.contains(m))
+}
+
+/// Metnin tam analize hangi kapıdan girdiği. Girişin gerekçesi sonradan
+/// lazım: en zayıf giriş (`Intent`) "bu metin gizli reklam" iddiasıyla
+/// açılıyor, o iddiayı Pazarlama ajanı doğrulamazsa rapor ayakta kalmamalı.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GateEntry {
+    /// Kapı metni eledi: uzman ajanlar hiç çalışmaz.
+    Clean,
+    /// Kural katmanı eşleşti (satış kopyası ya da kişiye yönelen baskı).
+    ByRule,
+    /// Tür sınıflandırıcısı "ikna" dedi.
+    ByGenre,
+    /// Tür sorusu eledi, ticari amaç sorusu geri aldı - en zayıf giriş.
+    ByIntent,
 }
 
 /// ÖN ELEME (TRIAGE) — metnin türünü belirler, uzman ajanlar koşmadan önce.
@@ -180,8 +203,10 @@ fn looks_like_personal_pressure(text: &str) -> bool {
 /// hiç çağrılmaz — hem yanlış alarm kesilir hem de temiz metinlerde analiz
 /// yedi çağrı yerine tek çağrıya iner.
 ///
-/// `true` dönerse metin ikna/etkileme amacı taşıyor, tam analiz koşmalı.
-pub async fn needs_full_analysis(text: &str) -> Result<bool, String> {
+/// Üç kademe, en ucuzdan pahalıya: kural katmanı (LLM yok), tür sorusu ve
+/// ticari amaç sorusu. `Clean` dönerse uzman ajanlar hiç çağrılmaz; diğer üç
+/// değer metnin hangi gerekçeyle içeri girdiğini söyler.
+pub async fn gate_decision(text: &str) -> Result<GateEntry, String> {
     // Satış kopyası kalıbı varsa modele hiç sormadan tam analize geç. 2026-09-12
     // ölçümünde llama3, "Son 3 saat! Herkes aldı, stoklar bitiyor." gibi kısa
     // reklam metnini "rapor" sayıp elemişti; reklamlar kısa olduğu için kapı
@@ -189,7 +214,7 @@ pub async fn needs_full_analysis(text: &str) -> Result<bool, String> {
     // bir Ollama çağrısı tasarrufudur — kapı tek hata noktası olmaktan çıkar.
     if looks_like_sales_copy(text) {
         tracing::debug!("ön eleme: satış kopyası deseni, kapı atlandı");
-        return Ok(true);
+        return Ok(GateEntry::ByRule);
     }
 
     // Aynı gerekçe kişiye yönelen baskı için: llama3, "Sen hep abartıyorsun,
@@ -198,9 +223,39 @@ pub async fn needs_full_analysis(text: &str) -> Result<bool, String> {
     // kalıbı yakalandığında kapı atlanır; kararı uzman ajanlar verir.
     if looks_like_personal_pressure(text) {
         tracing::debug!("ön eleme: kişiye yönelen baskı deseni, kapı atlandı");
-        return Ok(true);
+        return Ok(GateEntry::ByRule);
     }
 
+    if llm_genre_gate(text).await? {
+        return Ok(GateEntry::ByGenre);
+    }
+
+    // Tür sınıflandırıcısı "haber/kişisel/duyuru" deyip elediyse ikinci ve
+    // farklı bir soru sorulur: bu metin yazarın kendi sunduğu bir şeye mi
+    // yönlendiriyor? 2026-09-12 kapı ölçümünde (kapi-dogrulama-seti-2.txt)
+    // gizlenmiş reklamların 8/12'si tür sorusunda eleniyordu; kalıp temelli
+    // kural katmanı bunların hiçbirini yakalayamadı, çünkü her reklam dönüşüm
+    // cümlesini farklı kuruyor. Amaç sorusu kalıptan bağımsız.
+    if commercial_intent_gate(text).await? {
+        return Ok(GateEntry::ByIntent);
+    }
+
+    Ok(GateEntry::Clean)
+}
+
+/// `gate_decision`'in bool sarmalı: yalnız "tam analiz koşsun mu" sorusunu
+/// soran çağrı yerleri (ölçüm araçları, testler) bunu kullanır.
+pub async fn needs_full_analysis(text: &str) -> Result<bool, String> {
+    Ok(gate_decision(text).await? != GateEntry::Clean)
+}
+
+/// Kapının YALNIZ model tarafı: kural katmanını çalıştırmaz.
+///
+/// Ayrı durmasının sebebi ölçüm: `--gate-file` bu fonksiyonu ve
+/// `needs_full_analysis`'i aynı metne ayrı ayrı sorarak kural katmanının
+/// modelin kaçırdığı metinlerde ne kadar kazandırdığını sayabiliyor.
+/// Üretim akışı bunu doğrudan çağırmaz, `needs_full_analysis` üzerinden geçer.
+pub async fn llm_genre_gate(text: &str) -> Result<bool, String> {
     let prompt = r#"You are a TEXT GENRE classifier. You do NOT look for manipulation. You only decide what kind of text this is.
 
 Choose exactly one "category":
@@ -251,6 +306,60 @@ Output ONLY one valid JSON object, no markdown, no extra text:
     let ikna = t.category.trim().eq_ignore_ascii_case("ikna");
     tracing::debug!(category = %t.category, needs_analysis = t.needs_analysis, "ön eleme");
     Ok(ikna || (t.category.trim().is_empty() && t.needs_analysis))
+}
+
+/// Kapının ikinci sorusu: metin, yazarın kendi sunduğu bir şeye yönlendiriyor mu?
+///
+/// Tür sorusundan bağımsız duruyor: bir metin "haber" ya da "kişisel hikâye"
+/// biçiminde yazılmış olabilir ve yine de sonunda bir ürüne, randevuya, kanala
+/// ya da kayıt formuna çağırabilir. Reklam tam olarak böyle gizleniyor.
+/// Yalnız tür sorusu elediğinde çağrılır, yani temiz metinlerde maliyeti iki
+/// çağrıdır; ikna metinleri zaten ilk soruda geçer.
+pub async fn commercial_intent_gate(text: &str) -> Result<bool, String> {
+    let prompt = r#"You answer ONE question about a text.
+
+Does the writer (or the organisation the writer speaks for) steer the reader toward something THEY provide - a product, a service, an appointment, a course, a channel, an app, a form, a donation, an event sign-up or a message to them?
+
+Say true when the text, at any point, invites the reader to buy, order, download, book, apply, join, subscribe, follow a link, use a code, or contact the writer about an offer. The invitation counts even when it is one short sentence at the end of an otherwise informative text, and even when no price is named.
+
+Say false when the text only informs, instructs, reports, reviews or recounts, and the reader is not being moved toward anything the writer provides:
+- a news report, a forecast, an encyclopedic fact, a match result, a market summary
+- a recipe, a manual, a safety instruction, a set of steps to follow
+- a customer's own review of something they bought, including one that praises it
+- an institution's notice of its own dates, hours or procedures to people already enrolled or served
+- someone describing their own day, feelings or memories
+Mentioning a product, a brand, a price or a percentage is NOT enough on its own. A named brand in a news report is still false.
+
+The decisive test is WHO GAINS. Ask: is there an offer BEHIND this text that the writer profits from, and is the reader being routed to it? A writer who owns, sells, represents or earns from the thing -> true. A writer who merely used it, explains it, or reports it -> false. When the text names no way to reach an offer - no link, no code, no address, no contact, no "we", no invitation - answer false.
+
+CALIBRATION:
+- "I struggled with migraines for years, then a friend recommended this pillow. Message me and I'll tell you where I got it." -> true. The writer routes the reader to their own recommendation.
+- "We compared four credit cards. One bank's terms came out clearly ahead. We recommend this card; the application takes a few minutes." -> true. The comparison ends in a steer.
+- "Gum bleeding is often ignored but can end in tooth loss. At our clinic the first examination is free." -> true. Health information used as the approach to a service.
+- "Vitamin D deficiency is common and can cause fatigue. Diagnosis is by blood test; the dose is set by a physician." -> false. Information with no offer behind it.
+- "Applications for the municipality's free course run until 30 April; there are 200 places." -> false. A public notice, nothing is sold and the writer gains nothing.
+- "The home side won 2-1; the striker took his season tally to 14." -> false. A report.
+- "I have used the headphones for three months. The isolation is good, the microphone is mediocre and the pads get warm; look at other models in this price range too." -> false. A buyer's own review. Praise alone would still be false - the writer sells nothing and routes the reader nowhere.
+- "Wash the lentils, chop one onion and saute it in olive oil, then add four cups of water." -> false. Steps to follow, no offer behind them.
+- "Spring course registration runs from 3 to 7 March through the student information system." -> false. An institution telling its own students a date. Nobody profits from the reader acting.
+- "I have used this coffee machine for six months: large tank, noisy grinder. Message me for my discount code." -> true. The same review becomes a steer the moment the writer routes the reader to an offer.
+
+Output ONLY one valid JSON object, no markdown, no extra text:
+{"promotes":true|false,"offer":"short phrase naming what is offered, or empty"}"#;
+
+    let raw = call_ollama_json(prompt, text).await?;
+
+    #[derive(serde::Deserialize)]
+    struct Intent {
+        #[serde(default)]
+        promotes: bool,
+        #[serde(default)]
+        offer: String,
+    }
+
+    let i: Intent = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    tracing::debug!(promotes = i.promotes, offer = %i.offer, "ön eleme: ticari amaç");
+    Ok(i.promotes)
 }
 
 async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<AgentAnalysis, String> {
@@ -387,6 +496,26 @@ mod tests {
     }
 
     #[test]
+    fn sales_copy_gate_catches_disguised_ads() {
+        // 2026-09-12 kapı ölçümünde (kapi-olcum-seti.txt) llama3'ün üç kez
+        // üst üste elediği kalıplar: reklam kişisel hikâye, uzman uyarısı ya
+        // da topluluk duyurusu kılığında ve satış cümlesi sona saklanmış.
+        assert!(looks_like_sales_copy(
+            "Sabah rutinim basit. Soranlar için markayı etiketledim, profildeki koda %20 iniyor."
+        ));
+        assert!(looks_like_sales_copy(
+            "İndirim kodum profilimde, kargo bedava."
+        ));
+        // Kural katmanının sınırı: bu metinde satış kelimesi yok, dönüşüm
+        // cümlesi "randevu takvimimiz dolmak üzere". Kelime listesi bunu
+        // yakalamaz ve yakalamaya çalışmak temiz duyuruları içeri alıyordu;
+        // işi `commercial_intent_gate` devralır.
+        assert!(!looks_like_sales_copy(
+            "Arıtma cihazı için randevu takvimimiz dolmak üzere."
+        ));
+    }
+
+    #[test]
     fn personal_pressure_gate_catches_gaslighting() {
         assert!(looks_like_personal_pressure(
             "Sen hep abartıyorsun, öyle bir şey demedim, sorun sende."
@@ -410,6 +539,16 @@ mod tests {
         // Tek sinyal yeterli değil: haber metni de "indirim" yazar.
         assert!(!looks_like_sales_copy(
             "Market fiyatlarındaki indirim ekimde de sürdü."
+        ));
+        // Resmî duyuruda son tarih ve kontenjan geçer; satış cümlesi yok.
+        // 2026-09-12'de bu metin "son gun" + "kontenjan" yüzünden kurala
+        // takılıyordu; kelime listesi o yüzden daraltıldı.
+        assert!(!looks_like_sales_copy(
+            "Belediyenin ücretsiz kursuna başvurular 30 Nisan'a kadar sürecek,              son gün saat 17.00'de sistem kapanıyor. Kontenjan 200 kişidir."
+        ));
+        // Güvenlik talimatında "hemen" aciliyet sinyali sayılsa da tek grup kalır.
+        assert!(!looks_like_sales_copy(
+            "Gaz kokusu alırsanız vanayı hemen kapatın ve binayı terk edin."
         ));
     }
 

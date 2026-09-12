@@ -1,0 +1,34 @@
+# ManipuLens on eleme kapisi DOGRULAMA seti - 18 metin (12 MANIP, 6 TEMIZ).
+# Bicim: ETIKET|metin
+# Kullanim: cargo run --release -- --gate-file kapi-dogrulama-seti-2.txt
+#
+# Neden ikinci set: kapi-olcum-seti.txt 2026-09-12'de kural katmanini sikilastirmak
+# icin kullanildi, yani artik ayrik degil; uzerinde %0 kayip cikmasi kurallarin
+# genellestiginin kaniti sayilmaz. Bu set o duzeltmeden SONRA, duzeltmenin
+# hedefledigi kalip disinda yazildi ve ayriktir. Buna da bakip kural eklersen
+# ayni sekilde ayrikligini kaybeder.
+#
+# 1-12  gizlenmis reklam: donusum cumlesi bilerek farkli soylenmis - "bio'ya
+#       biraktim", "formu doldurun", "kanalimiza katilin" gibi.
+# 13-18 temiz: kural katmaninin bosuna tetiklenip tetiklenmedigini olcer.
+#       13 bilerek tuzak: resmi duyuruda hem son tarih hem kontenjan geciyor.
+
+MANIP|Yeni nesil bir magnezyum takviyesi, uyku kalitesini artirdigi gerekcesiyle son aylarda cok konusuluyor. Klinik calismalarda katilimcilarin uykuya dalma suresi kisalmis. Urun secili eczanelerde ve markanin kendi sitesinde bulunabiliyor.
+MANIP|Yillarca migrenle ugrastim, denemedigim yontem kalmamisti. Gecen sene bir tanidigim su yastigi onerdi, iki haftada gece uyanmalarim bitti. Merak eden bana yazsin, nereden aldigimi seve seve yonlendiririm.
+MANIP|Dort farkli kredi kartini yillik aidat, puan ve taksit basliklarinda karsilastirdik. Tabloyu hazirlarken bir bankanin kosullari digerlerinden belirgin sekilde iyi cikti. Biz bu karti oneriyoruz, basvuru ekrani birkac dakika suruyor.
+MANIP|Sehrin disinda yukselen proje teslime hazir hale geldi. Site icinde okul, market ve yuzme havuzu bulunuyor. Bahce katinda uc daire kaldi, satis ofisimiz hafta sonu da acik.
+MANIP|Veri analizi egitimimizin bahar donemi basliyor. Program haftada iki aksam, tamamen uygulamali ilerliyor ve mezunlara referans mektubu veriliyor. Erken kayit avantaji 30 Nisan'a kadar gecerli.
+MANIP|Dis eti kanamasi cogu zaman onemsenmiyor ama ilerledigi zaman dislerin kaybina kadar gidebiliyor. Klinigimizde dijital goruntuleme ile ilk muayene ucretsiz yapiliyor, formu doldurup bize ulasabilirsiniz.
+MANIP|Telefonun pilini hizli bitiren ayarlari kapatmak icin uzun uzun ugrasmaniza gerek yok. Gelistirdigimiz uygulama bunu tek dokunusla yapiyor ve arka planda calisan uygulamalari da kapatiyor. Uygulamayi magazadan indirebilirsiniz.
+MANIP|Borsada zarar edenlerin cogu yontemsizlikten zarar ediyor, bilgiye erisimi olmadigi icin degil. Biz her sabah piyasa aciliş notunu ucretsiz paylasiyoruz. Kanalimiza katilin, gunluk analizleri kacirmayin.
+MANIP|Mahallenin eski firini yenilendi, tas firin geri geldi. Hamuru yirmi dort saat dinlendiriyorlar, ustalar Gaziantep'ten gelmis. Acilisa ozel bu hafta butun pideler yarim fiyatina.
+MANIP|Bir kaza sonrasi ailenizin gelirinin ne olacagini hic dusundunuz mu? Cogu aile bu soruyu is isten gectikten sonra soruyor. Teklif almak icin formu doldurmaniz yeterli, danismanimiz ayni gun donus yapiyor.
+MANIP|Cilt bakimina dair en cok aldigim soru hangi urunleri kullandigim. Sabah tek serum, aksam nemlendirici, haftada iki gun peeling yapiyorum. Kullandigim urunlerin hepsini bio'ya biraktim.
+MANIP|Kis aylarinda evdeki nem orani dusunce bogaz agrisi ve kuru oksuruk artiyor. Doktorlar oda nemlendiricisi oneriyor. Sitemizde bu modelin filtresi bir yil yetiyor, kargo ayni gun cikiyor.
+
+TEMIZ|Belediyenin ucretsiz yazilim kursuna basvurular 30 Nisan'a kadar surecek, son gun saat 17.00'de sistem kapaniyor. Kontenjan 200 kisi olup basvurular basvuru sirasina gore degerlendirilecektir.
+TEMIZ|D vitamini eksikligi Turkiye'de sik gorulur ve halsizlik, kas agrisi gibi belirtilerle seyredebilir. Tani kan testiyle konur; tedavi dozunu hekim belirler, yuksek doz kendi basina alinmamalidir.
+TEMIZ|Ligin 28. haftasinda ev sahibi takim maci 2-1 kazandi. Golleri 34 ve 67. dakikalarda atan santrfor, bu sezon gol sayisini 14'e yukseltti. Konuk ekip son on dakikayi on kisi tamamladi.
+TEMIZ|Kahve makinesini alti aydir kullaniyorum. Su haznesi genis ve temizligi kolay, buna karsilik ogutucusu sesli calisiyor ve sut baslligi her kullanimdan sonra sokulmek zorunda. Sessizlik onemliyse baska modellere bakin.
+TEMIZ|Ispanakli borek icin once ispanagi yikayip iri dograyin, sogani zeytinyagiyla pembelestirin ve ispanagi ekleyip suyunu cekene kadar kavurun. Yufkalari uclu acip ic harci koyarak sarin, uzerine yumurta surup firinlayin.
+TEMIZ|Bu hafta iki gun izin aldim ve uzun zamandir erteledigim sergiye gittim. Salonlar sakindi, aceleye getirmeden gezdim. Donuste sahil boyunca yurudum, aksam erken uyudum.

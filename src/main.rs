@@ -1350,6 +1350,165 @@ async fn handle_health() -> Json<serde_json::Value> {
 ///
 /// Dosya biçimi: `ETIKET|metin` satırları; ETIKET = MANIP veya TEMIZ.
 /// `#` ile başlayan satırlar ve boş satırlar yok sayılır.
+/// Ön eleme kapısı ölçümü: aynı etiketli seti iki kez kapıdan geçirir.
+///
+/// Uzman ajanları hiç çalıştırmaz; sadece "bu metin tam analize girer mi"
+/// sorusunu ölçer. Bir MANIP metin kapıda elenirse rapor hiç üretilmez, yani
+/// kapıdaki kayıp sistemin en pahalı hatasıdır. İki sütun karşılaştırılır:
+///   llm   = yalnız model (kural katmanı yokmuş gibi, `llm_genre_gate`)
+///   sonuc = üretimdeki karar (kural katmanı + model, `needs_full_analysis`)
+/// TEMIZ metinde kapıdan geçmek hata değildir, maliyettir: tam analiz çalışır
+/// ve metne temiz der. Yine de kural katmanının TEMIZ metinde tetiklenmesi
+/// ayrıca sayılır, çünkü orada model devre dışı kalıyor.
+///   manipulation-detector --gate-file kapi-olcum-seti.txt
+async fn run_gate_measurement(path: &str) -> i32 {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        eprintln!("Dosya okunamadı: {}", path);
+        return 1;
+    };
+
+    let cases: Vec<(bool, String)> = content
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+        .filter_map(|l| {
+            let (label, text) = l.split_once('|')?;
+            match label.trim() {
+                "MANIP" => Some((true, text.trim().to_string())),
+                "TEMIZ" => Some((false, text.trim().to_string())),
+                _ => None,
+            }
+        })
+        .collect();
+
+    if cases.is_empty() {
+        eprintln!("Etiketli satır bulunamadı. Biçim: MANIP|metin veya TEMIZ|metin");
+        return 1;
+    }
+
+    println!("{} etiketli metin ön eleme kapısından geçiriliyor...
+", cases.len());
+
+    let (mut llm_kayip, mut son_kayip) = (0usize, 0usize);
+    let (mut llm_gecen_temiz, mut son_gecen_temiz) = (0usize, 0usize);
+    let mut kural_temizde = 0usize;
+    let mut kurtarilan: Vec<String> = Vec::new();
+
+    for (i, (beklenen, text)) in cases.iter().enumerate() {
+        let baslangic = std::time::Instant::now();
+
+        let kural = if agents::looks_like_sales_copy(text) {
+            "satis"
+        } else if agents::looks_like_personal_pressure(text) {
+            "baski"
+        } else {
+            "yok"
+        };
+
+        // Kural tetiklendiyse üretim modeli hiç çağırmaz; ölçümde yine de
+        // çağırıyoruz, yoksa "model tek başına ne yapardı" sütunu boş kalır.
+        let llm = match agents::llm_genre_gate(text).await {
+            Ok(v) => v,
+            Err(e) => {
+                println!("[{:>2}] KAPI HATASI: {}", i + 1, e);
+                continue;
+            }
+        };
+        // İkinci kapı yalnız tür sorusu elediğinde çalışır; üretim akışı da böyle.
+        let ticari = if llm {
+            None
+        } else {
+            match agents::commercial_intent_gate(text).await {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    println!("[{:>2}] TICARI KAPI HATASI: {}", i + 1, e);
+                    None
+                }
+            }
+        };
+        let son = kural != "yok" || llm || ticari.unwrap_or(false);
+
+        if *beklenen {
+            if !llm {
+                llm_kayip += 1;
+            }
+            if !son {
+                son_kayip += 1;
+            }
+            if !llm && son {
+                let kaynak = if kural != "yok" { "kural" } else { "ticari kapi" };
+                kurtarilan.push(format!(
+                    "[{}] ({}) {}",
+                    i + 1,
+                    kaynak,
+                    text.chars().take(58).collect::<String>()
+                ));
+            }
+        } else {
+            if llm {
+                llm_gecen_temiz += 1;
+            }
+            if son {
+                son_gecen_temiz += 1;
+            }
+            if kural != "yok" {
+                kural_temizde += 1;
+            }
+        }
+
+        println!(
+            "[{:>2}] beklenen={:<5} kural={:<5} tur={:<7} ticari={:<7} sonuc={:<7} ({:.1}s)",
+            i + 1,
+            if *beklenen { "MANIP" } else { "TEMIZ" },
+            kural,
+            if llm { "GECTI" } else { "ELENDI" },
+            match ticari {
+                None => "-",
+                Some(true) => "GECTI",
+                Some(false) => "ELENDI",
+            },
+            if son { "GECTI" } else { "ELENDI" },
+            baslangic.elapsed().as_secs_f32()
+        );
+        println!("     {}", text.chars().take(72).collect::<String>());
+    }
+
+    let manip_sayisi = cases.iter().filter(|(b, _)| *b).count();
+    let temiz_sayisi = cases.len() - manip_sayisi;
+
+    println!("
+{}", "=".repeat(70));
+    println!("KAPIDA KAYIP (MANIP metin elendi = rapor hic uretilmez)");
+    if manip_sayisi > 0 {
+        println!(
+            "  yalniz tur sorusu : {}/{} (%{:.0})",
+            llm_kayip,
+            manip_sayisi,
+            100.0 * llm_kayip as f32 / manip_sayisi as f32
+        );
+        println!(
+            "  tam kapi          : {}/{} (%{:.0})",
+            son_kayip,
+            manip_sayisi,
+            100.0 * son_kayip as f32 / manip_sayisi as f32
+        );
+    }
+    println!("
+TEMIZ METINDE KAPIDAN GECME (hata degil, maliyet)");
+    if temiz_sayisi > 0 {
+        println!("  yalniz tur sorusu : {}/{}", llm_gecen_temiz, temiz_sayisi);
+        println!("  tam kapi          : {}/{}", son_gecen_temiz, temiz_sayisi);
+        println!("  kural katmani temiz metinde tetiklendi: {}/{}", kural_temizde, temiz_sayisi);
+    }
+    if !kurtarilan.is_empty() {
+        println!("
+KURAL KATMANININ KURTARDIGI METINLER ({}):", kurtarilan.len());
+        for k in &kurtarilan {
+            println!("  {}", k);
+        }
+    }
+    0
+}
+
 async fn run_calibration(path: &str) -> i32 {
     let Ok(content) = std::fs::read_to_string(path) else {
         eprintln!("Dosya okunamadı: {}", path);
@@ -1381,6 +1540,18 @@ async fn run_calibration(path: &str) -> i32 {
 
     for (i, (beklenen, text)) in cases.iter().enumerate() {
         let baslangic = std::time::Instant::now();
+
+        // Girişin hangi kademeden geldiğini ölçümde görmek istiyoruz; orkestratör
+        // kapıyı kendi içinde tekrar soracak. Ölçüm aracı olduğu için bu ikinci
+        // çağrının maliyeti kabul edilir, üretim akışında böyle bir tekrar yok.
+        let giris = match agents::gate_decision(text).await {
+            Ok(agents::GateEntry::Clean) => "elendi",
+            Ok(agents::GateEntry::ByRule) => "kural",
+            Ok(agents::GateEntry::ByGenre) => "tur",
+            Ok(agents::GateEntry::ByIntent) => "ticari",
+            Err(_) => "hata",
+        };
+
         let rapor = match orchestrator::run_orchestrator(text, "tr").await {
             Ok(r) => r,
             Err(e) => {
@@ -1424,11 +1595,13 @@ async fn run_calibration(path: &str) -> i32 {
             .collect();
 
         println!(
-            "[{:>2}] beklenen={:<5} sonuc={:<5} -> {:<14} ({:.1}s)",
+            "[{:>2}] beklenen={:<5} sonuc={:<5} -> {:<14} giris={:<6} baskin={:<12} ({:.1}s)",
             i + 1,
             if *beklenen { "MANIP" } else { "TEMIZ" },
             if rapor.is_manipulated { "MANIP" } else { "TEMIZ" },
             sonuc,
+            giris,
+            rapor.dominant_manipulation,
             baslangic.elapsed().as_secs_f32()
         );
         println!("     {}", text.chars().take(72).collect::<String>());
@@ -1561,6 +1734,16 @@ DATABASE_URL ile adres verebilirsin."));
             std::process::exit(2);
         };
         std::process::exit(run_calibration(path).await);
+    }
+
+    // Ön eleme kapısı ölçümü: uzman ajanları çalıştırmadan yalnız kapıyı ölçer.
+    //   manipulation-detector --gate-file kapi-olcum-seti.txt
+    if let Some(pos) = args.iter().position(|a| a == "--gate-file") {
+        let Some(path) = args.get(pos + 1) else {
+            eprintln!("Kullanım: --gate-file <etiketli-set.txt>");
+            std::process::exit(2);
+        };
+        std::process::exit(run_gate_measurement(path).await);
     }
 
     // Chrome Extension + ngrok için düzeltilmiş CORS ayarı

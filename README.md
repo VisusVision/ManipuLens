@@ -50,6 +50,40 @@ ManipuLens relies on a structured hierarchy of local generative agents to parse,
 
 ---
 
+## 🚪 Pre-filter Gate and Measurement
+
+Not every text reaches the six agents. A **pre-filter gate** runs first - it cuts false
+alarms and drops clean texts from seven Ollama calls to one. Three stages, cheapest first:
+
+1. **Rule layer (no LLM)** - sales-copy signals (urgency, scarcity, price, call to action,
+   social proof; at least two distinct groups) and personal-pressure patterns. A match goes
+   straight to full analysis without calling the model.
+2. **Genre question** - "is this text informing or persuading?"
+3. **Commercial-intent question** - asked only when the genre question dropped the text:
+   "does the writer steer the reader toward something they provide?" The decisive test is
+   **who gains**: a writer who sells or represents the thing, yes; a writer who merely used
+   or reported it, no.
+
+Stage 3 came out of measurement: 8 of 12 ads disguised as news, reviews or personal stories
+were dropped by the genre question, and the keyword rules caught **none** of them
+(2026-09-12). A pattern list memorises; a purpose question generalises.
+
+Two offline commands, no server or extension needed:
+
+```bash
+cargo run --release -- --gate-file kapi-olcum-seti.txt      # gate only
+cargo run --release -- --analyze-file kapi-olcum-seti.txt   # full pipeline
+```
+
+File format is `LABEL|text` (`MANIP` / `TEMIZ`, `#` for comments). Sets in the repo:
+`dogrulama-seti.txt` (21, used for prompt tuning - regression set),
+`kapi-olcum-seti.txt` (30: short ads / disguised ads / hard clean texts),
+`kapi-dogrulama-seti-2.txt` (18, written after the rule layer was hardened).
+Tuning against a set forfeits its independence - write a new one and keep the old for
+regression.
+
+---
+
 ## 🔄 UI/UX Workflow
 
 1. **Selection & Trigger:** The user selects a text snippet on a webpage. Right-clicking creates a secure transaction via `background.js` using `chrome.storage.local`.
@@ -115,6 +149,16 @@ POST /v1/ads/feedback      → impression | click | dismiss
 POST /v1/consent           → turn ad personalisation on/off
 POST /v1/ads/inventory     → add/update a campaign (requires ADS_ADMIN_TOKEN)
 ```
+
+The inventory starts empty; with no campaigns `/v1/ads` returns an empty list.
+`ornek-reklam-envanteri.json` in the repo holds seven sample campaigns (one in
+English, one `sensitive`); load them with:
+
+```bash
+ADS_ADMIN_TOKEN=... python envanter-yukle.py ornek-reklam-envanteri.json
+```
+
+Re-loading the same `id` updates that campaign instead of creating a duplicate.
 
 **Dataset export** — runs without starting the server, one analysis per line:
 

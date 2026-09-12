@@ -50,6 +50,40 @@ ManipuLens, içeriklerin anlamsal bütünlüğünü ayrıştırmak, incelemek ve
 
 ---
 
+## 🚪 Ön Eleme Kapısı ve Ölçüm
+
+Her metin altı ajana gitmez. Önce **ön eleme kapısı** çalışır; amacı hem yanlış alarmı
+kesmek hem de temiz metinlerde yedi Ollama çağrısını bire indirmektir. Kapı üç kademeli,
+en ucuzdan başlar:
+
+1. **Kural katmanı (LLM yok)** — satış kopyası sinyalleri (aciliyet, kıtlık, fiyat, eyleme
+   çağrı, sosyal kanıt; en az iki farklı grup) ve kişiye yönelen baskı kalıpları. Eşleşirse
+   model hiç çağrılmadan tam analize geçilir.
+2. **Tür sorusu** — "bu metin bilgi mi veriyor, ikna mı ediyor?"
+3. **Ticari amaç sorusu** — yalnız tür sorusu elediğinde sorulur: "yazar okuyucuyu kendi
+   sunduğu bir şeye mi yönlendiriyor?" Belirleyici test **kim kazanıyor**: ürünü satan
+   yazar evet, yalnız kullanan/anlatan yazar hayır.
+
+Üçüncü kademe ölçümle geldi: haber, inceleme ya da kişisel hikâye kılığına girmiş
+reklamların 12'de 8'i tür sorusunda eleniyordu ve kelime tabanlı kural katmanı bunların
+**hiçbirini** yakalamıyordu (2026-09-12). Kalıp listesi ezberliyor, amaç sorusu genelliyor.
+
+Ölçüm iki komutla yapılır, sunucu ve uzantı gerekmez:
+
+```bash
+cargo run --release -- --gate-file kapi-olcum-seti.txt      # yalnız kapı
+cargo run --release -- --analyze-file kapi-olcum-seti.txt   # tam akış
+```
+
+Dosya biçimi `ETIKET|metin` (`MANIP` / `TEMIZ`, `#` yorum). Depodaki setler:
+`dogrulama-seti.txt` (21, prompt ayarında kullanıldı — regresyon seti),
+`kapi-olcum-seti.txt` (30: kısa reklam / gizlenmiş reklam / zor temiz),
+`kapi-dogrulama-seti-2.txt` (18, kural katmanı sıkılaştırıldıktan sonra yazıldı).
+Bir sete bakıp kural düzeltirsen o set ayrıklığını kaybeder; yenisini yaz, eskisini
+regresyon seti olarak sakla.
+
+---
+
 ## 🔄 UI/UX İş Akışı
 
 1. **Seçim ve Tetikleme:** Kullanıcı web sayfasında bir metin seçer. Sağ tıklama, `background.js` aracılığıyla `chrome.storage.local` kullanarak güvenli bir işlem alanı oluşturur.
@@ -116,6 +150,16 @@ POST /v1/ads/feedback      → impression | click | dismiss
 POST /v1/consent           → reklam rızasını aç/kapa
 POST /v1/ads/inventory     → kampanya ekle/güncelle (ADS_ADMIN_TOKEN gerekir)
 ```
+
+Envanter başlangıçta boştur; kampanya yoksa `/v1/ads` boş liste döner. Depodaki
+`ornek-reklam-envanteri.json` yedi örnek kampanya taşır (biri İngilizce, biri
+`sensitive`), yükleyici ile yazılır:
+
+```bash
+ADS_ADMIN_TOKEN=... python envanter-yukle.py ornek-reklam-envanteri.json
+```
+
+Aynı `id` ile tekrar yüklemek kampanyayı günceller, kopya oluşturmaz.
 
 **Veri seti dışa aktarımı** — sunucu açmadan çalışır, satır başına bir analiz:
 

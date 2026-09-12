@@ -7,11 +7,15 @@ pub async fn run_orchestrator(text: &str, lang: &str) -> Result<FinalReport, Str
     // Ajanlar rol gereği bulgu üretmeye eğilimli; bilgi metnine hiç bakmamak,
     // baktıktan sonra "yok" demesini ummaktan güvenilir. Çağrı başarısız olursa
     // eski davranışa düşülür (tam analiz), ön eleme tek hata noktası olmasın.
-    match needs_full_analysis(text).await {
-        Ok(false) => return Ok(clean_report(lang)),
-        Ok(true) => {}
-        Err(e) => tracing::warn!(error = %e, "ön eleme başarısız; tam analize geçiliyor"),
-    }
+    let entry = match gate_decision(text).await {
+        Ok(GateEntry::Clean) => return Ok(clean_report(lang)),
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!(error = %e, "ön eleme başarısız; tam analize geçiliyor");
+            GateEntry::ByGenre
+        }
+    };
+    tracing::debug!(?entry, "ön eleme: tam analize giriş gerekçesi");
 
     // 6 ajanı paralel çalıştır
     let (r1, r2, r3, r4, r5, r6) = tokio::join!(

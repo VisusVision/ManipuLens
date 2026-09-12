@@ -1,0 +1,55 @@
+# ManipuLens on eleme kapisi olcum seti - 30 metin (20 MANIP, 10 TEMIZ).
+# Bicim: ETIKET|metin      ETIKET = MANIP (manipulatif) veya TEMIZ (manipulatif degil)
+# Kullanim: cargo run --release -- --gate-file kapi-olcum-seti.txt
+#           cargo run --release -- --analyze-file kapi-olcum-seti.txt
+#
+# Amac: 2026-09-12'de eklenen kural katmanini olcmek. Kapida elenen MANIP metin
+# icin rapor hic uretilmez; sistemin en pahali hatasi budur. Set uc gruptan olusur:
+#   1-10  kisa reklam    : bir iki cumlelik satis kopyasi, modelin 'rapor'/'duyuru'
+#                          sanip eledigi bicim.
+#   11-20 gizlenmis reklam: haber, inceleme, kisisel hikaye ya da uzman yazisi
+#                          kiligina girmis reklam; tur siniflandiricisini yaniltir.
+#   21-30 temiz          : kapinin bosuna acilmamasi gereken metinler. Bilerek
+#                          zor secildi - yuzde, fiyat, son tarih ve 'hemen' gibi
+#                          kelimeler tasiyorlar ama kimseye bir sey satmiyorlar.
+#
+# BU SET AYRIKTIR (held-out): prompt ayarinda ve kural katmani yazilirken
+# kullanilmadi. Buradaki hatalara bakip kurallari duzeltirsen set ayrikligini
+# kaybeder; o durumda yeni bir set yaz, bunu regresyon seti olarak sakla.
+
+# --- 1-10: kisa reklam. 7-10 bilerek tek sinyalli: kural katmani bunlari
+# yakalamayabilir, olcum durustlugu icin sette kalsinlar.
+MANIP|SON 6 SAAT! Sepette %70 indirim, stoklar eriyor. Hemen tıkla.
+MANIP|Kampanya gece 00.00'da bitiyor. Bugün almazsan yarın tam fiyat ödeyeceksin.
+MANIP|Sadece ilk 50 kişiye özel fiyat. Kontenjan doluyor, yerini şimdi ayırt.
+MANIP|Herkes bu modelden aldı, sen hâlâ düşünüyorsun. Stok bitmeden sepete ekle.
+MANIP|3 al 2 öde, son gün! Kaçıranlar bir yıl daha bu fiyatı göremeyecek.
+MANIP|Fiyatlar yarın zamlanıyor. Bugün sipariş verene kargo bedava, acele et.
+MANIP|Cildini 7 günde yenileyen serum. Sen de dene, farkı ilk haftada gör.
+MANIP|Ayda 199 TL'ye sınırsız üyelik. Hemen başla, istediğin zaman bırak.
+MANIP|Bu telefonu almadan önce bir kez daha düşün: rakipleri artık çok geride kaldı.
+MANIP|Yeni koleksiyon mağazalarımızda. Gel, dene, beğenmezsen alma.
+
+# --- 11-20: gizlenmis reklam. Tur gorunusu haber/inceleme/kisisel, amaci satis.
+MANIP|Yerli bir girişimin geliştirdiği uyku bandı, kullanıcıların uyku süresini ortalama bir buçuk saat uzatıyor. Uzmanlar cihazın ilaca alternatif olabileceğini söylüyor. Ürün yalnızca resmi siteden temin edilebiliyor ve bu haftaki parti sınırlı.
+MANIP|Üç ay önce bir arkadaşım önerdiğinde inanmamıştım, kargo gelene kadar da beklentim yoktu. İki hafta sonra terazideki rakamı görünce şaşırdım, sonra da şarj aletim gibi yanımdan ayırmadım. Beni değiştiren linki aşağıya bırakıyorum, girenlere ilk ay yarım fiyat.
+MANIP|Robot süpürgeyi bir aydır kullanıyorum. Sessiz çalışıyor, halı eşiklerini rahat aşıyor, şarjı bitmeden tüm evi topluyor, uygulaması da gayet anlaşılır. Kısacası bu fiyata alternatifi yok. İndirim kodum ENES15, kasada otomatik iniyor.
+MANIP|Yapılan bir araştırmaya göre tüketicilerin %92'si markamızın kahvesini rakiplerine tercih ediyor. Sonuçlar bağımsız bir laboratuvarda doğrulandı. Kampanya stoklarla sınırlı, paketler tükenmeden edinin.
+MANIP|Diyetisyen olarak on yıldır aynı şeyi söylüyorum: metabolizmayı hızlandırmadan kilo verilmiyor. Bu yüzden hastalarıma yıllardır aynı takviyeyi öneriyorum, kendim de kullanıyorum. Adıma özel indirim kodu profilimde, stok azaldı.
+MANIP|Vatandaşların çoğu bu haktan habersiz: geçmiş yıllara ait fazla ödenen vergileri geri almak mümkün. Başvuru dosyası teknik bilgi istediği için tek başınıza hazırlamanız zor. Danışmanlık kontenjanımız bu ay için 20 kişiyle sınırlı.
+MANIP|Sabah rutinim çok basit: bir bardak ılık su, on dakika esneme ve tabii şu kremi sürmek. Cildim kış boyunca ilk kez kurumadı. Soranlar için markayı etiketledim, profildeki koda %20 iniyor.
+MANIP|Piyasadaki beş dizüstü bilgisayarı karşılaştırdık. Fiyat, pil ve ekran başlıklarında bir marka açık ara öne çıktı; diğerleri ya ısınıyor ya da pili yetmiyor. Karşılaştırmayı hazırlayan ekip olarak bu modelin bu haftaki kampanyasını kaçırmamanızı öneririz.
+MANIP|Uzmanlar uyarıyor: şebeke suyundaki kireç sadece cihazlara değil böbreklere de zarar veriyor. Yıllar içinde birikiyor ve fark ettiğinizde iş işten geçmiş oluyor. Evinize takılabilen arıtma cihazı için randevu takvimimiz dolmak üzere.
+MANIP|Grup üyelerine duyurudur: cumartesi günü ücretsiz yatırım semineri düzenliyoruz. Katılımcılara portföy şablonu hediye edilecek. Salon kapasitesi 80 kişi, kayıtlar hızla doluyor, geç kalan bir sonraki dönemi bekler.
+
+# --- 21-30: temiz. Yuzde, fiyat, son tarih ve 'hemen' tasiyorlar; satis yok.
+TEMIZ|Yarın sabah saatlerinde yağış ihtimali %80, öğleden sonra %30'a düşüyor. Rüzgâr kuzeyden saatte 25 kilometre hızla esecek, sıcaklık 14 dereceye kadar geriliyor.
+TEMIZ|Başvurular 15 Nisan Cuma günü saat 17.00'de sona erecektir. İstenen belgeler e-Devlet üzerinden yüklenecek, eksik belgeyle yapılan başvurular değerlendirmeye alınmayacaktır.
+TEMIZ|Mağazamız bayram süresince 10.00-18.00 saatleri arasında hizmet verecektir. Arefe günü öğleden sonra kapalıyız; iade ve değişim işlemleri tatil sonrası kaldığı yerden devam eder.
+TEMIZ|Doğal gaz kokusu alırsanız vanayı hemen kapatın, pencereleri açın ve elektrik düğmelerine dokunmayın. Binayı terk ettikten sonra 187 numaralı hattı arayın.
+TEMIZ|Bulaşık makinesini kullanmadan önce tuz haznesini doldurun, parlatıcı seviyesini kontrol edin ve filtreyi yerine oturttuğunuzdan emin olun. Programı başlattıktan sonra kapağı açmayın.
+TEMIZ|BIST 100 endeksi günü %1,4 yükselişle 9.870 puandan kapattı. İşlem hacmi 92 milyar lira olarak gerçekleşti, bankacılık endeksi %2,1 değer kazandı.
+TEMIZ|Etiket fiyatı bu yıl 1.299 lira, geçen yıl aynı ürün 899 liraydı. Aradaki %44'lük fark, aynı dönemdeki genel fiyat artışının yaklaşık iki katı.
+TEMIZ|Kablosuz klavyeyi üç aydır kullanıyorum. Tuş sesi sessiz, pili uzun gidiyor; buna karşılık yüksekliği ayarlanamıyor ve bilek desteği yok. Uzun yazanlar başka modellere de baksın.
+TEMIZ|İnsan vücudundaki kemik sayısı doğumda yaklaşık 270'tir; büyüme sırasında bazı kemikler birleştiği için yetişkinlikte 206'ya düşer. En uzun kemik uyluk kemiğidir.
+TEMIZ|Hafta sonu evdeki dolapları boşaltıp yeniden yerleştirdim. Bir kutunun içinden lise yıllığım çıktı, akşama kadar oturup sayfaları çevirdim. Yorucuydu ama iyi geldi.

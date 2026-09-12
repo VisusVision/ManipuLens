@@ -1,0 +1,199 @@
+[
+  {
+    "id": "egitim-1",
+    "brand": "Örnek Akademi",
+    "category": "egitim",
+    "title": "Veri analizi başlangıç programı",
+    "body": "Hafta sonu işlenen, tamamen uygulamalı sekiz haftalık program. Katılımcılar kendi veri setleriyle çalışır.",
+    "target": {
+      "ilgi_alanlari": [
+        "teknoloji",
+        "yazılım",
+        "kariyer"
+      ],
+      "tuketici_egilimi": [
+        "eğitim içerikleri",
+        "kariyer gelişimi"
+      ],
+      "yas_araliklari": [
+        "18-24",
+        "25-34"
+      ],
+      "egitim_seviyeleri": [
+        "üniversite",
+        "lisansüstü"
+      ],
+      "diller": [
+        "tr"
+      ]
+    },
+    "sensitive": false,
+    "urgency": false
+  },
+  {
+    "id": "kitap-1",
+    "brand": "Örnek Yayınevi",
+    "category": "kitap",
+    "title": "Bilim kurgu serisi kutulu set",
+    "body": "Üç kitaplık seri, çevirmen notlarıyla birlikte. Kargo üç iş gününde.",
+    "target": {
+      "ilgi_alanlari": [
+        "kitap",
+        "bilim",
+        "edebiyat"
+      ],
+      "tuketici_egilimi": [
+        "kitap ve dergi"
+      ],
+      "yas_araliklari": [],
+      "egitim_seviyeleri": [],
+      "diller": [
+        "tr"
+      ]
+    },
+    "sensitive": false,
+    "urgency": false
+  },
+  {
+    "id": "spor-1",
+    "brand": "Örnek Spor",
+    "category": "spor",
+    "title": "Ev antrenmanı ekipman seti",
+    "body": "Direnç bandı, mat ve kettlebell. Başlangıç programı kutunun içinde.",
+    "target": {
+      "ilgi_alanlari": [
+        "spor",
+        "sağlık",
+        "fitness"
+      ],
+      "tuketici_egilimi": [
+        "fitness ürünleri",
+        "sağlıklı yaşam"
+      ],
+      "yas_araliklari": [
+        "18-24",
+        "25-34",
+        "35-44"
+      ],
+      "egitim_seviyeleri": [],
+      "diller": [
+        "tr"
+      ]
+    },
+    "sensitive": false,
+    "urgency": false
+  },
+  {
+    "id": "mutfak-1",
+    "brand": "Örnek Ev",
+    "category": "ev",
+    "title": "Çelik tencere seti",
+    "body": "Beş parça, indüksiyon uyumlu, on yıl garantili.",
+    "target": {
+      "ilgi_alanlari": [
+        "yemek",
+        "ev",
+        "mutfak"
+      ],
+      "tuketici_egilimi": [
+        "ev ürünleri"
+      ],
+      "yas_araliklari": [
+        "25-34",
+        "35-44",
+        "45-54"
+      ],
+      "egitim_seviyeleri": [],
+      "diller": [
+        "tr"
+      ]
+    },
+    "sensitive": false,
+    "urgency": false
+  },
+  {
+    "id": "teknoloji-1",
+    "brand": "Örnek Teknoloji",
+    "category": "teknoloji",
+    "title": "Mekanik klavye, sessiz anahtar",
+    "body": "Uzun yazanlar için sessiz anahtar seçeneği, bilek desteği kutuda.",
+    "target": {
+      "ilgi_alanlari": [
+        "teknoloji",
+        "yazılım",
+        "oyun"
+      ],
+      "tuketici_egilimi": [
+        "teknoloji ürünleri"
+      ],
+      "yas_araliklari": [
+        "18-24",
+        "25-34"
+      ],
+      "egitim_seviyeleri": [],
+      "diller": [
+        "tr"
+      ]
+    },
+    "sensitive": false,
+    "urgency": false
+  },
+  {
+    "id": "finans-1",
+    "brand": "Örnek Finans",
+    "category": "finans",
+    "title": "Bireysel emeklilik planı",
+    "body": "Katkı payı ve devlet katkısı hesaplaması, sözleşme öncesi bilgilendirme formuyla.",
+    "target": {
+      "ilgi_alanlari": [
+        "finans",
+        "yatırım",
+        "ekonomi"
+      ],
+      "tuketici_egilimi": [
+        "finansal ürünler"
+      ],
+      "yas_araliklari": [
+        "25-34",
+        "35-44",
+        "45-54",
+        "55+"
+      ],
+      "egitim_seviyeleri": [],
+      "diller": [
+        "tr"
+      ]
+    },
+    "sensitive": true,
+    "urgency": false
+  },
+  {
+    "id": "en-course-1",
+    "brand": "Sample Academy",
+    "category": "egitim",
+    "title": "Intro to data analysis",
+    "body": "Eight weeks, hands-on, weekend sessions. Participants work on their own data sets.",
+    "target": {
+      "ilgi_alanlari": [
+        "technology",
+        "software",
+        "career"
+      ],
+      "tuketici_egilimi": [
+        "online courses"
+      ],
+      "yas_araliklari": [
+        "18-24",
+        "25-34"
+      ],
+      "egitim_seviyeleri": [
+        "üniversite"
+      ],
+      "diller": [
+        "en"
+      ]
+    },
+    "sensitive": false,
+    "urgency": false
+  }
+]
