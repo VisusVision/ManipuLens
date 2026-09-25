@@ -7,7 +7,7 @@
 //!    milisaniye sürer. Tahmin değil ölçümdür.
 //! 2. **Çıkarım katmanı** (Kart 2, demografi ajanı): yorum üretir, LLM ister.
 //!    Her analizde değil, `PROFILE_INFERENCE_EVERY` analizde bir tetiklenir —
-//!    çünkü bir analiz zaten 7 Ollama çağrısı yapıyor ve 8.'si kullanıcının
+//!    çünkü bir analiz zaten 7 Azure OpenAI çağrısı yapıyor ve 8.'si kullanıcının
 //!    bekleme süresine biner.
 //!
 //! Her iki katman da isteğin DIŞINDA (`tokio::spawn`) çalışır: kullanıcı

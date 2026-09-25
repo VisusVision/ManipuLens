@@ -71,7 +71,7 @@ type SharedState = Arc<AppState>;
 #[derive(Deserialize)]
 struct HistoryQuery {
     /// İstemcinin arayüz dili ("tr"/"en"). Verilirse, yanlış dilde saklanmış
-    /// geçmiş özetleri tek Ollama çağrısıyla bu dile çevrilerek döndürülür.
+    /// geçmiş özetleri tek Azure OpenAI çağrısıyla bu dile çevrilerek döndürülür.
     lang: Option<String>,
 }
 
@@ -1025,7 +1025,7 @@ async fn handle_analyze(
 
 // ========== TRANSLATE REPORT ==========
 /// Önceden üretilmiş bir raporu hedef dile çevirir. Analizi yeniden çalıştırmaz;
-/// yalnızca metin alanlarını tek Ollama çağrısıyla çevirir. Arayüz dili
+/// yalnızca metin alanlarını tek Azure OpenAI çağrısıyla çevirir. Arayüz dili
 /// değiştirildiğinde istemci tarafından çağrılır.
 async fn handle_translate_report(
     State(state): State<SharedState>,
@@ -1036,7 +1036,7 @@ async fn handle_translate_report(
         "en" => "en",
         _ => "tr",
     };
-    // Oturum zorunlu: bu uç da Ollama kaynağı tüketiyor
+    // Oturum zorunlu: bu uç da Azure OpenAI kaynağı tüketiyor
     if authenticate(&state, &headers).await.is_none() {
         return Err((StatusCode::UNAUTHORIZED, unauthorized_msg(lang)));
     }
@@ -1063,7 +1063,7 @@ async fn handle_history(
     // DİL TUTARLILIĞI (v2): Yeni kayıtlar hangi dilde üretildiğini `lang`
     // alanında taşır — tespit tahmine değil bu alana dayanır (eski lang'sız
     // kayıtlar için sezgisel kontrol korunur). Yanlış dildeki özetler TEK
-    // toplu Ollama çağrısıyla çevrilir ve sonuç VERİTABANINA KALICI yazılır:
+    // toplu Azure OpenAI çağrısıyla çevrilir ve sonuç VERİTABANINA KALICI yazılır:
     // aynı kayıt bir daha çevrilmez → geçmiş açılışı hızlanır, timeout ve
     // "karışık dil" sorunu tekrarlamaz. (text_preview orijinal alıntı olduğu
     // için asla çevrilmez.)
@@ -1083,7 +1083,7 @@ async fn handle_history(
             if let Some(translations) = orchestrator::translate_texts(&wrong_texts, lang).await {
                 for (i, translated) in wrong_idx.into_iter().zip(translations) {
                     if let Some((id, entry)) = rows.get_mut(i) {
-                        // Kalıcılaştır: bir sonraki açılış Ollama'sız döner
+                        // Kalıcılaştır: bir sonraki açılış Azure OpenAI çağrısı olmadan döner
                         state.db.update_history_summary(*id, &translated, lang).await;
                         entry.genel_sonuc = translated;
                         entry.lang = Some(lang.to_string());
@@ -1202,7 +1202,7 @@ async fn handle_consent(
 /// Kullanıcıya uygun reklamları döner.
 ///
 /// Akış: rıza kontrolü → profil → kural katmanı (LLM'siz skorlama) → gerekçe
-/// katmanı (tek Ollama çağrısı). Rıza yoksa profil hiç okunmaz ve boş liste
+/// katmanı (tek Azure OpenAI çağrısı). Rıza yoksa profil hiç okunmaz ve boş liste
 /// döner; profil henüz oluşmadıysa da hedefleme yapılmaz.
 async fn handle_ads(
     State(state): State<SharedState>,

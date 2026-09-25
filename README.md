@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/Chrome_Extension-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Chrome Extension">
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
-  <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
+  <img src="https://img.shields.io/badge/Azure_OpenAI-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Azure OpenAI">
 </p>
 
 ---
@@ -20,7 +20,7 @@
 
 ### Key Focus Areas:
 * 🕵️ **Multi-Agent Verdicts:** Specialised sub-agents (Linguistic, Psychological, Behavioral, Perceptual, Social) dissecting texts concurrently.
-* 🛡️ **Privacy-First (Local AI):** Runs entirely on your machine using local LLMs via Ollama—your data never leaves your local network.
+* 🛡️ **Privacy-Focused:** Text selected for analysis is sent to the ManipuLens Azure backend and the configured Azure OpenAI model. Account and analysis-history data are stored in PostgreSQL; the full analyzed text is not written to audit logs.
 * 🚀 **Blazing Fast Performance:** Powered by Rust (Axum/Tokio) for near-instant orchestration and evaluation.
 
 ---
@@ -53,7 +53,7 @@ ManipuLens relies on a structured hierarchy of local generative agents to parse,
 ## 🚪 Pre-filter Gate and Measurement
 
 Not every text reaches the six agents. A **pre-filter gate** runs first - it cuts false
-alarms and drops clean texts from seven Ollama calls to one. Three stages, cheapest first:
+alarms and prevents unnecessary full multi-agent analysis. Clean texts can stop after the Azure OpenAI pre-filter stage. Three stages, cheapest first:
 
 1. **Rule layer (no LLM)** - sales-copy signals (urgency, scarcity, price, call to action,
    social proof; at least two distinct groups) and personal-pressure patterns. A match goes
@@ -88,7 +88,7 @@ regression.
 
 1. **Selection & Trigger:** The user selects a text snippet on a webpage. Right-clicking creates a secure transaction via `background.js` using `chrome.storage.local`.
 2. **Asynchronous Handshake:** The extension popup auto-opens, instantly locking the UI interaction (`button.disabled = true`) to prevent race conditions.
-3. **Rust Multi-Thread Sifting:** The payload hits `http://127.0.0.1:3000/v1/analyze`, sparking the multi-agent consensus network.
+3. **Rust Multi-Thread Sifting:** In production, the payload reaches the `/v1/analyze` endpoint hosted on Azure Container Apps, starting the multi-agent analysis pipeline.
 4. **Visual Synthesis:** The extension injects contextually colored markers back into the target web page's active DOM and displays a customized consumer behavior prediction card.
 
 ---
@@ -107,7 +107,7 @@ two-layer user profile is built on top of it:
   the user's counters plus their last 30 text previews and estimates age
   band, education level, consumer tendency and interests. Refreshed every 5
   analyses (or when the inference is older than 24 hours) rather than on
-  every one — a single analysis already makes 7 Ollama calls, and an 8th
+  every one — a full analysis already requires multiple Azure OpenAI calls, and an additional inference call
   would land on the user's wait time.
 
 The agent's limits are enforced in code: any estimate below 0.60 confidence
@@ -173,27 +173,34 @@ Privacy: the export contains no email addresses; users are separated by UUID.
 ManipuLens employs a highly optimized asynchronous processing pipeline designed to handle complex multi-agent analysis without blocking the main event loops:
 
 ⚙️ Requirements
-Before launching the production pipeline, ensure you have the following ecosystem components installed:
 
-Docker Desktop (With Compose support active)
+For local development, make sure you have:
 
-Ollama (Running locally on port 11434)
+- Docker Desktop with Compose support
+- Google Chrome or another Chromium-based browser
+- Access to Azure OpenAI / Microsoft Foundry
+- The required Azure OpenAI environment variables configured in `.env`
 
-Google Chrome Browser (Or any Chromium-based browser)
+Required core environment variables:
 
-🚀 Quick Start (Backend Deployment)
-Thanks to our optimized multi-stage Docker setup, you can compile the entire Rust matrix and spin up the environment with a single command orchestration.
-1. Download and Serve the Local Intelligence Model
-Open your system terminal and pull down the llama3 core weight infrastructure using Ollama:
-```
-ollama pull llama3
-```
-2. Run the Multi-Agent Cluster via Docker Compose
-Navigate to the project root directory (/manipulation-detector) and execute the build pattern:
-```
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_API_KEY=
+DATABASE_URL=
+
+If email verification and password reset are enabled, SMTP settings must also be configured.
+
+🚀 Quick Start (Local Backend)
+
+Create your own `.env` file based on `.env.example`. Never commit real API keys or passwords to the repository.
+
+Then run:
+
 docker-compose up --build
-```
-This handles the static musl-compilation within isolation layers and fires up the Axum server bound to 0.0.0.0:3000 with direct bridging to your native Ollama port.
+
+Docker Compose starts the local PostgreSQL database and the Rust/Axum backend. The backend listens on `0.0.0.0:3000` and sends analysis requests to the configured Azure OpenAI deployment.
+
+In production, the ManipuLens backend runs on Azure Container Apps, while PostgreSQL is hosted on Azure Database for PostgreSQL Flexible Server.
 
 🧩 Chrome Extension Installation (Frontend Setup)
 Since the frontend extension lives directly inside the browser environment, load it manually into your Chromium instance:

@@ -209,7 +209,7 @@ pub async fn gate_decision(text: &str) -> Result<GateEntry, String> {
     // ölçümünde llama3, "Son 3 saat! Herkes aldı, stoklar bitiyor." gibi kısa
     // reklam metnini "rapor" sayıp elemişti; reklamlar kısa olduğu için kapı
     // tam da hedef kitleyi kaçırıyordu. Desen eşleşirse kapı atlanır, bu da
-    // bir Ollama çağrısı tasarrufudur — kapı tek hata noktası olmaktan çıkar.
+    // bir Azure OpenAI çağrısı tasarrufudur — kapı tek hata noktası olmaktan çıkar.
     if looks_like_sales_copy(text) {
         tracing::debug!("ön eleme: satış kopyası deseni, kapı atlandı");
         return Ok(GateEntry::ByRule);

@@ -160,19 +160,18 @@ Modelden serbest yazı yerine makinenin okuyabileceği düzenli bir nesne isteme
 
 Kodda: `src/agents.rs:45-47`
 
-ManipuLens Ollama'ya `format: "json"` gönderir. Böylece modelin cevabın başına açıklama ekleyip ayrıştırmayı bozma ihtimali azalır; alanların anlamı yine ayrıca doğrulanmalıdır.
-
+ManipuLens, Azure OpenAI Responses API'ye yapılandırılmış JSON nesnesi çıktısı ister. Böylece model yanıtının ayrıştırılabilir bir JSON nesnesi olması sağlanır; dönen alanların anlamı yine uygulama tarafından ayrıca doğrulanır.
 İlgili: `llm`, `agent-analysis`, `final-report`
 
 #### llama3
 
 ManipuLens'in yerelde çalıştırdığı dil modelinin adı. Ajanlardan biri değildir; altı uzmanın da kullandığı ortak motordur.
 
-Kodda: `src/agents.rs::call_ollama_agent`
+Kodda: `src/agents.rs::call_llm_json`
 
-Kod, Ollama isteklerinde model adını `llama3` olarak gönderir. Altı farklı uzman görünmesinin sebebi altı model değil, aynı modele verilen farklı sistem promptlarıdır.
+Kullanılacak model/deployment `AZURE_OPENAI_DEPLOYMENT` ile belirlenir. Altı farklı uzman görünmesinin sebebi altı ayrı model değil, aynı yapılandırılmış Azure OpenAI deployment'ına verilen farklı uzman promptlarıdır.
 
-İlgili: `yerel-model`, `ollama`, `ajan`
+İlgili: `azure-openai`, `llm`, `ajan`
 
 #### LLM
 
@@ -182,15 +181,19 @@ Kod, Ollama isteklerinde model adını `llama3` olarak gönderir. Altı farklı 
 
 İlgili: `prompt`, `halusinasyon`, `yerel-model`
 
-#### Ollama
+#### Azure OpenAI / Microsoft Foundry
 
-Yerel modeli indirip çalıştıran program. ManipuLens modele doğrudan değil, Ollama üzerinden seslenir.
+ManipuLens'in LLM işlemlerini bulutta çalıştırdığı yapay zeka servisidir. Rust backend, Azure OpenAI Responses API üzerinden yapılandırılmış deployment'a istek gönderir.
 
-Kodda: `localhost:11434`
+Kodda kullanılan temel ortam değişkenleri:
 
-Ollama kapalıysa analiz başlamaz; bu bir hata değil, tasarımın sonucudur — bulut yedeği yok.
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_DEPLOYMENT`
 
-İlgili: `yerel-model`, `llm`
+LLM kullanan analiz yolları `src/agents.rs::call_llm_json` üzerinden merkezi olarak Azure OpenAI'a bağlanır. Gerekli Azure yapılandırması yoksa LLM tabanlı analiz çağrıları başarılı olamaz.
+
+İlgili: `llm`, `ajan`, `azure-openai`
 
 #### Prompt
 
@@ -222,11 +225,11 @@ Model metni doğrudan kelimeler halinde okumaz; önce sayısal parçalara ayır�
 
 Bilgisayarının içinde çalışan model. İnternete çıkmaz, veriyi kimseye göndermez. Karşılığı: kendi işlemcin yorulur.
 
-Kodda: `OLLAMA_URL, src/agents.rs:37`
+Kodda: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`
 
 Gizlilik iddiasının temeli budur: metin makineden çıkmıyorsa sızabileceği bir yer de yoktur.
 
-İlgili: `ollama`, `llm`
+İlgili: `azure-openai`, `llm`
 
 ### Web, uzantı, altyapı (8)
 
@@ -264,7 +267,7 @@ Bilinen risk olarak açık duruyor; ayrıntısı Gizlilik ve güvenlik sayfasın
 
 Bir uygulamayı bağımlılıklarıyla birlikte taşınabilir bir kutuda çalıştırma aracı. Sanal makine değildir; ana işletim sisteminin çekirdeğini paylaşır.
 
-ManipuLens'in bugünkü kurulum yolu Docker kullanmıyor; Rust sunucusu ve Ollama ayrı çalıştırılıyor. Terim yol haritasındaki paketleme seçeneğini anlamak için sözlükte yer alır, çalışan özellik gibi sunulmaz.
+ManipuLens yerel geliştirmede Docker Compose ile Rust backend ve PostgreSQL'i çalıştırabilir. LLM işlemleri yerel bir model yerine yapılandırılmış Azure OpenAI deployment'ına gönderilir. Production ortamında backend Azure Container Apps, veritabanı ise Azure Database for PostgreSQL üzerinde çalışır.
 
 İlgili: `endpoint`, `yerel-model`
 

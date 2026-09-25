@@ -293,7 +293,7 @@ pub fn local_reason(scored: &ScoredAd, lang: &str) -> String {
     }
 }
 
-/// Kısa listeye tek bir Ollama çağrısı yapıp gerekçeleri insan cümlesine
+/// Kısa listeye tek bir Azure OpenAI çağrısı yapıp gerekçeleri insan cümlesine
 /// çevirir. Çağrı başarısız olursa kural katmanının etiketleri kullanılır —
 /// hedefleme LLM'e bağımlı hale gelmez.
 pub async fn explain_top(candidates: &[ScoredAd], profile: &UserProfile, lang: &str) -> Vec<AdDecision> {

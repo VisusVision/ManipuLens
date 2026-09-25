@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/Chrome_Uzantısı-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Chrome Extension">
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
-  <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white" alt="Ollama">
+  <img src="https://img.shields.io/badge/Azure_OpenAI-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Azure OpenAI">
 </p>
 
 ---
@@ -20,7 +20,7 @@
 
 ### Temel Odak Alanları:
 * 🕵️ **Çoklu Ajan Kararları:** Metin matrisini eşzamanlı olarak inceleyen uzman alt ajanlar (Dilsel, Psikolojik, Davranışsal, Algısal, Sosyal).
-* 🛡️ **Önce Gizlilik (Yerel Yapay Zeka):** Ollama aracılığıyla tamamen kendi yerel makinenizde çalışır; verileriniz asla yerel ağınızın dışına çıkmaz.
+* 🛡️ **Önce Gizlilik:** Analiz için seçtiğiniz metin, ManipuLens Azure backend'ine ve yapılandırılmış Azure OpenAI modeline gönderilir. Hesap ve analiz geçmişi PostgreSQL üzerinde saklanır; tam analiz metni audit loglarına yazılmaz.
 * 🚀 **Yüksek Performans:** Neredeyse anlık orkestrasyon ve değerlendirme için Rust (Axum/Tokio) mimarisinden güç alır.
 
 ---
@@ -53,7 +53,7 @@ ManipuLens, içeriklerin anlamsal bütünlüğünü ayrıştırmak, incelemek ve
 ## 🚪 Ön Eleme Kapısı ve Ölçüm
 
 Her metin altı ajana gitmez. Önce **ön eleme kapısı** çalışır; amacı hem yanlış alarmı
-kesmek hem de temiz metinlerde yedi Ollama çağrısını bire indirmektir. Kapı üç kademeli,
+azaltmak hem de temiz metinleri 1–2 Azure OpenAI ön eleme çağrısından sonra durdurmaktır. Ön elemeden geçen metinler 6 uzman ajan ve sentezleyici ile tam analize devam eder. Kapı üç kademeli,
 en ucuzdan başlar:
 
 1. **Kural katmanı (LLM yok)** — satış kopyası sinyalleri (aciliyet, kıtlık, fiyat, eyleme
@@ -88,7 +88,7 @@ regresyon seti olarak sakla.
 
 1. **Seçim ve Tetikleme:** Kullanıcı web sayfasında bir metin seçer. Sağ tıklama, `background.js` aracılığıyla `chrome.storage.local` kullanarak güvenli bir işlem alanı oluşturur.
 2. **Asenkron El Sıkışma:** Uzantı popup penceresi otomatik olarak açılır ve olası çakışmaları (race conditions) önlemek için arayüz etkileşimini anında kilitler (`button.disabled = true`).
-3. **Rust Çok Kanallı Süzme:** İstek verisi `http://127.0.0.1:3000/v1/analyze` adresine ulaşarak çoklu ajan konsensüs ağını ateşler.
+3. **Rust Çok Kanallı Süzme:** İstek verisi production ortamında Azure Container Apps üzerindeki `/v1/analyze` uç noktasına ulaşır ve çoklu ajan analiz akışını başlatır.
 4. **Görsel Sentez:** Uzantı, bağlamsal olarak renklendirilmiş işaretçileri web sayfasının aktif DOM yapısına enjekte eder ve özelleştirilmiş tüketici davranışı tahmin kartını görüntüler.
 
 ---
@@ -106,8 +106,7 @@ kullanıcı profili durur:
 - **Çıkarım katmanı** — demografi ajanı (`analyze_demographic`); kullanıcının
   sayaçlarını ve son 30 metin önizlemesini okuyup yaş aralığı, eğitim
   seviyesi, tüketici eğilimi ve ilgi alanları tahmin eder. Her analizde
-  değil, 5 analizde bir (ya da çıkarım 24 saatten eskiyse) tazelenir — bir
-  analiz zaten 7 Ollama çağrısı yapıyor, 8.'si kullanıcının bekleme süresine
+  değil, 5 analizde bir (ya da çıkarım 24 saatten eskiyse) tazelenir — tam analiz birden fazla Azure OpenAI çağrısı yaptığı için, 8.'si kullanıcının bekleme süresine
   binerdi.
 
 Demografi ajanının sınırları koda gömülüdür: güveni 0.60'ın altındaki her
@@ -196,7 +195,7 @@ ManipuLens, ana olay döngülerini engellemeden karmaşık çoklu ajan analizler
 [ Dinamik DOM Enjeksiyonları ]
 
 ### Asenkron Konsensüs Protokolü (Rust Tarafı)
-İstek `/v1/analyze` uç noktasına ulaştığında, Rust arka planı Ollama API isteklerini paralel hale getirmek için `tokio::spawn` ve `tokio::join!` mimarisinden yararlanır. Ajanları sırayla çalıştırmak yerine, 5 uzmanın tamamı metin matrisini eşzamanlı olarak değerlendirir:
+İstek `/v1/analyze` uç noktasına ulaştığında, Rust arka planı Azure OpenAI isteklerini paralel hale getirmek için `tokio::spawn` ve `tokio::join!` mimarisinden yararlanır. Ajanları sırayla çalıştırmak yerine, 6 uzmanın tamamı metin matrisini eşzamanlı olarak değerlendirir:
 
 1. **Eşzamanlı Değerlendirme:** Çekirdek metrikler, `reqwest` aracılığıyla engellenmeyen (non-blocking) HTTP havuzlama kullanılarak toplanır.
 2. **Sentez Stratejisi:** **Sentezör Ajan (Manager)** aktif bayrakları toplayarak, `target_sentences` listesini derleyerek ve mutlak `dominant_manipulation` türünü seçerek bir indirgeme katmanı görevi görür.
@@ -229,29 +228,21 @@ Rust çalışma zamanı ile Chrome altyapısı arasındaki iletişim sözleşmes
 }
 ```
 ⚙️ Gereksinimler
-Sistemi ayağa kaldırmadan önce bilgisayarınızda aşağıdaki bileşenlerin kurulu olduğundan emin olun:
 
-Docker Desktop (Compose desteği aktif olmalı)
+Yerel geliştirme ortamı için:
 
-Ollama (11434 portunda yerel olarak çalışmalı)
+- Docker Desktop (Compose desteği açık)
+- Google Chrome veya Chromium tabanlı bir tarayıcı
+- Azure OpenAI / Microsoft Foundry erişimi
+- `.env` dosyasında gerekli Azure OpenAI değişkenleri
 
-Google Chrome Tarayıcı (Veya Chromium tabanlı herhangi bir tarayıcı)
+Gerekli temel ortam değişkenleri:
 
-🚀 Hızlı Başlangıç (Arka Plan Dağıtımı)
-Optimize edilmiş çok aşamalı Docker kurulumumuz sayesinde, tüm Rust matrisini derleyebilir ve ortamı tek bir komutla ayağa kaldırabilirsiniz.
-
-1. Yerel Yapay Zeka Modelini İndirin ve Başlatın
-Sistem terminalinizi açın ve Ollama kullanarak llama3 çekirdek modelini bilgisayarınıza çekin:
-```
-ollama pull llama3
-```
-2. Çoklu Ajan Kümesini Docker Compose ile Çalıştırın
-Proje ana dizinine (/manipulation-detector) gidin ve derleme komutunu çalıştırın:
-```
-docker-compose up --build
-```
-Bu komut, izolasyon katmanları içinde statik musl-derlemesini yönetir ve yerel Ollama portunuza doğrudan köprü kurarak Axum sunucusunu 0.0.0.0:3000 adresine bağlar.
-
+```env
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_API_KEY=
+DATABASE_URL=
 🧩 Chrome Uzantısı Kurulumu (Frontend Kurulumu)
 Frontend uzantısı doğrudan tarayıcı ortamında yaşadığı için, bunu tarayıcınıza manuel olarak yükleyin:
 

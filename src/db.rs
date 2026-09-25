@@ -276,7 +276,7 @@ impl Db {
         }
     }
 
-    /// Çevrilen özeti kalıcı yazar: aynı kayıt bir daha Ollama'ya gitmez.
+    /// Çevrilen özeti kalıcı yazar: aynı kayıt için tekrar Azure OpenAI çağrısı yapılmaz.
     /// (Dil tutarlılığı düzeltmesi — geçmiş her açılışta yeniden çevrilmesin.)
     pub async fn update_history_summary(&self, id: i64, genel_sonuc: &str, lang: &str) {
         let _ = sqlx::query("UPDATE history SET genel_sonuc = $1, lang = $2 WHERE id = $3")
