@@ -9,10 +9,9 @@
     "storage",
     "windows"
   ],
-  "host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
+"host_permissions": [
+  "https://manipulens-backend.victoriousbeach-1b167b3d.francecentral.azurecontainerapps.io/*"
+],
   "background": {
     "service_worker": "background.js"
   },

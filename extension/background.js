@@ -104,7 +104,7 @@ async function startAnalysisInBackground(selectedText, tabId) {
   });
 
   try {
-    const baseUrl = "http://127.0.0.1:3000";
+    const baseUrl = "https://manipulens-backend.victoriousbeach-1b167b3d.francecentral.azurecontainerapps.io";
 
     const response = await fetch(`${baseUrl}/v1/analyze`, {
       method: "POST",

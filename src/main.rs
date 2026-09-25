@@ -30,7 +30,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
 use types::*;
 use uuid::Uuid;
 
@@ -1746,23 +1746,24 @@ DATABASE_URL ile adres verebilirsin."));
         std::process::exit(run_gate_measurement(path).await);
     }
 
-    // Chrome Extension + ngrok için düzeltilmiş CORS ayarı
     let cors = CorsLayer::new()
-        .allow_origin(AllowOrigin::mirror_request())
-        .allow_methods([
-            axum::http::Method::GET,
-            axum::http::Method::POST,
-            axum::http::Method::OPTIONS,
-        ])
-        .allow_headers([
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::AUTHORIZATION,
-            axum::http::header::ACCEPT,
-            "ngrok-skip-browser-warning".parse().unwrap(),
-        ])
-        .expose_headers(Any)
-        .max_age(Duration::from_secs(86400));
-
+    .allow_origin(
+        "chrome-extension://bpkhpedfkjhlhclpfgkljadkcnjlgcoc"
+            .parse::<axum::http::HeaderValue>()
+            .unwrap(),
+    )
+    .allow_methods([
+        axum::http::Method::GET,
+        axum::http::Method::POST,
+        axum::http::Method::OPTIONS,
+    ])
+    .allow_headers([
+        axum::http::header::CONTENT_TYPE,
+        axum::http::header::AUTHORIZATION,
+        axum::http::header::ACCEPT,
+    ])
+    .expose_headers(Any)
+    .max_age(Duration::from_secs(86400));
     let state = Arc::new(AppState {
         db,
         codes: Mutex::new(HashMap::new()),
@@ -1790,7 +1791,7 @@ DATABASE_URL ile adres verebilirsin."));
         .layer(cors)
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+   let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!("Manipülasyon Tespit Backend Servisi {} adresinde çalışıyor...", addr);
     tracing::info!("Auth endpointleri hazır → /v1/register /v1/login /v1/verify /v1/resend /v1/forgot /v1/reset");
     tracing::info!("Korumalı uçlar (Bearer token gerekir) → /v1/analyze /v1/translate-report /v1/history");

@@ -1,0 +1,6 @@
+.env
+.git
+target
+logs
+azure-test.jsonl
+*.log

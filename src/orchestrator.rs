@@ -27,6 +27,34 @@ pub async fn run_orchestrator(text: &str, lang: &str) -> Result<FinalReport, Str
         analyze_marketing(text, lang)
     );
 
+    // API/LLM hatalarını görünmez biçimde "tespit yok" sonucuna çevirmeyelim.
+    // Tek tük ajan başarısızsa diğerleriyle devam ederiz; altısının da
+    // başarısız olması durumunda ise kullanıcıya temiz metin demek yanlıştır.
+    for (name, result) in [
+        ("Dilsel", &r1),
+        ("Psikolojik", &r2),
+        ("Davranışsal", &r3),
+        ("Algısal", &r4),
+        ("Sosyal", &r5),
+        ("Pazarlama", &r6),
+    ] {
+        if let Err(e) = result {
+            tracing::warn!(agent = name, error = %e, "uzman ajan çağrısı başarısız");
+        }
+    }
+
+    let failed_count = [&r1, &r2, &r3, &r4, &r5, &r6]
+        .iter()
+        .filter(|r| r.is_err())
+        .count();
+
+    if failed_count == 6 {
+        return Err(
+            "Tüm uzman ajan çağrıları başarısız oldu; sonuç temiz metin olarak gösterilmedi."
+                .to_string(),
+        );
+    }
+
     // Hata durumunda kullanılacak varsayılan ajan (seçili dilde)
     let error_msg = if lang == "en" {
         "An error occurred during analysis."
@@ -118,35 +146,12 @@ Output ONLY one valid JSON object, no markdown:
         "expert_reports": detailed_analyses
     });
 
-    let payload = json!({
-        "model": ollama_model(),
-        "system": manager_prompt,
-        "prompt": user_payload.to_string(),
-        "stream": false,
-        "format": "json",
-        "keep_alive": "30m",
-        "options": {
-            "temperature": 0.2,
-            "top_p": 0.9
-        }
-    });
+    let manager_input = user_payload.to_string();
 
     // Yönetici ajan çağrısını dene; başarısız olursa 6 uzman raporundan
     // yerel bir özet üreterek analizi yine de tamamla (tek hata noktası olmasın).
     let manager_result: Option<(bool, String, String)> = async {
-        let response = http_client()
-            .post(format!("{}/api/generate", ollama_url()))
-            .json(&payload)
-            .send()
-            .await
-            .ok()?;
-
-        if !response.status().is_success() {
-            return None;
-        }
-
-        let res_body: serde_json::Value = response.json().await.ok()?;
-        let response_str = res_body.get("response").and_then(|r| r.as_str())?;
+        let response_str = call_llm_json(&manager_prompt, &manager_input).await.ok()?;
 
         #[derive(serde::Deserialize)]
         struct ManagerOutput {
@@ -155,7 +160,7 @@ Output ONLY one valid JSON object, no markdown:
             genel_sonuc: String,
         }
 
-        let manager_out: ManagerOutput = serde_json::from_str(response_str).ok()?;
+        let manager_out: ManagerOutput = serde_json::from_str(&response_str).ok()?;
         Some((
             manager_out.is_manipulated,
             manager_out.dominant_manipulation,
@@ -378,7 +383,7 @@ pub fn wrong_language(s: &str, lang: &str) -> bool {
     }
 }
 
-/// Yanlış dildeki metinleri tek Ollama çağrısıyla hedef dile çevirir.
+/// Yanlış dildeki metinleri tek Azure OpenAI çağrısıyla hedef dile çevirir.
 pub async fn translate_texts(texts: &[String], lang: &str) -> Option<Vec<String>> {
     let target = if lang == "en" { "English" } else { "Turkish" };
 
@@ -396,36 +401,15 @@ STRICT RULES:
 {{"translations":["..."]}}"#
     );
 
-    let payload = json!({
-        "model": ollama_model(),
-        "system": system,
-        "prompt": serde_json::to_string(texts).ok()?,
-        "stream": false,
-        "format": "json",
-        "keep_alive": "30m",
-        "options": { "temperature": 0.1 }
-    });
-
-    let response = http_client()
-        .post(format!("{}/api/generate", ollama_url()))
-        .json(&payload)
-        .send()
-        .await
-        .ok()?;
-
-    if !response.status().is_success() {
-        return None;
-    }
-
-    let res_body: serde_json::Value = response.json().await.ok()?;
-    let response_str = res_body.get("response").and_then(|r| r.as_str())?;
+    let input = serde_json::to_string(texts).ok()?;
+    let response_str = call_llm_json(&system, &input).await.ok()?;
 
     #[derive(serde::Deserialize)]
     struct TranslationOut {
         translations: Vec<String>,
     }
 
-    let out: TranslationOut = serde_json::from_str(response_str).ok()?;
+    let out: TranslationOut = serde_json::from_str(&response_str).ok()?;
     if out.translations.len() == texts.len() {
         Some(out.translations)
     } else {
@@ -472,7 +456,7 @@ async fn repair_language(report: &mut FinalReport, lang: &str) {
 
 /// Var olan bir raporu hedef dile çevirir. 6 ajanı ve sentezörü YENİDEN
 /// ÇALIŞTIRMAZ — sadece serbest metin alanlarını (genel_sonuc + aciklama'lar)
-/// TEK Ollama çağrısıyla çevirir. Arayüz dili değiştirildiğinde /v1/translate-report
+/// TEK Azure OpenAI çağrısıyla çevirir. Arayüz dili değiştirildiğinde /v1/translate-report
 /// endpoint'i tarafından kullanılır (token/performans verimliliği için).
 pub async fn translate_report(mut report: FinalReport, target_lang: &str) -> FinalReport {
     let mut texts: Vec<String> = vec![report.genel_sonuc.clone()];
@@ -500,7 +484,7 @@ pub async fn translate_report(mut report: FinalReport, target_lang: &str) -> Fin
     // onları bir kez daha çevirir (ekstra maliyet sadece hata varsa oluşur).
     repair_language(&mut report, target_lang).await;
 
-    // Çeviri başarısız olursa (Ollama erişilemez vb.) rapor olduğu gibi döner;
+    // Çeviri başarısız olursa (Azure OpenAI erişilemez vb.) rapor olduğu gibi döner;
     // istemci eski görünümü korur, veri kaybı yaşanmaz.
     report
 }

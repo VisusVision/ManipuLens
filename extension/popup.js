@@ -388,7 +388,7 @@ let cachedBaseUrlAt = 0;
 const BASE_URL_TTL = 5 * 60 * 1000;
 
 async function getBaseUrl(forceRefresh = false) {
-  return "http://127.0.0.1:3000";
+  return "https://manipulens-backend.victoriousbeach-1b167b3d.francecentral.azurecontainerapps.io";
 }
 
 // ============== TAM MAIL KAPATMA MODU (AUTH_MAIL_DISABLED) ==============

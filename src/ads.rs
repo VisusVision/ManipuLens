@@ -6,7 +6,7 @@
 //!    Envanterdeki kampanyaları profille eşleştirir, skorlar, hariç tutma
 //!    kurallarını uygular. Deterministik olduğu için test edilebilir ve
 //!    "bu reklam neden gösterildi?" sorusuna kesin cevap verilebilir.
-//! 2. **Gerekçe katmanı** (`explain_top`): yalnız kısa listeye tek bir Ollama
+//! 2. **Gerekçe katmanı** (`explain_top`): yalnız kısa listeye tek bir Azure OpenAI
 //!    çağrısı yapar ve gerekçeyi insan cümlesine çevirir. Hedefleme KARARINI
 //!    vermez — nondeterministik bir modelin reklam kararını denetlemek mümkün
 //!    olmaz, üstelik model çöktüğünde hedefleme de çökerdi.
@@ -15,7 +15,7 @@
 //! olmalıdır. Çağıran taraf bunu doğrular; `score_candidates` profil almadan
 //! zaten aday üretemez.
 
-use crate::agents::{http_client, ollama_model, ollama_url};
+use crate::agents::call_llm_json;
 use crate::types::{DemographicInference, UserProfile};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -316,10 +316,8 @@ pub async fn explain_top(candidates: &[ScoredAd], profile: &UserProfile, lang: &
     let out_lang = if lang == "en" { "English" } else { "Turkish" };
     let ozet = inference_of(profile).map(|i| i.ozet).unwrap_or_default();
 
-    let payload = json!({
-        "model": ollama_model(),
-        "system": format!(
-            r#"You write the "why am I seeing this ad?" line shown under each suggestion.
+    let system = format!(
+        r#"You write the "why am I seeing this ad?" line shown under each suggestion.
 
 INPUT: JSON with "profile_summary" and "ads" (each with id, brand, category and the matched rule labels).
 For every ad write ONE short sentence naming the concrete reason it matched - the interest, tendency or past exposure - in plain words.
@@ -328,35 +326,21 @@ LANGUAGE: write every sentence in {out_lang}.
 
 Output ONLY one valid JSON object, no markdown:
 {{"reasons":[{{"id":"<ad id>","reason":"..."}}]}}"#
-        ),
-        "prompt": json!({
-            "profile_summary": ozet,
-            "ads": candidates.iter().map(|c| json!({
-                "id": c.ad.id,
-                "brand": c.ad.brand,
-                "category": c.ad.category,
-                "matched": c.reasons,
-            })).collect::<Vec<_>>(),
-        })
-        .to_string(),
-        "stream": false,
-        "format": "json",
-        "keep_alive": "30m",
-        "options": {"temperature": 0.2, "top_p": 0.9}
-    });
+    );
+
+    let input = json!({
+        "profile_summary": ozet,
+        "ads": candidates.iter().map(|c| json!({
+            "id": c.ad.id,
+            "brand": c.ad.brand,
+            "category": c.ad.category,
+            "matched": c.reasons,
+        })).collect::<Vec<_>>(),
+    })
+    .to_string();
 
     let llm: Option<Vec<(String, String)>> = async {
-        let response = http_client()
-            .post(format!("{}/api/generate", ollama_url()))
-            .json(&payload)
-            .send()
-            .await
-            .ok()?;
-        if !response.status().is_success() {
-            return None;
-        }
-        let body: serde_json::Value = response.json().await.ok()?;
-        let text = body.get("response").and_then(|r| r.as_str())?;
+        let text = call_llm_json(&system, &input).await.ok()?;
 
         #[derive(Deserialize)]
         struct Reason {
@@ -368,7 +352,7 @@ Output ONLY one valid JSON object, no markdown:
             reasons: Vec<Reason>,
         }
 
-        let out: Out = serde_json::from_str(text).ok()?;
+        let out: Out = serde_json::from_str(&text).ok()?;
         Some(out.reasons.into_iter().map(|r| (r.id, r.reason)).collect())
     }
     .await;

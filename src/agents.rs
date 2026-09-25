@@ -2,21 +2,19 @@ use crate::types::{AgentAnalysis, DemographicInference};
 use serde_json::json;
 use std::sync::OnceLock;
 
-/// Ollama sunucu adresi: OLLAMA_URL env değişkeni ile değiştirilebilir
-/// (Docker içinde http://host.docker.internal:11434 gerekir).
-pub fn ollama_url() -> String {
-    std::env::var("OLLAMA_URL").unwrap_or_else(|_| "http://localhost:11434".to_string())
+pub fn azure_openai_endpoint() -> Result<String, String> {
+    std::env::var("AZURE_OPENAI_ENDPOINT")
+        .map_err(|_| "AZURE_OPENAI_ENDPOINT ortam değişkeni tanımlı değil.".to_string())
 }
 
-/// Analizde kullanılacak Ollama modeli: OLLAMA_MODEL ile değiştirilebilir.
-///
-/// Sabit değil çünkü model kapasitesi ölçülecek bir değişken: `--analyze-file`
-/// aynı etiketli seti farklı modellerle koşup kalibrasyonu karşılaştırmak için
-/// var. Ayrıca model yerelden silindiğinde (llama3'te olduğu gibi) sistem her
-/// metne "manipülasyon yok" demeye başlıyordu; yeniden derlemeden model
-/// değiştirebilmek bu arızadan çıkış yolu.
-pub fn ollama_model() -> String {
-    std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string())
+pub fn azure_openai_api_key() -> Result<String, String> {
+    std::env::var("AZURE_OPENAI_API_KEY")
+        .map_err(|_| "AZURE_OPENAI_API_KEY ortam değişkeni tanımlı değil.".to_string())
+}
+
+pub fn azure_openai_deployment() -> String {
+    std::env::var("AZURE_OPENAI_DEPLOYMENT")
+        .unwrap_or_else(|_| "manipulens-gpt-5-mini".to_string())
 }
 
 /// Tek paylaşımlı HTTP client: her istekte yeni bağlantı havuzu kurmayı önler.
@@ -289,7 +287,7 @@ LENGTH IS NOT A SIGNAL: a single short sentence can be "ikna". Never pick a desc
 Output ONLY one valid JSON object, no markdown, no extra text:
 {"category":"bilgi"|"talimat"|"rapor"|"duyuru"|"kisisel"|"inceleme"|"ikna","needs_analysis":true|false}"#;
 
-    let raw = call_ollama_json(prompt, text).await?;
+    let raw = call_llm_json(prompt, text).await?;
 
     #[derive(serde::Deserialize)]
     struct Triage {
@@ -347,7 +345,7 @@ CALIBRATION:
 Output ONLY one valid JSON object, no markdown, no extra text:
 {"promotes":true|false,"offer":"short phrase naming what is offered, or empty"}"#;
 
-    let raw = call_ollama_json(prompt, text).await?;
+    let raw = call_llm_json(prompt, text).await?;
 
     #[derive(serde::Deserialize)]
     struct Intent {
@@ -362,44 +360,110 @@ Output ONLY one valid JSON object, no markdown, no extra text:
     Ok(i.promotes)
 }
 
-async fn call_ollama_agent(system_prompt: &str, user_text: &str) -> Result<AgentAnalysis, String> {
-    let raw = call_ollama_json(system_prompt, user_text).await?;
-    serde_json::from_str(&raw).map_err(|e| e.to_string())
+async fn call_llm_agent(
+    system_prompt: &str,
+    user_text: &str,
+) -> Result<AgentAnalysis, String> {
+    let raw = call_llm_json(system_prompt, user_text).await?;
+    serde_json::from_str(&raw)
+        .map_err(|e| format!("Agent JSON parse hatası: {e}\\nYanıt: {raw}"))
 }
 
-/// Ollama'dan ham JSON metni ister. `call_ollama_agent` ve demografi ajanı
-/// aynı çağrı ayarlarını (model, sıcaklık, keep_alive) paylaşsın diye ayrıldı.
-async fn call_ollama_json(system_prompt: &str, user_text: &str) -> Result<String, String> {
+/// Azure OpenAI Responses API'den ham JSON metni ister.
+///
+/// Bütün LLM kullanan yollar bu fonksiyondan geçer:
+/// - tür kapısı
+/// - ticari amaç kapısı
+/// - 6 uzman ajan
+/// - demografi ajanı
+///
+/// Böylece sağlayıcı/model ayarı tek noktada tutulur.
+pub(crate) async fn call_llm_json(system_prompt: &str, user_text: &str) -> Result<String, String> {
+    let endpoint = azure_openai_endpoint()?;
+    let api_key = azure_openai_api_key()?;
+    let deployment = azure_openai_deployment();
+
     let payload = json!({
-        "model": ollama_model(),
-        "system": system_prompt,
-        "prompt": user_text,
-        "stream": false,
-        "format": "json",
-        // Model 30 dk boyunca VRAM'de sıcak kalsın; tekrar yükleme gecikmesi olmasın.
-        "keep_alive": "30m",
-        "options": {
-            "temperature": 0.2,
-            "top_p": 0.9
-        }
+        "model": deployment,
+        "instructions": system_prompt,
+        "input": format!("Return ONLY a valid JSON object. Do not use markdown. Process only the data/text after this instruction.\n\n{}", user_text),
+        "store": false,
+        "reasoning": {
+            "effort": "minimal"
+        },
+        "text": {
+            "format": {
+                "type": "json_object"
+            }
+        },
+        "max_output_tokens": 2000
     });
 
+    let url = format!("{}/responses", endpoint.trim_end_matches('/'));
+
     let response = http_client()
-        .post(format!("{}/api/generate", ollama_url()))
+        .post(&url)
+        .header("api-key", api_key)
+        .header("Content-Type", "application/json")
         .json(&payload)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Azure OpenAI bağlantı hatası: {e}"))?;
 
-    if response.status().is_success() {
-        let res_body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    let status = response.status();
 
-        if let Some(response_str) = res_body.get("response").and_then(|r| r.as_str()) {
-            return Ok(response_str.to_string());
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Azure OpenAI yanıtı okunamadı: {e}"))?;
+
+    if !status.is_success() {
+        return Err(format!("Azure OpenAI hatası ({status}): {body}"));
+    }
+
+    let value: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("Azure OpenAI JSON yanıtı çözülemedi: {e}"))?;
+
+    // HTTP 200 dönse bile Responses API çıktı bütçesi dolarsa status=incomplete
+    // olabilir. Bunu sessizce "boş yanıt" saymak yerine açık hata döndür.
+    if value.get("status").and_then(|v| v.as_str()) == Some("incomplete") {
+        let reason = value
+            .get("incomplete_details")
+            .and_then(|v| v.get("reason"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("bilinmeyen neden");
+        return Err(format!(
+            "Azure OpenAI yanıtı tamamlanamadı: {reason}. max_output_tokens sınırını veya reasoning ayarını kontrol edin."
+        ));
+    }
+
+    // Bazı istemci biçimlerinde kolaylaştırılmış output_text alanı bulunabilir.
+    if let Some(text) = value.get("output_text").and_then(|v| v.as_str()) {
+        if !text.trim().is_empty() {
+            return Ok(text.to_string());
         }
     }
 
-    Err("Ollama'dan geçerli bir yanıt alınamadı.".to_string())
+    // REST Responses API'nin standart output -> content -> text yapısı.
+    if let Some(outputs) = value.get("output").and_then(|v| v.as_array()) {
+        for output in outputs {
+            if let Some(contents) = output.get("content").and_then(|v| v.as_array()) {
+                for content in contents {
+                    if content.get("type").and_then(|v| v.as_str()) == Some("output_text") {
+                        if let Some(text) = content.get("text").and_then(|v| v.as_str()) {
+                            if !text.trim().is_empty() {
+                                return Ok(text.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Err(format!(
+        "Azure OpenAI geçerli bir metin yanıtı döndürmedi. Ham yanıt: {body}"
+    ))
 }
 
 /// Güven eşiği: bunun altındaki tahminler "bilinmiyor" sayılır.
@@ -409,7 +473,7 @@ pub const DEMOGRAPHIC_MIN_CONFIDENCE: f32 = 0.60;
 ///
 /// Diğer 6 ajandan iki farkı var:
 /// 1. Girdisi tek bir metin değil, kullanıcının biriken geçmişidir.
-/// 2. Analiz akışında çalışmaz. `run_orchestrator` zaten 7 Ollama çağrısı
+/// 2. Analiz akışında çalışmaz. `run_orchestrator` zaten 7 LLM çağrısı
 ///    yapıyor; 8.'si her analizin yanıt süresine binerdi. Bu ajan isteğin
 ///    dışında, birkaç analizde bir tetiklenir.
 ///
@@ -447,7 +511,7 @@ Output ONLY one valid JSON object, no markdown, no extra text:
 {{"yas_araligi":{{"deger":"...","guven":0.0,"dayanak":"..."}},"cinsiyet":{{"deger":"...","guven":0.0,"dayanak":"..."}},"egitim_seviyesi":{{"deger":"...","guven":0.0,"dayanak":"..."}},"tuketici_egilimi":{{"deger":"...","guven":0.0,"dayanak":"..."}},"ilgi_alanlari":[],"ozet":"..."}}"#
     );
 
-    let raw = call_ollama_json(&prompt, evidence).await?;
+    let raw = call_llm_json(&prompt, evidence).await?;
     let mut inference: DemographicInference =
         serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     sanitize_demographic(&mut inference, lang);
@@ -630,7 +694,7 @@ TEST: would neutral wording of the same facts change the reader's belief? If not
 {shared}"#,
         shared = shared_rules("Dilsel", out_lang)
     );
-    call_ollama_agent(&prompt, text).await
+    call_llm_agent(&prompt, text).await
 }
 
 pub async fn analyze_psychological(text: &str, lang: &str) -> Result<AgentAnalysis, String> {
@@ -644,7 +708,7 @@ TEST: is emotion weaponized to bypass rational judgment rather than honestly inf
 {shared}"#,
         shared = shared_rules("Psikolojik", out_lang)
     );
-    call_ollama_agent(&prompt, text).await
+    call_llm_agent(&prompt, text).await
 }
 
 pub async fn analyze_behavioral(text: &str, lang: &str) -> Result<AgentAnalysis, String> {
@@ -658,7 +722,7 @@ TEST: does the urgency exist only to stop the reader from thinking? If not -> de
 {shared}"#,
         shared = shared_rules("Davranışsal", out_lang)
     );
-    call_ollama_agent(&prompt, text).await
+    call_llm_agent(&prompt, text).await
 }
 
 pub async fn analyze_perceptual(text: &str, lang: &str) -> Result<AgentAnalysis, String> {
@@ -678,7 +742,7 @@ CALIBRATION (decisions only, never copy their wording):
 {shared}"#,
         shared = shared_rules("Algısal", out_lang)
     );
-    call_ollama_agent(&prompt, text).await
+    call_llm_agent(&prompt, text).await
 }
 
 pub async fn analyze_social(text: &str, lang: &str) -> Result<AgentAnalysis, String> {
@@ -692,7 +756,7 @@ TEST: is group belonging or social fear substituting for evidence? If not -> det
 {shared}"#,
         shared = shared_rules("Sosyal", out_lang)
     );
-    call_ollama_agent(&prompt, text).await
+    call_llm_agent(&prompt, text).await
 }
 
 pub async fn analyze_marketing(text: &str, lang: &str) -> Result<AgentAnalysis, String> {
@@ -731,5 +795,5 @@ CALIBRATION (decisions only, never copy their wording):
 {shared}"#,
         shared = shared_rules("Pazarlama", out_lang)
     );
-    call_ollama_agent(&prompt, text).await
+    call_llm_agent(&prompt, text).await
 }
