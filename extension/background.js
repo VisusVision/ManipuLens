@@ -110,7 +110,6 @@ async function startAnalysisInBackground(selectedText, tabId) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
         "Authorization": `Bearer ${storage.authToken}`
       },
       body: JSON.stringify({

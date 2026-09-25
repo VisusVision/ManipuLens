@@ -379,18 +379,13 @@ async function handleSessionExpired() {
   showAuthView("login");
 }
 
-// PERFORMANS: server_config.json her istekte GitHub'dan (cache-bust + no-store)
-// indiriliyordu; geçmiş/çeviri/auth çağrılarının en yavaş kısmı buydu.
-// Artık URL 5 dk bellek + chrome.storage önbelleğinde tutulur; popup her
-// açılışta yeniden indirmez. ngrok adresi değişirse forceRefresh ile tazelenir.
-let cachedBaseUrl = null;
-let cachedBaseUrlAt = 0;
-const BASE_URL_TTL = 5 * 60 * 1000;
+// Production backend: Azure Container Apps
+const API_BASE_URL =
+  "https://manipulens-backend.victoriousbeach-1b167b3d.francecentral.azurecontainerapps.io";
 
-async function getBaseUrl(forceRefresh = false) {
-  return "https://manipulens-backend.victoriousbeach-1b167b3d.francecentral.azurecontainerapps.io";
+async function getBaseUrl() {
+  return API_BASE_URL;
 }
-
 // ============== TAM MAIL KAPATMA MODU (AUTH_MAIL_DISABLED) ==============
 // Yalnız şifre sıfırlama kodu arayüzünü etkiler. Kayıt doğrulamasının kapalı
 // olması, register/login yanıtındaki token üzerinden zaten doğrudan ilerler.
@@ -404,7 +399,6 @@ async function refreshMailMode() {
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
       const response = await fetch(`${baseUrl}/healthz`, {
-        headers: { "ngrok-skip-browser-warning": "true" },
         signal: controller.signal
       });
       const data = await response.json();
@@ -439,8 +433,7 @@ async function authApi(path, body) {
     const response = await fetch(`${baseUrl}${path}`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true"
+       "Content-Type": "application/json"
       },
       body: JSON.stringify({ ...body, lang: currentLang }),
       signal: controller.signal
@@ -465,14 +458,10 @@ function apiErrorMessage(e) {
 }
 
 // ============== ÇEVİRİ (/v1/translate-report) ==============
-// REGRESYON DÜZELTMESİ: baseUrl önbelleği eklendikten sonra ngrok adresi
-// değiştiğinde çeviri isteği sessizce başarısız olup eski (çevrilmemiş)
-// görünümü geri koyuyordu — "AI çıktıları aynı kalıyor" bunun sonucuydu.
-// Artık: 60 sn timeout (Ollama çevirisi uzun sürebilir) + ilk deneme
-// başarısızsa config önbelleği yenilenip BİR kez daha denenir + yine de
-// olmazsa kullanıcıya görünür bir hata mesajı gösterilir.
-async function requestTranslationOnce(report, lang, forceBaseRefresh = false) {
-  const baseUrl = await getBaseUrl(forceBaseRefresh);
+// Çeviri isteği için 60 sn timeout kullanılır.
+// Geçici ağ/backend hatasında istek bir kez daha denenir.
+async function requestTranslationOnce(report, lang) {
+  const baseUrl = await getBaseUrl();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
 
@@ -482,7 +471,6 @@ async function requestTranslationOnce(report, lang, forceBaseRefresh = false) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       },
       body: JSON.stringify({ report, lang }),
@@ -504,7 +492,7 @@ async function requestTranslation(report, lang) {
     return await requestTranslationOnce(report, lang);
   } catch (firstError) {
     console.warn("Çeviri ilk deneme başarısız, config yenilenip tekrar deneniyor:", firstError);
-    return await requestTranslationOnce(report, lang, true);
+    return await requestTranslationOnce(report, lang);
   }
 }
 
@@ -574,11 +562,11 @@ function showTransientError(message) {
 // sonra açmak ağa çıkmadan anında render edilir.
 const HISTORY_CACHE_TTL = 60 * 1000;
 
-async function fetchHistory(clientId, forceBaseRefresh = false) {
-  const baseUrl = await getBaseUrl(forceBaseRefresh);
+async function fetchHistory(clientId) {
+  const baseUrl = await getBaseUrl();
   const controller = new AbortController();
   // 60 sn: dil değişiminden sonraki İLK geçmiş açılışında backend eski
-  // kayıtları Ollama ile çevirebilir (yavaş olabilir). Çeviri artık
+  // kayıtları Azure OpenAI ile çevirebilir (yavaş olabilir). Çeviri artık
   // veritabanına kalıcı yazıldığı için sonraki açılışlar anında döner.
   const timer = setTimeout(() => controller.abort(), 60000);
 
@@ -589,7 +577,6 @@ async function fetchHistory(clientId, forceBaseRefresh = false) {
     const token = await getAuthToken();
     const response = await fetch(`${baseUrl}/v1/history?lang=${currentLang}`, {
       headers: {
-        "ngrok-skip-browser-warning": "true",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       },
       signal: controller.signal
@@ -1239,9 +1226,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
           history = await fetchHistory(clientId);
         } catch (firstError) {
-          // ngrok adresi değişmiş olabilir: config önbelleğini yenileyip bir kez daha dene
-          console.warn("Geçmiş ilk deneme başarısız, config yenilenip tekrar deneniyor:", firstError);
-          history = await fetchHistory(clientId, true);
+          // Geçici ağ/backend hatasına karşı bir kez daha dene
+          console.warn("Geçmiş ilk deneme başarısız, tekrar deneniyor:", firstError);
+          history = await fetchHistory(clientId);
         }
 
         await chrome.storage.local.set({
@@ -1496,8 +1483,7 @@ async function adsApi(path, method = "GET", body = null) {
       method,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "ngrok-skip-browser-warning": "true"
+        "Authorization": `Bearer ${token}`
       },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal
