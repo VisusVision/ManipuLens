@@ -1746,12 +1746,75 @@ DATABASE_URL ile adres verebilirsin."));
         std::process::exit(run_gate_measurement(path).await);
     }
 
-    let cors = CorsLayer::new()
-    .allow_origin(
-        "chrome-extension://bpkhpedfkjhlhclpfgkljadkcnjlgcoc"
-            .parse::<axum::http::HeaderValue>()
-            .unwrap(),
-    )
+    let allowed_origins_raw = std::env::var("ALLOWED_EXTENSION_ORIGINS")
+    .unwrap_or_else(|_| {
+        "chrome-extension://bpkhpedfkjhlhclpfgkljadkcnjlgcoc".to_string()
+    });
+
+let allowed_origins: Vec<axum::http::HeaderValue> = allowed_origins_raw
+    .split(',')
+    .filter_map(|origin| {
+        let origin = origin.trim();
+
+        if !origin.starts_with("chrome-extension://") {
+            tracing::warn!("Geçersiz CORS origin atlandı: {}", origin);
+            return None;
+        }
+
+        match origin.parse::<axum::http::HeaderValue>() {
+            Ok(value) => Some(value),
+            Err(_) => {
+                tracing::warn!("Geçersiz CORS origin atlandı: {}", origin);
+                None
+            }
+        }
+    })
+    .collect();
+
+if allowed_origins.is_empty() {
+    panic!("ALLOWED_EXTENSION_ORIGINS geçerli bir Chrome extension origin içermiyor");
+}
+
+tracing::info!(
+    "İzin verilen Chrome extension origin sayısı: {}",
+    allowed_origins.len()
+);
+let allowed_origins_raw = std::env::var("ALLOWED_EXTENSION_ORIGINS")
+    .unwrap_or_else(|_| {
+        "chrome-extension://bpkhpedfkjhlhclpfgkljadkcnjlgcoc".to_string()
+    });
+
+let allowed_origins: Vec<axum::http::HeaderValue> = allowed_origins_raw
+    .split(',')
+    .filter_map(|origin| {
+        let origin = origin.trim();
+
+        if !origin.starts_with("chrome-extension://") {
+            tracing::warn!("Geçersiz CORS origin atlandı: {}", origin);
+            return None;
+        }
+
+        match origin.parse::<axum::http::HeaderValue>() {
+            Ok(value) => Some(value),
+            Err(_) => {
+                tracing::warn!("Geçersiz CORS origin atlandı: {}", origin);
+                None
+            }
+        }
+    })
+    .collect();
+
+if allowed_origins.is_empty() {
+    panic!("ALLOWED_EXTENSION_ORIGINS geçerli bir Chrome extension origin içermiyor");
+}
+
+tracing::info!(
+    "İzin verilen Chrome extension origin sayısı: {}",
+    allowed_origins.len()
+);
+
+let cors = CorsLayer::new()
+    .allow_origin(allowed_origins)
     .allow_methods([
         axum::http::Method::GET,
         axum::http::Method::POST,
@@ -1764,13 +1827,12 @@ DATABASE_URL ile adres verebilirsin."));
     ])
     .expose_headers(Any)
     .max_age(Duration::from_secs(86400));
-    let state = Arc::new(AppState {
-        db,
-        codes: Mutex::new(HashMap::new()),
-        login_guards: Mutex::new(HashMap::new()),
-        analyze_rate: Mutex::new(HashMap::new()),
-    });
-
+     let state = Arc::new(AppState {
+    db,
+    codes: Mutex::new(HashMap::new()),
+    login_guards: Mutex::new(HashMap::new()),
+    analyze_rate: Mutex::new(HashMap::new()),
+});
     let app = Router::new()
         .route("/v1/register", post(handle_register))
         .route("/v1/login", post(handle_login))
